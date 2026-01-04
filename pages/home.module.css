@@ -1,0 +1,105 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-bottom: 80px;
+}
+
+.header {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.userIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.userNameInput {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid white;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  color: #333;
+}
+
+.userNameInput:focus {
+  outline: none;
+  background: white;
+}
+
+.main {
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+.heroDisplay {
+  width: 100%;
+  max-width: 400px;
+}
+
+.heroCard {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  border: 4px solid;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.heroName {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.heroAttribute {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.heroDescription {
+  font-size: 16px;
+  color: #888;
+}
+
+.rankMatchButton {
+  padding: 20px 60px;
+  font-size: 24px;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.rankMatchButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+.rankMatchButton:active {
+  transform: translateY(0);
+}
+

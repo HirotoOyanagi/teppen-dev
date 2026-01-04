@@ -18,3 +18,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 横画面対応 */
+@media (orientation: landscape) {
+  body {
+    /* 横画面でのスタイル調整 */
+  }
+}
+

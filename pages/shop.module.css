@@ -1,0 +1,40 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-bottom: 80px;
+}
+
+.header {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+}
+
+.header h1 {
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.content {
+  padding: 40px 20px;
+}
+
+.comingSoon {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 60px 40px;
+}
+
+.comingSoon h2 {
+  font-size: 32px;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.comingSoon p {
+  font-size: 18px;
+  color: #666;
+}
+
