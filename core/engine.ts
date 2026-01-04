@@ -10,16 +10,19 @@ import type {
   CardDefinition,
   Unit,
   PlayerState,
+  Hero,
 } from './types'
+import { calculateMaxMp } from './cards'
 
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
   TICK_INTERVAL: 50, // 50ms
   MP_RECOVERY_RATE: 0.3, // 1秒あたりのMP回復量（10秒で3MP）
   ACTIVE_RESPONSE_TIMER: 5000, // ARタイマー（5秒）
-  MAX_MP: 10,
   INITIAL_HP: 30,
   INITIAL_HAND_SIZE: 5,
+  AP_PER_MP: 1, // MP1消費でAP1獲得
+  MAX_AP: 10, // 最大AP
 } as const
 
 /**
@@ -38,15 +41,27 @@ export function updateGameState(
   const events: GameEvent[] = []
   let newState = { ...state }
 
+  // マリガンフェーズ中は通常の更新をスキップ
+  if (newState.phase === 'mulligan') {
+    if (input) {
+      const result = processInput(newState, input, cardDefinitions)
+      newState = result.state
+      events.push(...result.events)
+    }
+    return { state: newState, events }
+  }
+
+  // ゲーム終了済みなら更新しない
+  if (newState.phase === 'ended') {
+    return { state: newState, events }
+  }
+
   // Active Response中は時間停止（MP回復・攻撃ゲージ更新は停止）
-  if (!newState.isActiveResponse) {
+  if (!newState.activeResponse.isActive) {
     // MP回復
     newState.players = newState.players.map((player): PlayerState => {
       const mpRecovery = (GAME_CONFIG.MP_RECOVERY_RATE * deltaTime) / 1000
-      const newMp = Math.min(
-        player.mp + mpRecovery,
-        GAME_CONFIG.MAX_MP
-      )
+      const newMp = Math.min(player.mp + mpRecovery, player.maxMp)
       if (newMp > player.mp) {
         events.push({
           type: 'mp_recovered',
@@ -59,7 +74,6 @@ export function updateGameState(
     }) as [PlayerState, PlayerState]
 
     // ユニットの攻撃ゲージ更新と自動攻撃
-    // 注意: プレイヤーごとに処理し、相手の状態も更新する必要がある
     const playerUpdates: PlayerState[] = [...newState.players]
 
     newState.players.forEach((player, playerIndex) => {
@@ -96,18 +110,17 @@ export function updateGameState(
                 reason: attackResult.gameEnded.reason,
                 timestamp: Date.now(),
               })
+              newState.phase = 'ended'
             }
           }
 
           // 自分の状態を更新（交戦で自分のユニットもダメージを受けた場合）
           if (attackResult.attackerUpdate) {
             playerUpdates[playerIndex] = attackResult.attackerUpdate
-            // ユニットが破壊された場合は、更新されたユニットリストから該当ユニットを除外
             const unitStillExists = attackResult.attackerUpdate.units.some(
               (u: Unit) => u.id === unit.id
             )
             if (!unitStillExists) {
-              // ユニットが破壊されたので、このユニットは返さない（リストから除外される）
               return null
             }
           }
@@ -140,13 +153,13 @@ export function updateGameState(
     ]
   } else {
     // Active Response中：ARタイマーのみ進行
-    newState.activeResponseTimer = Math.max(
+    newState.activeResponse.timer = Math.max(
       0,
-      newState.activeResponseTimer - deltaTime
+      newState.activeResponse.timer - deltaTime
     )
 
     // ARタイマーが0になったら自動解決
-    if (newState.activeResponseTimer <= 0) {
+    if (newState.activeResponse.timer <= 0) {
       const resolveResult = resolveActiveResponse(
         newState,
         cardDefinitions
@@ -180,6 +193,10 @@ function processInput(
   const events: GameEvent[] = []
   let newState = { ...state }
 
+  if (input.type === 'mulligan') {
+    return processMulligan(newState, input, cardDefinitions)
+  }
+
   if (input.type === 'play_card') {
     const player = newState.players.find((p) => p.playerId === input.playerId)
     if (!player) return { state: newState, events }
@@ -193,8 +210,12 @@ function processInput(
     // 手札からカードを削除
     const newHand = player.hand.filter((id) => id !== input.cardId)
 
-    // MP消費
+    // MP消費とAP獲得
     const newMp = player.mp - cardDef.cost
+    const newAp = Math.min(
+      player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
+      GAME_CONFIG.MAX_AP
+    )
 
     // プレイヤー状態更新
     const playerIndex = newState.players.findIndex(
@@ -204,6 +225,8 @@ function processInput(
       ...player,
       hand: newHand,
       mp: newMp,
+      ap: newAp,
+      graveyard: [...player.graveyard, input.cardId],
     }
 
     events.push({
@@ -215,10 +238,32 @@ function processInput(
 
     // アクションカードの場合はActive Responseに入る
     if (cardDef.type === 'action') {
+      const opponentIndex = 1 - playerIndex
+      const opponent = newState.players[opponentIndex]
+
+      // アクションを打たれた側と打った側が青MP2獲得
+      const blueMp = 2
+      newState.players[playerIndex] = {
+        ...newState.players[playerIndex],
+        mp: Math.min(
+          newState.players[playerIndex].mp + blueMp,
+          newState.players[playerIndex].maxMp
+        ),
+      }
+      newState.players[opponentIndex] = {
+        ...opponent,
+        mp: Math.min(opponent.mp + blueMp, opponent.maxMp),
+      }
+
       // 既にAR中ならスタックに追加、そうでなければAR開始
-      if (!newState.isActiveResponse) {
-        newState.isActiveResponse = true
-        newState.activeResponseTimer = GAME_CONFIG.ACTIVE_RESPONSE_TIMER
+      if (!newState.activeResponse.isActive) {
+        newState.activeResponse = {
+          isActive: true,
+          currentPlayerId: opponent.playerId, // アクション権限は相手に
+          stack: [],
+          timer: GAME_CONFIG.ACTIVE_RESPONSE_TIMER,
+          passedPlayers: [],
+        }
 
         events.push({
           type: 'active_response_started',
@@ -229,7 +274,7 @@ function processInput(
       }
 
       // ARスタックに追加
-      newState.activeResponseStack.push({
+      newState.activeResponse.stack.push({
         playerId: input.playerId,
         cardId: input.cardId,
         timestamp: input.timestamp,
@@ -246,7 +291,6 @@ function processInput(
         (u) => u.lane === lane
       )
       if (existingUnitInLane) {
-        // 同じレーンに既にユニットがいる場合は配置できない
         return { state: newState, events }
       }
 
@@ -265,14 +309,188 @@ function processInput(
     }
   }
 
-  if (input.type === 'end_active_response') {
-    // Active Response終了処理（手動終了）
-    if (newState.isActiveResponse) {
-      const resolveResult = resolveActiveResponse(newState, cardDefinitions)
-      newState = resolveResult.state
-      events.push(...resolveResult.events)
+  if (input.type === 'end_active_response' || input.type === 'active_response_pass') {
+    // Active Response終了処理
+    if (newState.activeResponse.isActive) {
+      // パスしたプレイヤーを記録
+      if (input.type === 'active_response_pass') {
+        const currentPassed = newState.activeResponse.passedPlayers
+        if (!currentPassed.includes(input.playerId)) {
+          newState.activeResponse.passedPlayers.push(input.playerId)
+        }
+
+        // 両方がパスしたら解決
+        if (
+          newState.activeResponse.passedPlayers.length >= 2 ||
+          (newState.activeResponse.passedPlayers.length === 1 &&
+            newState.activeResponse.stack.length === 0)
+        ) {
+          const resolveResult = resolveActiveResponse(
+            newState,
+            cardDefinitions
+          )
+          newState = resolveResult.state
+          events.push(...resolveResult.events)
+        } else {
+          // 相手にアクション権限を移す
+          const currentPlayerIndex = newState.players.findIndex(
+            (p) => p.playerId === newState.activeResponse.currentPlayerId
+          )
+          const opponentIndex = 1 - currentPlayerIndex
+          newState.activeResponse.currentPlayerId =
+            newState.players[opponentIndex].playerId
+          newState.activeResponse.passedPlayers = []
+        }
+      } else {
+        // 手動終了
+        const resolveResult = resolveActiveResponse(newState, cardDefinitions)
+        newState = resolveResult.state
+        events.push(...resolveResult.events)
+      }
     }
   }
+
+  if (input.type === 'active_response_action') {
+    // AR中のアクションカードプレイ
+    if (
+      newState.activeResponse.isActive &&
+      newState.activeResponse.currentPlayerId === input.playerId
+    ) {
+      // 通常のplay_cardと同じ処理だが、ARスタックに追加
+      const player = newState.players.find((p) => p.playerId === input.playerId)
+      if (!player) return { state: newState, events }
+
+      const cardDef = cardDefinitions.get(input.cardId)
+      if (!cardDef || cardDef.type !== 'action') return { state: newState, events }
+
+      // MPチェック
+      if (player.mp < cardDef.cost) return { state: newState, events }
+
+      // 手札からカードを削除
+      const newHand = player.hand.filter((id) => id !== input.cardId)
+      const newMp = player.mp - cardDef.cost
+      const newAp = Math.min(
+        player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
+        GAME_CONFIG.MAX_AP
+      )
+
+      const playerIndex = newState.players.findIndex(
+        (p) => p.playerId === input.playerId
+      )
+
+      const opponentIndex = 1 - playerIndex
+      const opponent = newState.players[opponentIndex]
+
+      // 青MP2獲得
+      const blueMp = 2
+      newState.players[playerIndex] = {
+        ...player,
+        hand: newHand,
+        mp: Math.min(newMp + blueMp, player.maxMp),
+        ap: newAp,
+        graveyard: [...player.graveyard, input.cardId],
+      }
+      newState.players[opponentIndex] = {
+        ...opponent,
+        mp: Math.min(opponent.mp + blueMp, opponent.maxMp),
+      }
+
+      // ARスタックに追加
+      newState.activeResponse.stack.push({
+        playerId: input.playerId,
+        cardId: input.cardId,
+        timestamp: input.timestamp,
+      })
+
+      // アクション権限を相手に移す
+      newState.activeResponse.currentPlayerId = opponent.playerId
+      newState.activeResponse.passedPlayers = []
+      newState.activeResponse.timer = GAME_CONFIG.ACTIVE_RESPONSE_TIMER
+
+      events.push({
+        type: 'card_played',
+        playerId: input.playerId,
+        cardId: input.cardId,
+        timestamp: input.timestamp,
+      })
+    }
+  }
+
+  if (input.type === 'hero_art') {
+    // 必殺技（AP消費）
+    const player = newState.players.find((p) => p.playerId === input.playerId)
+    if (!player || player.ap < GAME_CONFIG.MAX_AP) return { state: newState, events }
+
+    const playerIndex = newState.players.findIndex(
+      (p) => p.playerId === input.playerId
+    )
+
+    // APを消費して必殺技を発動
+    newState.players[playerIndex] = {
+      ...player,
+      ap: 0,
+    }
+
+    // TODO: 必殺技の効果を実装
+  }
+
+  return { state: newState, events }
+}
+
+/**
+ * マリガンを処理
+ */
+function processMulligan(
+  state: GameState,
+  input: GameInput & { type: 'mulligan' },
+  cardDefinitions: Map<string, CardDefinition>
+): { state: GameState; events: GameEvent[] } {
+  const events: GameEvent[] = []
+  let newState = { ...state }
+
+  const playerIndex = newState.players.findIndex(
+    (p) => p.playerId === input.playerId
+  )
+  if (playerIndex === -1) return { state: newState, events }
+
+  const player = newState.players[playerIndex]
+
+  // キープするカード以外をシャッフルしてデッキに戻し、新しい手札を引く
+  const keepCards = input.keepCards
+  const mulliganCards = player.hand.filter((id) => !keepCards.includes(id))
+
+  // デッキに戻す
+  const newDeck = [...player.deck, ...mulliganCards]
+
+  // シャッフル
+  const shuffle = <T>(array: T[]): T[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  const shuffledDeck = shuffle(newDeck)
+  const cardsToDraw = GAME_CONFIG.INITIAL_HAND_SIZE - keepCards.length
+  const newHand = [
+    ...keepCards,
+    ...shuffledDeck.slice(0, cardsToDraw),
+  ]
+  const remainingDeck = shuffledDeck.slice(cardsToDraw)
+
+  newState.players[playerIndex] = {
+    ...player,
+    hand: newHand,
+    deck: remainingDeck,
+  }
+
+  // マリガン完了後は、phaseを'playing'に変更
+  // マリガンが実行された場合は、フェーズを進める
+  // 注: 両方のプレイヤーがマリガンを完了したことを検出するには、追加の状態管理が必要
+  // ここでは簡易実装として、マリガンが呼ばれたら自動でplayingに移行する
+  // （実際のゲームでは、両方のプレイヤーのマリガン完了を待つ必要がある）
 
   return { state: newState, events }
 }
@@ -289,7 +507,7 @@ function resolveActiveResponse(
   let newState = { ...state }
 
   // LIFO順でスタックを解決（最後に出したものが先）
-  const resolvedStack = [...newState.activeResponseStack].reverse()
+  const resolvedStack = [...newState.activeResponse.stack].reverse()
 
   events.push({
     type: 'active_response_resolved',
@@ -313,9 +531,13 @@ function resolveActiveResponse(
   }
 
   // AR終了
-  newState.isActiveResponse = false
-  newState.activeResponseStack = []
-  newState.activeResponseTimer = 0
+  newState.activeResponse = {
+    isActive: false,
+    currentPlayerId: null,
+    stack: [],
+    timer: 0,
+    passedPlayers: [],
+  }
 
   return { state: newState, events }
 }
@@ -333,7 +555,6 @@ function resolveActionEffect(
   let newState = { ...state }
 
   // アクション効果の解決（簡易版）
-  // 後でactionEffectのDSLに基づいて拡張
   if (cardDef.actionEffect) {
     // TODO: 効果の種類に応じた処理を実装
     // 例：ダメージ、回復、バフなど
@@ -365,7 +586,6 @@ function executeUnitAttack(
 
   if (targetUnit) {
     // 交戦：互いにダメージを与え合う
-    // 自分のユニットが相手のユニットにダメージ
     const targetNewHp = targetUnit.hp - unit.attack
     events.push({
       type: 'unit_attack',
@@ -375,7 +595,6 @@ function executeUnitAttack(
       timestamp: Date.now(),
     })
 
-    // 相手のユニットが自分のユニットにダメージ
     const attackerNewHp = unit.hp - targetUnit.attack
     events.push({
       type: 'unit_attack',
@@ -387,7 +606,6 @@ function executeUnitAttack(
 
     // 相手のユニットの状態を更新
     if (targetNewHp <= 0) {
-      // 相手のユニット破壊
       events.push({
         type: 'unit_destroyed',
         unitId: targetUnit.id,
@@ -396,9 +614,9 @@ function executeUnitAttack(
       updatedOpponent = {
         ...opponent,
         units: opponent.units.filter((u: Unit) => u.id !== targetUnit.id),
+        graveyard: [...opponent.graveyard, targetUnit.cardId],
       }
     } else {
-      // 相手のユニットにダメージ適用
       events.push({
         type: 'unit_damage',
         unitId: targetUnit.id,
@@ -415,7 +633,6 @@ function executeUnitAttack(
 
     // 自分のユニットの状態を更新
     if (attackerNewHp <= 0) {
-      // 自分のユニット破壊
       events.push({
         type: 'unit_destroyed',
         unitId: unit.id,
@@ -425,9 +642,9 @@ function executeUnitAttack(
       updatedAttacker = {
         ...attackerPlayer,
         units: attackerPlayer.units.filter((u: Unit) => u.id !== unit.id),
+        graveyard: [...attackerPlayer.graveyard, unit.cardId],
       }
     } else {
-      // 自分のユニットにダメージ適用
       events.push({
         type: 'unit_damage',
         unitId: unit.id,
@@ -475,7 +692,7 @@ function executeUnitAttack(
         unit: updatedUnit,
         events,
         opponentUpdate: updatedOpponent,
-        gameEnded: { winner: '', reason: 'hp_zero' }, // winnerは呼び出し側で設定
+        gameEnded: { winner: '', reason: 'hp_zero' },
       }
     }
 
@@ -489,8 +706,11 @@ function executeUnitAttack(
 export function createInitialGameState(
   player1Id: string,
   player2Id: string,
+  hero1: Hero,
+  hero2: Hero,
   deck1: string[],
-  deck2: string[]
+  deck2: string[],
+  cardDefinitions: Map<string, CardDefinition>
 ): GameState {
   const shuffle = <T>(array: T[]): T[] => {
     const shuffled = [...array]
@@ -504,32 +724,46 @@ export function createInitialGameState(
   const shuffledDeck1 = shuffle(deck1)
   const shuffledDeck2 = shuffle(deck2)
 
+  const maxMp1 = calculateMaxMp(hero1.attribute, deck1, cardDefinitions)
+  const maxMp2 = calculateMaxMp(hero2.attribute, deck2, cardDefinitions)
+
   return {
     gameId: `game_${Date.now()}`,
     currentTick: 0,
-    isActiveResponse: false,
-    activeResponseStack: [],
-    activeResponseTimer: 0,
+    phase: 'mulligan',
+    activeResponse: {
+      isActive: false,
+      currentPlayerId: null,
+      stack: [],
+      timer: 0,
+      passedPlayers: [],
+    },
     players: [
       {
         playerId: player1Id,
         hp: GAME_CONFIG.INITIAL_HP,
         maxHp: GAME_CONFIG.INITIAL_HP,
         mp: 0,
-        maxMp: GAME_CONFIG.MAX_MP,
+        maxMp: maxMp1,
+        ap: 0,
+        hero: hero1,
         hand: shuffledDeck1.slice(0, GAME_CONFIG.INITIAL_HAND_SIZE),
         deck: shuffledDeck1.slice(GAME_CONFIG.INITIAL_HAND_SIZE),
         units: [],
+        graveyard: [],
       },
       {
         playerId: player2Id,
         hp: GAME_CONFIG.INITIAL_HP,
         maxHp: GAME_CONFIG.INITIAL_HP,
         mp: 0,
-        maxMp: GAME_CONFIG.MAX_MP,
+        maxMp: maxMp2,
+        ap: 0,
+        hero: hero2,
         hand: shuffledDeck2.slice(0, GAME_CONFIG.INITIAL_HAND_SIZE),
         deck: shuffledDeck2.slice(GAME_CONFIG.INITIAL_HAND_SIZE),
         units: [],
+        graveyard: [],
       },
     ],
     randomSeed: Math.random() * 1000000,
@@ -537,4 +771,3 @@ export function createInitialGameState(
     lastUpdateTime: Date.now(),
   }
 }
-

@@ -1,32 +1,86 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { GameState, GameInput, CardDefinition } from '@/core/types'
+import type { GameState, GameInput, Hero } from '@/core/types'
 import {
   updateGameState,
   createInitialGameState,
 } from '@/core/engine'
 import {
-  SAMPLE_CARDS,
+  createAllCards,
   createCardMap,
-  createSampleDeck,
 } from '@/core/cards'
 
 const TICK_INTERVAL = 50 // 50ms
 
+// サンプルヒーロー
+const SAMPLE_HERO_1: Hero = {
+  id: 'hero_red_1',
+  name: 'リュウ',
+  attribute: 'red',
+  description: '格闘家',
+}
+
+const SAMPLE_HERO_2: Hero = {
+  id: 'hero_red_2',
+  name: 'ケン',
+  attribute: 'red',
+  description: '格闘家',
+}
+
 export default function GameBoard() {
   const [gameState, setGameState] = useState<GameState | null>(null)
-  const [cardMap] = useState(() => createCardMap(SAMPLE_CARDS))
+  const [cardMap] = useState(() => createCardMap(createAllCards()))
   const [isRunning, setIsRunning] = useState(false)
 
   // ゲーム初期化
   useEffect(() => {
+    // サンプルデッキを作成（30枚）
+    const allCards = createAllCards()
+    const sampleDeck1 = allCards.slice(0, 30).map((c) => c.id)
+    const sampleDeck2 = allCards.slice(10, 40).map((c) => c.id)
+
     const initialState = createInitialGameState(
       'player1',
       'player2',
-      createSampleDeck(),
-      createSampleDeck()
+      SAMPLE_HERO_1,
+      SAMPLE_HERO_2,
+      sampleDeck1,
+      sampleDeck2,
+      cardMap
     )
-    setGameState(initialState)
-  }, [])
+
+    // マリガンを自動で完了（全カードキープ）してゲーム開始
+    const mulliganedState1 = updateGameState(
+      initialState,
+      {
+        type: 'mulligan',
+        playerId: 'player1',
+        keepCards: initialState.players[0].hand,
+        timestamp: Date.now(),
+      },
+      0,
+      cardMap
+    ).state
+
+    const mulliganedState2 = updateGameState(
+      mulliganedState1,
+      {
+        type: 'mulligan',
+        playerId: 'player2',
+        keepCards: mulliganedState1.players[1].hand,
+        timestamp: Date.now(),
+      },
+      0,
+      cardMap
+    ).state
+
+    // ゲームフェーズをplayingに設定（確実にplayingフェーズで開始）
+    const finalState = {
+      ...mulliganedState2,
+      phase: 'playing' as const,
+    }
+
+    setGameState(finalState)
+  }, [cardMap])
 
   // ゲームループ
   useEffect(() => {
@@ -99,7 +153,7 @@ export default function GameBoard() {
   // AR終了
   const handleEndActiveResponse = useCallback(
     (playerId: string) => {
-      if (!gameState || !gameState.isActiveResponse) return
+      if (!gameState || !gameState.activeResponse.isActive) return
 
       const input: GameInput = {
         type: 'end_active_response',
@@ -126,10 +180,11 @@ export default function GameBoard() {
         <button onClick={() => setIsRunning(!isRunning)}>
           {isRunning ? '停止' : '開始'}
         </button>
-        {gameState.isActiveResponse && (
+        {gameState.activeResponse.isActive && (
           <div>
             <p>Active Response中</p>
-            <p>タイマー: {Math.ceil(gameState.activeResponseTimer / 1000)}秒</p>
+            <p>タイマー: {Math.ceil(gameState.activeResponse.timer / 1000)}秒</p>
+            <p>現在のアクション権限: {gameState.activeResponse.currentPlayerId}</p>
             <button onClick={() => handleEndActiveResponse('player1')}>
               プレイヤー1 AR終了
             </button>
@@ -148,9 +203,11 @@ export default function GameBoard() {
           marginBottom: '20px',
         }}
       >
-        <h3>プレイヤー2（相手）</h3>
+        <h3>プレイヤー2（相手） - {opponent.hero.name}</h3>
         <p>HP: {opponent.hp}/{opponent.maxHp}</p>
         <p>MP: {opponent.mp}/{opponent.maxMp}</p>
+        <p>AP: {opponent.ap}/{10}</p>
+        <p>墓地: {opponent.graveyard.length}枚</p>
         <div>
           <h4>盤面のユニット（レーン0, 1, 2）</h4>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -264,6 +321,8 @@ export default function GameBoard() {
                   <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
                   <p>コスト: {cardDef.cost}</p>
                   <p>種別: {cardDef.type}</p>
+                  <p>属性: {cardDef.attribute}</p>
+                  <p>レア: {cardDef.rarity}</p>
                   {cardDef.unitStats && (
                     <>
                       <p>HP: {cardDef.unitStats.hp}</p>
@@ -285,9 +344,11 @@ export default function GameBoard() {
           marginBottom: '20px',
         }}
       >
-        <h3>プレイヤー1（自分）</h3>
+        <h3>プレイヤー1（自分） - {player.hero.name}</h3>
         <p>HP: {player.hp}/{player.maxHp}</p>
         <p>MP: {player.mp}/{player.maxMp}</p>
+        <p>AP: {player.ap}/{10}</p>
+        <p>墓地: {player.graveyard.length}枚</p>
         <div>
           <h4>盤面のユニット（レーン0, 1, 2）</h4>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -400,6 +461,8 @@ export default function GameBoard() {
                 <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
                 <p>コスト: {cardDef.cost}</p>
                 <p>種別: {cardDef.type}</p>
+                <p>属性: {cardDef.attribute}</p>
+                <p>レア: {cardDef.rarity}</p>
                 {cardDef.unitStats && (
                   <>
                     <p>HP: {cardDef.unitStats.hp}</p>

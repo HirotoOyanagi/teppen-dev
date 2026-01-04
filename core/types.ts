@@ -3,8 +3,24 @@
  * State / Input / Event のスキーマ定義
  */
 
+// カード属性
+export type CardAttribute = 'red' | 'green' | 'purple' | 'black'
+
 // カード種別
 export type CardType = 'unit' | 'action' | 'hero_art'
+
+// カードレアリティ
+export type CardRarity = 'normal' | 'legend'
+
+// 種族（CAPCOMキャラクターの種族）
+export type CardTribe =
+  | 'street_fighter'
+  | 'monster_hunter'
+  | 'rockman'
+  | 'okami'
+  | 'devil_may_cry'
+  | 'resident_evil'
+  | 'other'
 
 // カード定義
 export interface CardDefinition {
@@ -12,6 +28,10 @@ export interface CardDefinition {
   name: string
   cost: number
   type: CardType
+  attribute: CardAttribute
+  rarity: CardRarity
+  tribe: CardTribe
+  description?: string
   // ユニットカードの属性
   unitStats?: {
     hp: number
@@ -36,6 +56,14 @@ export interface Unit {
   statusEffects?: string[] // 状態異常（後で拡張）
 }
 
+// ヒーロー定義
+export interface Hero {
+  id: string
+  name: string
+  attribute: CardAttribute
+  description?: string
+}
+
 // プレイヤーの状態
 export interface PlayerState {
   playerId: string
@@ -43,10 +71,13 @@ export interface PlayerState {
   maxHp: number
   mp: number
   maxMp: number
+  ap: number // 必殺技ゲージ（MP消費で増加）
+  hero: Hero // 使用中のヒーロー
   hand: string[] // カードIDの配列
   deck: string[] // カードIDの配列
   units: Unit[] // 盤面上のユニット
   heroArtGauge?: number // ヒーローアーツ用（後で拡張）
+  graveyard: string[] // 墓地のカードID
 }
 
 // Active Responseスタック
@@ -56,13 +87,21 @@ export interface ActiveResponseStack {
   timestamp: number // ARに入った時刻
 }
 
+// アクティブレスポンスの状態
+export interface ActiveResponseState {
+  isActive: boolean
+  currentPlayerId: string | null // 現在アクション権限を持っているプレイヤー
+  stack: ActiveResponseStack[]
+  timer: number // ARタイマー（ミリ秒）
+  passedPlayers: string[] // パスしたプレイヤーID
+}
+
 // ゲーム状態
 export interface GameState {
   gameId: string
   currentTick: number
-  isActiveResponse: boolean
-  activeResponseStack: ActiveResponseStack[]
-  activeResponseTimer: number // ARタイマー（ミリ秒）
+  phase: 'mulligan' | 'playing' | 'ended' // ゲームフェーズ
+  activeResponse: ActiveResponseState
   players: [PlayerState, PlayerState]
   randomSeed: number // リプレイ用の乱数シード
   gameStartTime: number
@@ -86,6 +125,23 @@ export type GameInput =
     }
   | {
       type: 'hero_art'
+      playerId: string
+      timestamp: number
+    }
+  | {
+      type: 'mulligan'
+      playerId: string
+      keepCards: string[] // キープするカードID
+      timestamp: number
+    }
+  | {
+      type: 'active_response_action'
+      playerId: string
+      cardId: string
+      timestamp: number
+    }
+  | {
+      type: 'active_response_pass'
       playerId: string
       timestamp: number
     }
