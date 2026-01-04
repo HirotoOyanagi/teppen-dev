@@ -191,6 +191,13 @@ export type GameEvent =
       timestamp: number
     }
   | {
+      type: 'card_sent_to_graveyard'
+      playerId: string
+      cardId: string
+      reason: 'card_played' | 'unit_destroyed'
+      timestamp: number
+    }
+  | {
       type: 'active_response_started'
       playerId: string
       cardId: string

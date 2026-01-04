@@ -238,13 +238,19 @@ function processInput(
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === input.playerId
     )
+    
+    // アクションカードは使用時に墓地に送る、ユニットカードは場に出した時点では墓地には行かない
+    const updatedGraveyard = cardDef.type === 'action'
+      ? [...player.graveyard, input.cardId]
+      : player.graveyard
+    
     newState.players[playerIndex] = {
       ...player,
       hand: newHand,
       deck: newDeck,
       mp: newMp,
       ap: newAp,
-      graveyard: [...player.graveyard, input.cardId],
+      graveyard: updatedGraveyard,
     }
 
     events.push({
@@ -253,6 +259,17 @@ function processInput(
       cardId: input.cardId,
       timestamp: input.timestamp,
     })
+
+    // カードを墓地に送る（アクションカードは使用時、ユニットカードは破壊された時に墓地に送られる）
+    if (cardDef.type === 'action') {
+      events.push({
+        type: 'card_sent_to_graveyard',
+        playerId: input.playerId,
+        cardId: input.cardId,
+        reason: 'card_played',
+        timestamp: input.timestamp,
+      })
+    }
 
     // アクションカードの場合はActive Responseに入る
     if (cardDef.type === 'action') {
@@ -300,6 +317,7 @@ function processInput(
     }
 
     // ユニットカードの場合は盤面に配置
+    // 注意: ユニットカードは場に出した時点では墓地には行かない（プレイ時に墓地に追加したカードIDを削除する必要がある）
     if (cardDef.type === 'unit' && cardDef.unitStats) {
       // レーンは0, 1, 2の3つまで
       const lane = Math.max(0, Math.min(2, input.lane ?? 0))
@@ -311,6 +329,10 @@ function processInput(
       if (existingUnitInLane) {
         return { state: newState, events }
       }
+
+      // ユニットカードは場に出した時点では墓地には行かない
+      // （既に墓地に追加されていないはずだが、念のため確認）
+      // ユニットが破壊された時点で墓地に送られる
 
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
@@ -427,6 +449,15 @@ function processInput(
         ap: newAp,
         graveyard: [...player.graveyard, input.cardId],
       }
+
+      // アクションカードを墓地に送る
+      events.push({
+        type: 'card_sent_to_graveyard',
+        playerId: input.playerId,
+        cardId: input.cardId,
+        reason: 'card_played',
+        timestamp: input.timestamp,
+      })
       newState.players[opponentIndex] = {
         ...opponent,
         mp: Math.min(opponent.mp + blueMp, opponent.maxMp),
@@ -648,6 +679,14 @@ function executeUnitAttack(
         unitId: targetUnit.id,
         timestamp: Date.now(),
       })
+      // ユニットが破壊された時、墓地に送る
+      events.push({
+        type: 'card_sent_to_graveyard',
+        playerId: opponent.playerId,
+        cardId: targetUnit.cardId,
+        reason: 'unit_destroyed',
+        timestamp: Date.now(),
+      })
       updatedOpponent = {
         ...opponent,
         units: opponent.units.filter((u: Unit) => u.id !== targetUnit.id),
@@ -673,6 +712,14 @@ function executeUnitAttack(
       events.push({
         type: 'unit_destroyed',
         unitId: unit.id,
+        timestamp: Date.now(),
+      })
+      // ユニットが破壊された時、墓地に送る
+      events.push({
+        type: 'card_sent_to_graveyard',
+        playerId: attackerPlayer.playerId,
+        cardId: unit.cardId,
+        reason: 'unit_destroyed',
         timestamp: Date.now(),
       })
       updatedUnit = { ...updatedUnit, hp: 0 }
