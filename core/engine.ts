@@ -210,6 +210,23 @@ function processInput(
     // 手札からカードを削除
     const newHand = player.hand.filter((id) => id !== input.cardId)
 
+    // カードをプレイしたらデッキから1枚引く
+    const newDeck = [...player.deck]
+    let drawnCardId: string | null = null
+    if (newDeck.length > 0) {
+      drawnCardId = newDeck[0]
+      newDeck.shift() // デッキから削除
+      newHand.push(drawnCardId) // 手札に追加
+      
+      // カードドローイベント
+      events.push({
+        type: 'card_drawn',
+        playerId: input.playerId,
+        cardId: drawnCardId,
+        timestamp: input.timestamp,
+      })
+    }
+
     // MP消費とAP獲得
     const newMp = player.mp - cardDef.cost
     const newAp = Math.min(
@@ -224,6 +241,7 @@ function processInput(
     newState.players[playerIndex] = {
       ...player,
       hand: newHand,
+      deck: newDeck,
       mp: newMp,
       ap: newAp,
       graveyard: [...player.graveyard, input.cardId],
@@ -368,6 +386,24 @@ function processInput(
 
       // 手札からカードを削除
       const newHand = player.hand.filter((id) => id !== input.cardId)
+
+      // カードをプレイしたらデッキから1枚引く
+      const newDeck = [...player.deck]
+      let drawnCardId: string | null = null
+      if (newDeck.length > 0) {
+        drawnCardId = newDeck[0]
+        newDeck.shift() // デッキから削除
+        newHand.push(drawnCardId) // 手札に追加
+        
+        // カードドローイベント
+        events.push({
+          type: 'card_drawn',
+          playerId: input.playerId,
+          cardId: drawnCardId,
+          timestamp: input.timestamp,
+        })
+      }
+
       const newMp = player.mp - cardDef.cost
       const newAp = Math.min(
         player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
@@ -386,6 +422,7 @@ function processInput(
       newState.players[playerIndex] = {
         ...player,
         hand: newHand,
+        deck: newDeck,
         mp: Math.min(newMp + blueMp, player.maxMp),
         ap: newAp,
         graveyard: [...player.graveyard, input.cardId],

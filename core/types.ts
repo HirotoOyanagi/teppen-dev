@@ -185,6 +185,12 @@ export type GameEvent =
       timestamp: number
     }
   | {
+      type: 'card_drawn'
+      playerId: string
+      cardId: string
+      timestamp: number
+    }
+  | {
       type: 'active_response_started'
       playerId: string
       cardId: string
