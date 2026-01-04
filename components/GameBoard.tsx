@@ -8,18 +8,20 @@ import {
   createAllCards,
   createCardMap,
 } from '@/core/cards'
+import { getDeck } from '@/utils/deckStorage'
 
 const TICK_INTERVAL = 50 // 50ms
 
 // サンプルヒーロー
-const SAMPLE_HERO_1: Hero = {
-  id: 'hero_red_1',
-  name: 'リュウ',
-  attribute: 'red',
-  description: '格闘家',
-}
+const SAMPLE_HEROES: Hero[] = [
+  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
+  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
+  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
+  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
+]
 
-const SAMPLE_HERO_2: Hero = {
+// 相手用のサンプルヒーロー（固定）
+const OPPONENT_HERO: Hero = {
   id: 'hero_red_2',
   name: 'ケン',
   attribute: 'red',
@@ -33,18 +35,33 @@ export default function GameBoard() {
 
   // ゲーム初期化
   useEffect(() => {
-    // サンプルデッキを作成（30枚）
+    // 選択されたデッキを読み込む
+    const selectedDeckId = localStorage.getItem('teppen_selectedDeckId')
+    if (!selectedDeckId) {
+      console.error('デッキが選択されていません')
+      return
+    }
+
+    const savedDeck = getDeck(selectedDeckId)
+    if (!savedDeck || savedDeck.cardIds.length !== 30) {
+      console.error('有効なデッキが選択されていません')
+      return
+    }
+
+    // プレイヤーのヒーローを取得
+    const playerHero = SAMPLE_HEROES.find((h) => h.id === savedDeck.heroId) || SAMPLE_HEROES[0]
+
+    // 相手のデッキはランダムに生成（実際の実装では対戦相手のデッキを使用）
     const allCards = createAllCards()
-    const sampleDeck1 = allCards.slice(0, 30).map((c) => c.id)
-    const sampleDeck2 = allCards.slice(10, 40).map((c) => c.id)
+    const opponentDeck = allCards.slice(10, 40).map((c) => c.id)
 
     const initialState = createInitialGameState(
       'player1',
       'player2',
-      SAMPLE_HERO_1,
-      SAMPLE_HERO_2,
-      sampleDeck1,
-      sampleDeck2,
+      playerHero,
+      OPPONENT_HERO,
+      savedDeck.cardIds,
+      opponentDeck,
       cardMap
     )
 

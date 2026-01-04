@@ -8,7 +8,7 @@ export default function BottomNavigation() {
     { id: 'home', label: 'ホーム', path: '/home' },
     { id: 'cards', label: 'カード', path: '/cards' },
     { id: 'shop', label: 'ショップ', path: '/shop' },
-    { id: 'battle', label: 'バトル', path: '/battle' },
+    { id: 'battle', label: 'バトル', path: '/deck-select' },
   ]
 
   return (

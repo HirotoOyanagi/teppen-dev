@@ -54,7 +54,7 @@ export default function HomePage() {
   }
 
   const handleRankMatch = () => {
-    router.push('/battle')
+    router.push('/deck-select')
   }
 
   const attributeColors: Record<string, string> = {
