@@ -65,38 +65,7 @@ export default function GameBoard() {
       cardMap
     )
 
-    // マリガンを自動で完了（全カードキープ）してゲーム開始
-    const mulliganedState1 = updateGameState(
-      initialState,
-      {
-        type: 'mulligan',
-        playerId: 'player1',
-        keepCards: initialState.players[0].hand,
-        timestamp: Date.now(),
-      },
-      0,
-      cardMap
-    ).state
-
-    const mulliganedState2 = updateGameState(
-      mulliganedState1,
-      {
-        type: 'mulligan',
-        playerId: 'player2',
-        keepCards: mulliganedState1.players[1].hand,
-        timestamp: Date.now(),
-      },
-      0,
-      cardMap
-    ).state
-
-    // ゲームフェーズをplayingに設定（確実にplayingフェーズで開始）
-    const finalState = {
-      ...mulliganedState2,
-      phase: 'playing' as const,
-    }
-
-    setGameState(finalState)
+    setGameState(initialState)
   }, [cardMap])
 
   // ゲームループ
@@ -193,12 +162,127 @@ export default function GameBoard() {
     [gameState, cardMap]
   )
 
+  // マリガン処理
+  const handleMulligan = useCallback(
+    (keepAll: boolean) => {
+      if (!gameState || gameState.phase !== 'mulligan') return
+
+      const player = gameState.players[0]
+      const keepCards = keepAll ? [] : player.hand
+
+      // プレイヤー1のマリガン
+      const mulliganInput: GameInput = {
+        type: 'mulligan',
+        playerId: 'player1',
+        keepCards,
+        timestamp: Date.now(),
+      }
+
+      const result1 = updateGameState(gameState, mulliganInput, 0, cardMap)
+      let newState = result1.state
+
+      // プレイヤー2のマリガン（自動で全カードキープ）
+      const opponent = newState.players[1]
+      const opponentMulliganInput: GameInput = {
+        type: 'mulligan',
+        playerId: 'player2',
+        keepCards: opponent.hand,
+        timestamp: Date.now(),
+      }
+
+      const result2 = updateGameState(newState, opponentMulliganInput, 0, cardMap)
+      newState = result2.state
+
+      // フェーズをplayingに変更
+      newState = {
+        ...newState,
+        phase: 'playing' as const,
+      }
+
+      setGameState(newState)
+    },
+    [gameState, cardMap]
+  )
+
   if (!gameState) {
     return <div>ゲームを初期化中...</div>
   }
 
   const player = gameState.players[0]
   const opponent = gameState.players[1]
+
+  // マリガンフェーズのUI
+  if (gameState.phase === 'mulligan') {
+    return (
+      <div style={{ padding: '20px' }}>
+        <h2>マリガン</h2>
+        <p>初期手札を確認してください</p>
+        <div style={{ marginBottom: '20px' }}>
+          <h3>あなたの手札</h3>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+            {player.hand.map((cardId) => {
+              const cardDef = cardMap.get(cardId)
+              if (!cardDef) return null
+
+              return (
+                <div
+                  key={cardId}
+                  style={{
+                    border: '1px solid #333',
+                    padding: '10px',
+                    minWidth: '100px',
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
+                  <p>コスト: {cardDef.cost}</p>
+                  <p>種別: {cardDef.type}</p>
+                  <p>属性: {cardDef.attribute}</p>
+                  <p>レア: {cardDef.rarity}</p>
+                  {cardDef.unitStats && (
+                    <>
+                      <p>HP: {cardDef.unitStats.hp}</p>
+                      <p>攻撃: {cardDef.unitStats.attack}</p>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => handleMulligan(true)}
+              style={{
+                padding: '15px 30px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                backgroundColor: '#ff6b6b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+              }}
+            >
+              全て交換
+            </button>
+            <button
+              onClick={() => handleMulligan(false)}
+              style={{
+                padding: '15px 30px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                backgroundColor: '#51cf66',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+              }}
+            >
+              このまま
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '20px' }}>
