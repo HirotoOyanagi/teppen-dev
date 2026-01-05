@@ -204,8 +204,14 @@ function processInput(
     const cardDef = cardDefinitions.get(input.cardId)
     if (!cardDef) return { state: newState, events }
 
-    // MPチェック
-    if (player.mp < cardDef.cost) return { state: newState, events }
+    // アクティブレスポンス中はユニットカードをプレイできない
+    if (newState.activeResponse.isActive && cardDef.type === 'unit') {
+      return { state: newState, events }
+    }
+
+    // MPチェック（通常MP + 青MP）
+    const availableMp = player.mp + player.blueMp
+    if (availableMp < cardDef.cost) return { state: newState, events }
 
     // 手札からカードを削除
     const newHand = player.hand.filter((id) => id !== input.cardId)
@@ -228,7 +234,20 @@ function processInput(
     }
 
     // MP消費とAP獲得
-    const newMp = player.mp - cardDef.cost
+    // 青MPを先に消費し、残りを通常MPから消費
+    let remainingCost = cardDef.cost
+    let newBlueMp = player.blueMp
+    let newMp = player.mp
+    
+    if (newBlueMp >= remainingCost) {
+      newBlueMp -= remainingCost
+      remainingCost = 0
+    } else {
+      remainingCost -= newBlueMp
+      newBlueMp = 0
+    }
+    newMp -= remainingCost
+    
     const newAp = Math.min(
       player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
       GAME_CONFIG.MAX_AP
@@ -249,6 +268,7 @@ function processInput(
       hand: newHand,
       deck: newDeck,
       mp: newMp,
+      blueMp: newBlueMp,
       ap: newAp,
       graveyard: updatedGraveyard,
     }
@@ -276,18 +296,15 @@ function processInput(
       const opponentIndex = 1 - playerIndex
       const opponent = newState.players[opponentIndex]
 
-      // アクションを打たれた側と打った側が青MP2獲得
-      const blueMp = 2
+      // アクションを打たれた側と打った側が青MP2獲得（一時的なMP）
+      const blueMpGain = 2
       newState.players[playerIndex] = {
         ...newState.players[playerIndex],
-        mp: Math.min(
-          newState.players[playerIndex].mp + blueMp,
-          newState.players[playerIndex].maxMp
-        ),
+        blueMp: newState.players[playerIndex].blueMp + blueMpGain,
       }
       newState.players[opponentIndex] = {
         ...opponent,
-        mp: Math.min(opponent.mp + blueMp, opponent.maxMp),
+        blueMp: opponent.blueMp + blueMpGain,
       }
 
       // 既にAR中ならスタックに追加、そうでなければAR開始
@@ -403,8 +420,9 @@ function processInput(
       const cardDef = cardDefinitions.get(input.cardId)
       if (!cardDef || cardDef.type !== 'action') return { state: newState, events }
 
-      // MPチェック
-      if (player.mp < cardDef.cost) return { state: newState, events }
+      // MPチェック（通常MP + 青MP）
+      const availableMp = player.mp + player.blueMp
+      if (availableMp < cardDef.cost) return { state: newState, events }
 
       // 手札からカードを削除
       const newHand = player.hand.filter((id) => id !== input.cardId)
@@ -426,7 +444,21 @@ function processInput(
         })
       }
 
-      const newMp = player.mp - cardDef.cost
+      // MP消費とAP獲得
+      // 青MPを先に消費し、残りを通常MPから消費
+      let remainingCost = cardDef.cost
+      let newBlueMp = player.blueMp
+      let newMp = player.mp
+      
+      if (newBlueMp >= remainingCost) {
+        newBlueMp -= remainingCost
+        remainingCost = 0
+      } else {
+        remainingCost -= newBlueMp
+        newBlueMp = 0
+      }
+      newMp -= remainingCost
+      
       const newAp = Math.min(
         player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
         GAME_CONFIG.MAX_AP
@@ -439,13 +471,13 @@ function processInput(
       const opponentIndex = 1 - playerIndex
       const opponent = newState.players[opponentIndex]
 
-      // 青MP2獲得
-      const blueMp = 2
+      // プレイヤー状態更新
       newState.players[playerIndex] = {
         ...player,
         hand: newHand,
         deck: newDeck,
-        mp: Math.min(newMp + blueMp, player.maxMp),
+        mp: newMp,
+        blueMp: newBlueMp,
         ap: newAp,
         graveyard: [...player.graveyard, input.cardId],
       }
@@ -458,9 +490,16 @@ function processInput(
         reason: 'card_played',
         timestamp: input.timestamp,
       })
+
+      // アクションを打たれた側と打った側が青MP2獲得（一時的なMP）
+      const blueMpGain = 2
+      newState.players[playerIndex] = {
+        ...newState.players[playerIndex],
+        blueMp: newState.players[playerIndex].blueMp + blueMpGain,
+      }
       newState.players[opponentIndex] = {
         ...opponent,
-        mp: Math.min(opponent.mp + blueMp, opponent.maxMp),
+        blueMp: opponent.blueMp + blueMpGain,
       }
 
       // ARスタックに追加
@@ -597,6 +636,12 @@ function resolveActiveResponse(
       events.push(...effectResult.events)
     }
   }
+
+  // AR終了時に青MPを消失させる
+  newState.players = newState.players.map((player) => ({
+    ...player,
+    blueMp: 0,
+  })) as [PlayerState, PlayerState]
 
   // AR終了
   newState.activeResponse = {
@@ -829,6 +874,7 @@ export function createInitialGameState(
         maxHp: GAME_CONFIG.INITIAL_HP,
         mp: 0,
         maxMp: maxMp1,
+        blueMp: 0,
         ap: 0,
         hero: hero1,
         hand: shuffledDeck1.slice(0, GAME_CONFIG.INITIAL_HAND_SIZE),
@@ -842,6 +888,7 @@ export function createInitialGameState(
         maxHp: GAME_CONFIG.INITIAL_HP,
         mp: 0,
         maxMp: maxMp2,
+        blueMp: 0,
         ap: 0,
         hero: hero2,
         hand: shuffledDeck2.slice(0, GAME_CONFIG.INITIAL_HAND_SIZE),

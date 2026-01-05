@@ -71,6 +71,7 @@ export interface PlayerState {
   maxHp: number
   mp: number
   maxMp: number
+  blueMp: number // 青MP（アクティブレスポンス中のみ有効、終了時に消失）
   ap: number // 必殺技ゲージ（MP消費で増加）
   hero: Hero // 使用中のヒーロー
   hand: string[] // カードIDの配列

@@ -132,7 +132,16 @@ export default function GameBoard() {
       const cardDef = cardMap.get(cardId)
 
       if (!cardDef || !player.hand.includes(cardId)) return
-      if (player.mp < cardDef.cost) return
+      
+      // アクティブレスポンス中はユニットカードをプレイできない
+      if (gameState.activeResponse.isActive && cardDef.type === 'unit') {
+        alert('アクティブレスポンス中はユニットカードをプレイできません')
+        return
+      }
+      
+      // MPチェック（通常MP + 青MP）
+      const availableMp = player.mp + player.blueMp
+      if (availableMp < cardDef.cost) return
 
       // ユニットカードの場合はレーン選択が必要
       if (cardDef.type === 'unit') {
@@ -222,7 +231,7 @@ export default function GameBoard() {
       >
         <h3>プレイヤー2（相手） - {opponent.hero.name}</h3>
         <p>HP: {opponent.hp}/{opponent.maxHp}</p>
-        <p>MP: {opponent.mp}/{opponent.maxMp}</p>
+        <p>MP: {opponent.mp}{opponent.blueMp > 0 ? `+${opponent.blueMp}` : ''}/{opponent.maxMp}</p>
         <p>AP: {opponent.ap}/{10}</p>
         <p>墓地: {opponent.graveyard.length}枚</p>
         <div>
@@ -310,7 +319,10 @@ export default function GameBoard() {
               const cardDef = cardMap.get(cardId)
               if (!cardDef) return null
 
-              const canPlay = opponent.mp >= cardDef.cost
+              const availableMp = opponent.mp + opponent.blueMp
+              const isActiveResponse = gameState.activeResponse.isActive
+              // アクティブレスポンス中はユニットカードをプレイできない
+              const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
 
               return (
                 <div
@@ -318,6 +330,11 @@ export default function GameBoard() {
                   onClick={() => {
                     if (!canPlay) return
                     if (cardDef.type === 'unit') {
+                      // アクティブレスポンス中はユニットカードをプレイできない
+                      if (isActiveResponse) {
+                        alert('アクティブレスポンス中はユニットカードをプレイできません')
+                        return
+                      }
                       setSelectedCardForLane({
                         playerId: 'player2',
                         cardId,
@@ -363,7 +380,7 @@ export default function GameBoard() {
       >
         <h3>プレイヤー1（自分） - {player.hero.name}</h3>
         <p>HP: {player.hp}/{player.maxHp}</p>
-        <p>MP: {player.mp}/{player.maxMp}</p>
+        <p>MP: {player.mp}{player.blueMp > 0 ? `+${player.blueMp}` : ''}/{player.maxMp}</p>
         <p>AP: {player.ap}/{10}</p>
         <p>墓地: {player.graveyard.length}枚</p>
         <div>
@@ -451,7 +468,10 @@ export default function GameBoard() {
             const cardDef = cardMap.get(cardId)
             if (!cardDef) return null
 
-            const canPlay = player.mp >= cardDef.cost
+            const availableMp = player.mp + player.blueMp
+            const isActiveResponse = gameState.activeResponse.isActive
+            // アクティブレスポンス中はユニットカードをプレイできない
+            const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
 
             return (
               <div
@@ -459,6 +479,11 @@ export default function GameBoard() {
                 onClick={() => {
                   if (!canPlay) return
                   if (cardDef.type === 'unit') {
+                    // アクティブレスポンス中はユニットカードをプレイできない
+                    if (isActiveResponse) {
+                      alert('アクティブレスポンス中はユニットカードをプレイできません')
+                      return
+                    }
                     // ユニットカードの場合はレーン選択
                     setSelectedCardForLane({ playerId: 'player1', cardId })
                   } else {
