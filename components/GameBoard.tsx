@@ -32,6 +32,8 @@ export default function GameBoard() {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [cardMap] = useState(() => createCardMap(createAllCards()))
   const [isRunning, setIsRunning] = useState(false)
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
+  const [dragOverLane, setDragOverLane] = useState<number | null>(null)
 
   // ゲーム初期化
   useEffect(() => {
@@ -475,15 +477,55 @@ export default function GameBoard() {
               const cardDef = unitInLane
                 ? cardMap.get(unitInLane.cardId)
                 : null
+              const isDraggingOver = dragOverLane === lane
+              const draggedCardDef = draggedCardId ? cardMap.get(draggedCardId) : null
+              const canDrop = draggedCardId && !unitInLane && draggedCardDef && draggedCardDef.type === 'unit'
+              
               return (
                 <div
                   key={lane}
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                    if (canDrop) {
+                      setDragOverLane(lane)
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (canDrop) {
+                      e.dataTransfer.dropEffect = 'move'
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault()
+                    setDragOverLane(null)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragOverLane(null)
+                    if (!draggedCardId || !canDrop) return
+                    
+                    const dropCardDef = cardMap.get(draggedCardId)
+                    if (!dropCardDef || dropCardDef.type !== 'unit') return
+                    
+                    // アクティブレスポンス中はユニットカードをプレイできない
+                    if (gameState.activeResponse.isActive) {
+                      alert('アクティブレスポンス中はユニットカードをプレイできません')
+                      setDraggedCardId(null)
+                      return
+                    }
+                    
+                    // カードを配置
+                    handlePlayCard('player1', draggedCardId, lane)
+                    setDraggedCardId(null)
+                  }}
                   style={{
-                    border: '1px solid #999',
+                    border: isDraggingOver && canDrop ? '2px dashed #51cf66' : '1px solid #999',
                     minWidth: '150px',
                     minHeight: '100px',
                     padding: '10px',
-                    backgroundColor: unitInLane ? '#fff' : '#f0f0f0',
+                    backgroundColor: unitInLane ? '#fff' : isDraggingOver && canDrop ? '#e8f5e9' : '#f0f0f0',
+                    transition: 'background-color 0.2s, border-color 0.2s',
                   }}
                 >
                   <p style={{ fontWeight: 'bold' }}>レーン {lane}</p>
@@ -556,19 +598,34 @@ export default function GameBoard() {
             const isActiveResponse = gameState.activeResponse.isActive
             // アクティブレスポンス中はユニットカードをプレイできない
             const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
+            const isDragging = draggedCardId === cardId
+            const isDraggable = cardDef.type === 'unit' && canPlay && !isActiveResponse
 
             return (
               <div
                 key={cardId}
+                draggable={isDraggable}
+                onDragStart={(e) => {
+                  if (!isDraggable) {
+                    e.preventDefault()
+                    return
+                  }
+                  setDraggedCardId(cardId)
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
+                onDragEnd={() => {
+                  setDraggedCardId(null)
+                  setDragOverLane(null)
+                }}
                 onClick={() => {
                   if (!canPlay) return
                   if (cardDef.type === 'unit') {
-                    // アクティブレスポンス中はユニットカードをプレイできない
+                    // ユニットカードはドラッグアンドドロップで配置するのでクリックでは何もしない
+                    // レーン選択UIは残す（フォールバックとして）
                     if (isActiveResponse) {
                       alert('アクティブレスポンス中はユニットカードをプレイできません')
                       return
                     }
-                    // ユニットカードの場合はレーン選択
                     setSelectedCardForLane({ playerId: 'player1', cardId })
                   } else {
                     // アクションカードはそのままプレイ
@@ -576,12 +633,13 @@ export default function GameBoard() {
                   }
                 }}
                 style={{
-                  border: '1px solid #333',
+                  border: isDragging ? '2px solid #51cf66' : '1px solid #333',
                   padding: '10px',
                   minWidth: '100px',
-                  cursor: canPlay ? 'pointer' : 'not-allowed',
-                  opacity: canPlay ? 1 : 0.5,
+                  cursor: canPlay ? (cardDef.type === 'unit' ? 'grab' : 'pointer') : 'not-allowed',
+                  opacity: isDragging ? 0.5 : canPlay ? 1 : 0.5,
                   backgroundColor: canPlay ? '#fff' : '#eee',
+                  transition: 'opacity 0.2s',
                 }}
               >
                 <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
