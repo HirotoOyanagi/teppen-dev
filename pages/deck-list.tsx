@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import { getDecks, deleteDeck, type SavedDeck } from '@/utils/deckStorage'
-import { createAllCards, createCardMap } from '@/core/cards'
+import { useCards } from '@/utils/useCards'
 import type { Hero, CardDefinition } from '@/core/types'
 import styles from './deck-list.module.css'
 
@@ -18,7 +18,7 @@ export default function DeckListPage() {
   const router = useRouter()
   const [decks, setDecks] = useState<SavedDeck[]>([])
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null)
-  const [cardMap] = useState(() => createCardMap(createAllCards()))
+  const { cardMap } = useCards()
 
   useEffect(() => {
     const loadedDecks = getDecks()

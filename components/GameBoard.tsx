@@ -4,11 +4,8 @@ import {
   updateGameState,
   createInitialGameState,
 } from '@/core/engine'
-import {
-  createAllCards,
-  createCardMap,
-} from '@/core/cards'
 import { getDeck } from '@/utils/deckStorage'
+import { useCards } from '@/utils/useCards'
 
 const TICK_INTERVAL = 50 // 50ms
 
@@ -30,13 +27,15 @@ const OPPONENT_HERO: Hero = {
 
 export default function GameBoard() {
   const [gameState, setGameState] = useState<GameState | null>(null)
-  const [cardMap] = useState(() => createCardMap(createAllCards()))
+  const { cardMap, isLoading: cardsLoading } = useCards()
   const [isRunning, setIsRunning] = useState(false)
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const [dragOverLane, setDragOverLane] = useState<number | null>(null)
 
   // ゲーム初期化
   useEffect(() => {
+    if (cardsLoading || cardMap.size === 0) return
+
     // 選択されたデッキを読み込む
     const selectedDeckId = localStorage.getItem('teppen_selectedDeckId')
     if (!selectedDeckId) {
@@ -54,7 +53,7 @@ export default function GameBoard() {
     const playerHero = SAMPLE_HEROES.find((h) => h.id === savedDeck.heroId) || SAMPLE_HEROES[0]
 
     // 相手のデッキはランダムに生成（実際の実装では対戦相手のデッキを使用）
-    const allCards = createAllCards()
+    const allCards = Array.from(cardMap.values())
     const opponentDeck = allCards.slice(10, 40).map((c) => c.id)
 
     const initialState = createInitialGameState(
@@ -68,7 +67,7 @@ export default function GameBoard() {
     )
 
     setGameState(initialState)
-  }, [cardMap])
+  }, [cardMap, cardsLoading])
 
   // ゲームループ
   useEffect(() => {
@@ -205,6 +204,10 @@ export default function GameBoard() {
     },
     [gameState, cardMap]
   )
+
+  if (cardsLoading) {
+    return <div>カードデータを読み込み中...</div>
+  }
 
   if (!gameState) {
     return <div>ゲームを初期化中...</div>

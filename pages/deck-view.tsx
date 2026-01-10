@@ -4,7 +4,7 @@ import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
 import { getDeck } from '@/utils/deckStorage'
-import { createAllCards, createCardMap } from '@/core/cards'
+import { useCards } from '@/utils/useCards'
 import type { CardDefinition } from '@/core/types'
 import styles from './deck-view.module.css'
 
@@ -12,7 +12,7 @@ export default function DeckViewPage() {
   const router = useRouter()
   const { id } = router.query
   const [deck, setDeck] = useState<{ cardIds: string[]; name: string } | null>(null)
-  const [cardMap] = useState(() => createCardMap(createAllCards()))
+  const { cardMap } = useCards()
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
   const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
 

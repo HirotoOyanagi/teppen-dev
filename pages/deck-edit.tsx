@@ -4,7 +4,8 @@ import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
 import { getDeck, saveDeck, updateDeck, type SavedDeck } from '@/utils/deckStorage'
-import { createAllCards, createCardMap, validateDeck, calculateMaxMp } from '@/core/cards'
+import { validateDeck, calculateMaxMp } from '@/core/cards'
+import { useCards } from '@/utils/useCards'
 import type { CardDefinition, Hero, CardAttribute } from '@/core/types'
 import styles from './deck-edit.module.css'
 
@@ -26,8 +27,7 @@ export default function DeckEditPage() {
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
   const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
 
-  const allCards = useMemo(() => createAllCards(), [])
-  const cardMap = useMemo(() => createCardMap(allCards), [allCards])
+  const { cards: allCards, cardMap, isLoading: cardsLoading } = useCards()
 
   useEffect(() => {
     if (id && typeof id === 'string') {
@@ -138,6 +138,14 @@ export default function DeckEditPage() {
     green: '#27ae60',
     purple: '#9b59b6',
     black: '#2c3e50',
+  }
+
+  if (cardsLoading) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '20px', textAlign: 'center' }}>カードデータを読み込み中...</div>
+      </div>
+    )
   }
 
   return (

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
-import { createAllCards, createCardMap } from '@/core/cards'
+import { useCards } from '@/utils/useCards'
 import type { CardDefinition, CardAttribute, CardTribe } from '@/core/types'
 import styles from './card-list.module.css'
 
@@ -16,8 +16,7 @@ export default function CardListPage() {
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
   const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
 
-  const allCards = useMemo(() => createAllCards(), [])
-  const cardMap = useMemo(() => createCardMap(allCards), [allCards])
+  const { cards: allCards, isLoading } = useCards()
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
@@ -66,6 +65,14 @@ export default function CardListPage() {
     'other',
   ]
   const costs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '20px', textAlign: 'center' }}>カードデータを読み込み中...</div>
+      </div>
+    )
+  }
 
   return (
     <>
