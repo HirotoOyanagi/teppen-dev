@@ -77,13 +77,22 @@ export function updateGameState(
     // ユニットの攻撃ゲージ更新と自動攻撃
     const playerUpdates: PlayerState[] = [...newState.players]
 
-    newState.players.forEach((player, playerIndex) => {
+    // 各プレイヤーのユニットを順番に処理
+    for (let playerIndex = 0; playerIndex < 2; playerIndex++) {
       const opponentIndex = 1 - playerIndex
-      const opponent = playerUpdates[opponentIndex]
-      // 現在のプレイヤー状態を取得（交戦で更新されている可能性がある）
-      const currentPlayer = playerUpdates[playerIndex]
 
-      const updatedUnits = currentPlayer.units.map((unit): Unit | null => {
+      // 現在のプレイヤーのユニットリストを取得（各ユニット処理前に最新の状態を取得）
+      const unitIds = playerUpdates[playerIndex].units.map(u => u.id)
+
+      for (const unitId of unitIds) {
+        // 最新の状態を毎回取得（前のユニットの攻撃で更新されている可能性がある）
+        const currentPlayer = playerUpdates[playerIndex]
+        const opponent = playerUpdates[opponentIndex]
+        
+        // ユニットが存在するか確認（前の攻撃で破壊されている可能性がある）
+        const unit = currentPlayer.units.find(u => u.id === unitId)
+        if (!unit) continue
+
         const gaugeIncrease = deltaTime / unit.attackInterval
         const newGauge = Math.min(unit.attackGauge + gaugeIncrease, 1.0)
 
@@ -101,7 +110,7 @@ export function updateGameState(
           )
           events.push(...attackResult.events)
 
-          // 相手の状態を更新
+          // 相手の状態を更新（防御側のダメージ）
           if (attackResult.opponentUpdate) {
             playerUpdates[opponentIndex] = attackResult.opponentUpdate
 
@@ -118,34 +127,21 @@ export function updateGameState(
             }
           }
 
-          // 自分の状態を更新（交戦で自分のユニットもダメージを受けた場合）
+          // 自分の状態を更新（攻撃側のダメージ + 攻撃ゲージリセット）
           if (attackResult.attackerUpdate) {
             playerUpdates[playerIndex] = attackResult.attackerUpdate
-            const unitStillExists = attackResult.attackerUpdate.units.some(
-              (u: Unit) => u.id === unit.id
-            )
-            if (!unitStillExists) {
-              return null
-            }
           }
-
-          return attackResult.unit
+        } else {
+          // 攻撃ゲージのみ更新
+          playerUpdates[playerIndex] = {
+            ...playerUpdates[playerIndex],
+            units: playerUpdates[playerIndex].units.map((u: Unit) =>
+              u.id === unitId ? { ...u, attackGauge: newGauge } : u
+            ),
+          }
         }
-
-        return { ...unit, attackGauge: newGauge }
-      })
-
-      // nullを除外（破壊されたユニット）
-      const validUnits = updatedUnits.filter(
-        (u: Unit | null): u is Unit => u !== null
-      )
-
-      // 自分の状態を更新（ユニットリストのみ）
-      playerUpdates[playerIndex] = {
-        ...playerUpdates[playerIndex],
-        units: validUnits,
       }
-    })
+    }
 
     newState.players = [playerUpdates[0], playerUpdates[1]] as [
       PlayerState,
@@ -818,10 +814,11 @@ function executeUnitAttack(
         timestamp: Date.now(),
       })
       updatedUnit = { ...updatedUnit, hp: attackerNewHp }
+      // 攻撃ゲージをリセット + HPを更新
       updatedAttacker = {
         ...attackerPlayer,
         units: attackerPlayer.units.map((u: Unit) =>
-          u.id === unit.id ? { ...u, hp: attackerNewHp } : u
+          u.id === unit.id ? { ...u, hp: attackerNewHp, attackGauge: 0 } : u
         ),
       }
     }
@@ -852,17 +849,26 @@ function executeUnitAttack(
 
     updatedOpponent = { ...opponent, hp: newHp }
 
+    // 攻撃ゲージをリセット
+    updatedAttacker = {
+      ...attackerPlayer,
+      units: attackerPlayer.units.map((u: Unit) =>
+        u.id === unit.id ? { ...u, attackGauge: 0 } : u
+      ),
+    }
+
     // HPが0になったらゲーム終了
     if (newHp <= 0) {
       return {
         unit: updatedUnit,
         events,
         opponentUpdate: updatedOpponent,
+        attackerUpdate: updatedAttacker,
         gameEnded: { winner: '', reason: 'hp_zero' },
       }
     }
 
-    return { unit: updatedUnit, events, opponentUpdate: updatedOpponent }
+    return { unit: updatedUnit, events, opponentUpdate: updatedOpponent, attackerUpdate: updatedAttacker }
   }
 }
 
