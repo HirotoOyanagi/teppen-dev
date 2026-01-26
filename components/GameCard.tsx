@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import type { CardDefinition, Unit } from '@/core/types'
 
 interface GameCardProps {
@@ -10,6 +10,39 @@ interface GameCardProps {
   onDragStart?: (x: number, y: number) => void
   canPlay?: boolean
   isDragging?: boolean
+}
+
+// キーワード効果の定義
+interface KeywordEffect {
+  name: string
+  icon: string
+  color: string
+}
+
+const KEYWORD_EFFECTS: Record<string, KeywordEffect> = {
+  Rush: { name: 'Rush', icon: '⚡', color: 'text-yellow-400' },
+  Flight: { name: 'Flight', icon: '🪽', color: 'text-sky-400' },
+  Shield: { name: 'Shield', icon: '🛡️', color: 'text-green-400' },
+  Agility: { name: 'Agility', icon: '💨', color: 'text-cyan-400' },
+  Veil: { name: 'Veil', icon: '👁️', color: 'text-purple-400' },
+  Combo: { name: 'Combo', icon: '🔥', color: 'text-orange-400' },
+  'Heavy Pierce': { name: 'H.Pierce', icon: '🗡️', color: 'text-red-400' },
+  'Anti-Air': { name: 'Anti-Air', icon: '🎯', color: 'text-blue-400' },
+}
+
+// カードテキストからキーワード効果を抽出
+function extractKeywords(description: string | undefined): KeywordEffect[] {
+  if (!description) return []
+  
+  const keywords: KeywordEffect[] = []
+  for (const [key, effect] of Object.entries(KEYWORD_EFFECTS)) {
+    // <Rush> のような形式を検出
+    const pattern = new RegExp(`<${key}>`, 'i')
+    if (pattern.test(description)) {
+      keywords.push(effect)
+    }
+  }
+  return keywords
 }
 
 const LONG_PRESS_DURATION = 150 // 長押し判定時間（ミリ秒）
@@ -27,6 +60,9 @@ const GameCard: React.FC<GameCardProps> = ({
   const [shake, setShake] = useState(false)
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isDraggingRef = useRef(false)
+  
+  // キーワード効果を抽出
+  const keywords = useMemo(() => extractKeywords(cardDef.description), [cardDef.description])
 
   // タッチ/マウス開始
   const handlePressStart = useCallback((clientX: number, clientY: number) => {
@@ -130,6 +166,21 @@ const GameCard: React.FC<GameCardProps> = ({
           <div className="text-[10px] font-orbitron font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,1)] line-clamp-2">
             {cardDef.name}
           </div>
+        </div>
+      )}
+
+      {/* Keywords */}
+      {cardDef.type === 'unit' && keywords.length > 0 && (
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1 z-10">
+          {keywords.map((keyword, idx) => (
+            <span
+              key={idx}
+              className={`text-xs ${keyword.color} drop-shadow-[0_1px_2px_rgba(0,0,0,1)]`}
+              title={keyword.name}
+            >
+              {keyword.icon}
+            </span>
+          ))}
         </div>
       )}
 
