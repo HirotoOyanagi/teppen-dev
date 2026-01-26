@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { GameState, GameInput, Hero } from '@/core/types'
 import {
   updateGameState,
@@ -6,6 +6,9 @@ import {
 } from '@/core/engine'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
+import GameCard from './GameCard'
+import HeroPortrait from './HeroPortrait'
+import ManaBar from './ManaBar'
 
 const TICK_INTERVAL = 50 // 50ms
 
@@ -28,9 +31,8 @@ const OPPONENT_HERO: Hero = {
 export default function GameBoard() {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
-  const [isRunning, setIsRunning] = useState(false)
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
-  const [dragOverLane, setDragOverLane] = useState<number | null>(null)
+  const [selectedCardIdx, setSelectedCardIdx] = useState<number | null>(null)
+  const lastTimeRef = useRef<number>(Date.now())
 
   // ゲーム初期化
   useEffect(() => {
@@ -71,25 +73,32 @@ export default function GameBoard() {
 
   // ゲームループ
   useEffect(() => {
-    if (!gameState || !isRunning) return
+    if (!gameState || gameState.phase === 'ended' || gameState.phase === 'mulligan') return
 
-    const interval = setInterval(() => {
+    const gameLoop = () => {
+      const now = Date.now()
+      const dt = now - lastTimeRef.current
+      lastTimeRef.current = now
+
       setGameState((prevState) => {
         if (!prevState) return prevState
 
         const result = updateGameState(
           prevState,
           null,
-          TICK_INTERVAL,
+          dt,
           cardMap
         )
 
         return result.state
       })
-    }, TICK_INTERVAL)
 
-    return () => clearInterval(interval)
-  }, [gameState, isRunning, cardMap])
+      requestAnimationFrame(gameLoop)
+    }
+
+    const animId = requestAnimationFrame(gameLoop)
+    return () => cancelAnimationFrame(animId)
+  }, [gameState, cardMap])
 
   // カードプレイ
   const handlePlayCard = useCallback(
@@ -105,7 +114,6 @@ export default function GameBoard() {
       
       // アクティブレスポンス中はユニットカードをプレイできない
       if (gameState.activeResponse.isActive && cardDef.type === 'unit') {
-        alert('アクティブレスポンス中はユニットカードをプレイできません')
         return
       }
       
@@ -121,7 +129,6 @@ export default function GameBoard() {
         // 同じレーンに既にユニットがいるかチェック
         const existingUnitInLane = player.units.find((u) => u.lane === lane)
         if (existingUnitInLane) {
-          alert(`レーン${lane}には既にユニットが配置されています`)
           return
         }
       }
@@ -136,15 +143,10 @@ export default function GameBoard() {
 
       const result = updateGameState(gameState, input, 0, cardMap)
       setGameState(result.state)
+      setSelectedCardIdx(null)
     },
     [gameState, cardMap]
   )
-
-  // レーン選択状態（プレイヤーIDとカードIDを保持）
-  const [selectedCardForLane, setSelectedCardForLane] = useState<{
-    playerId: string
-    cardId: string
-  } | null>(null)
 
   // AR終了
   const handleEndActiveResponse = useCallback(
@@ -205,12 +207,64 @@ export default function GameBoard() {
     [gameState, cardMap]
   )
 
+  // レーンクリック処理
+  const onSlotClick = (lane: number) => {
+    if (selectedCardIdx === null || !gameState) return
+
+    const player = gameState.players[0]
+    const cardId = player.hand[selectedCardIdx]
+    if (!cardId) return
+
+    const cardDef = cardMap.get(cardId)
+    if (!cardDef || cardDef.type !== 'unit') return
+
+    handlePlayCard('player1', cardId, lane)
+  }
+
+  // 手札カードクリック処理
+  const onHandCardClick = (idx: number) => {
+    if (!gameState) return
+
+    const cardId = player.hand[idx]
+    if (!cardId) return
+
+    const cardDef = cardMap.get(cardId)
+    if (!cardDef) return
+
+    const availableMp = player.mp + player.blueMp
+    const isActiveResponse = gameState.activeResponse.isActive
+    const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
+
+    if (!canPlay) return
+
+    // アクションカードの場合は直接プレイ
+    if (cardDef.type === 'action') {
+      handlePlayCard('player1', cardId)
+      return
+    }
+
+    // ユニットカードの場合は選択状態を切り替え
+    if (selectedCardIdx === idx) {
+      setSelectedCardIdx(null)
+    } else {
+      setSelectedCardIdx(idx)
+    }
+  }
+
   if (cardsLoading) {
-    return <div>カードデータを読み込み中...</div>
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white">
+        <div className="text-2xl font-orbitron">カードデータを読み込み中...</div>
+      </div>
+    )
   }
 
   if (!gameState) {
-    return <div>ゲームを初期化中...</div>
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white">
+        <div className="text-2xl font-orbitron">ゲームを初期化中...</div>
+      </div>
+    )
   }
 
   const player = gameState.players[0]
@@ -219,67 +273,43 @@ export default function GameBoard() {
   // マリガンフェーズのUI
   if (gameState.phase === 'mulligan') {
     return (
-      <div style={{ padding: '20px' }}>
-        <h2>マリガン</h2>
-        <p>初期手札を確認してください</p>
-        <div style={{ marginBottom: '20px' }}>
-          <h3>あなたの手札</h3>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-            {player.hand.map((cardId) => {
-              const cardDef = cardMap.get(cardId)
-              if (!cardDef) return null
-
-              return (
-                <div
-                  key={cardId}
-                  style={{
-                    border: '1px solid #333',
-                    padding: '10px',
-                    minWidth: '100px',
-                    backgroundColor: '#fff',
-                  }}
-                >
-                  <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
-                  <p>コスト: {cardDef.cost}</p>
-                  <p>種別: {cardDef.type}</p>
-                  <p>属性: {cardDef.attribute}</p>
-                  <p>レア: {cardDef.rarity}</p>
-                  {cardDef.unitStats && (
-                    <>
-                      <p>HP: {cardDef.unitStats.hp}</p>
-                      <p>攻撃: {cardDef.unitStats.attack}</p>
-                    </>
-                  )}
-                </div>
-              )
-            })}
+      <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
+        <div className="relative z-10 w-full flex justify-center pt-4">
+          <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
+            <span className="text-2xl text-yellow-400 font-bold tracking-widest">マリガン</span>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <h2 className="text-3xl text-white mb-8">初期手札を確認してください</h2>
+          <div className="mb-8">
+            <h3 className="text-xl text-white mb-4">あなたの手札</h3>
+            <div className="flex gap-4 flex-wrap justify-center">
+              {player.hand.map((cardId, idx) => {
+                const cardDef = cardMap.get(cardId)
+                if (!cardDef) return null
+
+                return (
+                  <GameCard
+                    key={cardId}
+                    cardDef={cardDef}
+                    size="md"
+                    onClick={() => {}}
+                  />
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex gap-4">
             <button
               onClick={() => handleMulligan(true)}
-              style={{
-                padding: '15px 30px',
-                fontSize: '16px',
-                cursor: 'pointer',
-                backgroundColor: '#ff6b6b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-              }}
+              className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded"
             >
               全て交換
             </button>
             <button
               onClick={() => handleMulligan(false)}
-              style={{
-                padding: '15px 30px',
-                fontSize: '16px',
-                cursor: 'pointer',
-                backgroundColor: '#51cf66',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-              }}
+              className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded"
             >
               このまま
             </button>
@@ -289,379 +319,171 @@ export default function GameBoard() {
     )
   }
 
+  // ゲーム終了チェック
+  const gameOver = gameState.phase === 'ended'
+  const winner = gameOver
+    ? gameState.players.find((p) => p.hp > 0)?.playerId === 'player1'
+      ? 'あなたの勝利！'
+      : '相手の勝利！'
+    : null
+
+  // レーンごとのユニットを取得
+  const getUnitInLane = (playerUnits: typeof player.units, lane: number) => {
+    return playerUnits.find((u) => u.lane === lane) || null
+  }
+
+  // 攻撃ゲージの進捗を計算（0-100%）
+  const getAttackProgress = (unit: typeof player.units[0] | null) => {
+    if (!unit) return 0
+    return Math.min(100, unit.attackGauge * 100)
+  }
+
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => setIsRunning(!isRunning)}>
-          {isRunning ? '停止' : '開始'}
-        </button>
+    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
+      <div className="absolute inset-0 z-0 scanline pointer-events-none" />
+
+      {/* Header */}
+      <div className="relative z-10 w-full flex justify-center pt-4">
+        <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
+          <span className="text-2xl text-yellow-400 font-bold tracking-widest">BATTLE</span>
+        </div>
         {gameState.activeResponse.isActive && (
-          <div>
-            <p>Active Response中</p>
-            <p>タイマー: {Math.ceil(gameState.activeResponse.timer / 1000)}秒</p>
-            <p>現在のアクション権限: {gameState.activeResponse.currentPlayerId}</p>
-            <button onClick={() => handleEndActiveResponse('player1')}>
-              プレイヤー1 AR終了
-            </button>
-            <button onClick={() => handleEndActiveResponse('player2')}>
-              プレイヤー2 AR終了
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 相手情報 */}
-      <div
-        style={{
-          border: '1px solid #ccc',
-          padding: '10px',
-          marginBottom: '20px',
-        }}
-      >
-        <h3>プレイヤー2（相手） - {opponent.hero.name}</h3>
-        <p>HP: {opponent.hp}/{opponent.maxHp}</p>
-        <p>MP: {opponent.mp}{opponent.blueMp > 0 ? `+${opponent.blueMp}` : ''}/{opponent.maxMp}</p>
-        <p>AP: {opponent.ap}/{10}</p>
-        <p>墓地: {opponent.graveyard.length}枚</p>
-        <div>
-          <h4>盤面のユニット（レーン0, 1, 2）</h4>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {[0, 1, 2].map((lane) => {
-              const unitInLane = opponent.units.find((u) => u.lane === lane)
-              const cardDef = unitInLane
-                ? cardMap.get(unitInLane.cardId)
-                : null
-              return (
-                <div
-                  key={lane}
-                  style={{
-                    border: '1px solid #999',
-                    minWidth: '150px',
-                    minHeight: '100px',
-                    padding: '10px',
-                    backgroundColor: unitInLane ? '#fff' : '#f0f0f0',
-                  }}
-                >
-                  <p style={{ fontWeight: 'bold' }}>レーン {lane}</p>
-                  {unitInLane && cardDef ? (
-                    <>
-                      <p>{cardDef.name}</p>
-                      <p>HP: {unitInLane.hp}/{unitInLane.maxHp}</p>
-                      <p>攻撃: {unitInLane.attack}</p>
-                      <p>ゲージ: {Math.floor(unitInLane.attackGauge * 100)}%</p>
-                    </>
-                  ) : (
-                    <p style={{ color: '#999' }}>空き</p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        {/* 相手の手札 */}
-        <div style={{ marginTop: '20px' }}>
-          <h4>プレイヤー2の手札</h4>
-          {selectedCardForLane?.playerId === 'player2' && (
-            <div
-              style={{
-                marginBottom: '10px',
-                padding: '10px',
-                backgroundColor: '#ffffcc',
-              }}
-            >
-              <p>レーンを選択してください（0, 1, 2）</p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[0, 1, 2].map((lane) => {
-                  const existingUnit = opponent.units.find(
-                    (u) => u.lane === lane
-                  )
-                  return (
-                    <button
-                      key={lane}
-                      onClick={() => {
-                        handlePlayCard('player2', selectedCardForLane.cardId, lane)
-                        setSelectedCardForLane(null)
-                      }}
-                      disabled={!!existingUnit}
-                      style={{
-                        padding: '10px',
-                        cursor: existingUnit ? 'not-allowed' : 'pointer',
-                        opacity: existingUnit ? 0.5 : 1,
-                      }}
-                    >
-                      レーン {lane}
-                      {existingUnit && ' (使用中)'}
-                    </button>
-                  )
-                })}
-              </div>
-              <button
-                onClick={() => setSelectedCardForLane(null)}
-                style={{ marginTop: '10px' }}
-              >
-                キャンセル
-              </button>
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {opponent.hand.map((cardId) => {
-              const cardDef = cardMap.get(cardId)
-              if (!cardDef) return null
-
-              const availableMp = opponent.mp + opponent.blueMp
-              const isActiveResponse = gameState.activeResponse.isActive
-              // アクティブレスポンス中はユニットカードをプレイできない
-              const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
-
-              return (
-                <div
-                  key={cardId}
-                  onClick={() => {
-                    if (!canPlay) return
-                    if (cardDef.type === 'unit') {
-                      // アクティブレスポンス中はユニットカードをプレイできない
-                      if (isActiveResponse) {
-                        alert('アクティブレスポンス中はユニットカードをプレイできません')
-                        return
-                      }
-                      setSelectedCardForLane({
-                        playerId: 'player2',
-                        cardId,
-                      })
-                    } else {
-                      handlePlayCard('player2', cardId)
-                    }
-                  }}
-                  style={{
-                    border: '1px solid #333',
-                    padding: '10px',
-                    minWidth: '100px',
-                    cursor: canPlay ? 'pointer' : 'not-allowed',
-                    opacity: canPlay ? 1 : 0.5,
-                    backgroundColor: canPlay ? '#fff' : '#eee',
-                  }}
-                >
-                  <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
-                  <p>コスト: {cardDef.cost}</p>
-                  <p>種別: {cardDef.type}</p>
-                  <p>属性: {cardDef.attribute}</p>
-                  <p>レア: {cardDef.rarity}</p>
-                  {cardDef.unitStats && (
-                    <>
-                      <p>HP: {cardDef.unitStats.hp}</p>
-                      <p>攻撃: {cardDef.unitStats.attack}</p>
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 自分の情報 */}
-      <div
-        style={{
-          border: '1px solid #ccc',
-          padding: '10px',
-          marginBottom: '20px',
-        }}
-      >
-        <h3>プレイヤー1（自分） - {player.hero.name}</h3>
-        <p>HP: {player.hp}/{player.maxHp}</p>
-        <p>MP: {player.mp}{player.blueMp > 0 ? `+${player.blueMp}` : ''}/{player.maxMp}</p>
-        <p>AP: {player.ap}/{10}</p>
-        <p>墓地: {player.graveyard.length}枚</p>
-        <div>
-          <h4>盤面のユニット（レーン0, 1, 2）</h4>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {[0, 1, 2].map((lane) => {
-              const unitInLane = player.units.find((u) => u.lane === lane)
-              const cardDef = unitInLane
-                ? cardMap.get(unitInLane.cardId)
-                : null
-              const isDraggingOver = dragOverLane === lane
-              const draggedCardDef = draggedCardId ? cardMap.get(draggedCardId) : null
-              const canDrop = draggedCardId && !unitInLane && draggedCardDef && draggedCardDef.type === 'unit'
-              
-              return (
-                <div
-                  key={lane}
-                  onDragEnter={(e) => {
-                    e.preventDefault()
-                    if (canDrop) {
-                      setDragOverLane(lane)
-                    }
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault()
-                    if (canDrop) {
-                      e.dataTransfer.dropEffect = 'move'
-                    }
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault()
-                    setDragOverLane(null)
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    setDragOverLane(null)
-                    if (!draggedCardId || !canDrop) return
-                    
-                    const dropCardDef = cardMap.get(draggedCardId)
-                    if (!dropCardDef || dropCardDef.type !== 'unit') return
-                    
-                    // アクティブレスポンス中はユニットカードをプレイできない
-                    if (gameState.activeResponse.isActive) {
-                      alert('アクティブレスポンス中はユニットカードをプレイできません')
-                      setDraggedCardId(null)
-                      return
-                    }
-                    
-                    // カードを配置
-                    handlePlayCard('player1', draggedCardId, lane)
-                    setDraggedCardId(null)
-                  }}
-                  style={{
-                    border: isDraggingOver && canDrop ? '2px dashed #51cf66' : '1px solid #999',
-                    minWidth: '150px',
-                    minHeight: '100px',
-                    padding: '10px',
-                    backgroundColor: unitInLane ? '#fff' : isDraggingOver && canDrop ? '#e8f5e9' : '#f0f0f0',
-                    transition: 'background-color 0.2s, border-color 0.2s',
-                  }}
-                >
-                  <p style={{ fontWeight: 'bold' }}>レーン {lane}</p>
-                  {unitInLane && cardDef ? (
-                    <>
-                      <p>{cardDef.name}</p>
-                      <p>HP: {unitInLane.hp}/{unitInLane.maxHp}</p>
-                      <p>攻撃: {unitInLane.attack}</p>
-                      <p>ゲージ: {Math.floor(unitInLane.attackGauge * 100)}%</p>
-                    </>
-                  ) : (
-                    <p style={{ color: '#999' }}>空き</p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 自分の手札 */}
-      <div>
-        <h3>プレイヤー1の手札</h3>
-        {selectedCardForLane?.playerId === 'player1' && (
-          <div
-            style={{
-              marginBottom: '10px',
-              padding: '10px',
-              backgroundColor: '#ffffcc',
-            }}
-          >
-            <p>レーンを選択してください（0, 1, 2）</p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {[0, 1, 2].map((lane) => {
-                const existingUnit = player.units.find((u) => u.lane === lane)
-                return (
-                  <button
-                    key={lane}
-                    onClick={() => {
-                      handlePlayCard('player1', selectedCardForLane.cardId, lane)
-                      setSelectedCardForLane(null)
-                    }}
-                    disabled={!!existingUnit}
-                    style={{
-                      padding: '10px',
-                      cursor: existingUnit ? 'not-allowed' : 'pointer',
-                      opacity: existingUnit ? 0.5 : 1,
-                    }}
-                  >
-                    レーン {lane}
-                    {existingUnit && ' (使用中)'}
-                  </button>
-                )
-              })}
+          <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">
+            <div className="text-white text-sm font-bold">
+              Active Response: {Math.ceil(gameState.activeResponse.timer / 1000)}秒
             </div>
             <button
-              onClick={() => setSelectedCardForLane(null)}
-              style={{ marginTop: '10px' }}
+              onClick={() => handleEndActiveResponse('player1')}
+              className="mt-2 px-4 py-1 bg-yellow-500 text-black font-bold text-xs hover:bg-yellow-400 transition-colors"
             >
-              キャンセル
+              AR終了
             </button>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {player.hand.map((cardId) => {
+      </div>
+
+      {/* Main Area */}
+      <div className="relative z-10 flex-1 flex items-stretch">
+        <div className="w-1/4">
+          <HeroPortrait player={player} side="left" />
+        </div>
+
+        {/* Battle Slots */}
+        <div className="flex-1 flex flex-col justify-center gap-4 px-4">
+          {[0, 1, 2].map((lane) => {
+            const leftUnit = getUnitInLane(player.units, lane)
+            const rightUnit = getUnitInLane(opponent.units, lane)
+            const leftProgress = getAttackProgress(leftUnit)
+            const rightProgress = getAttackProgress(rightUnit)
+            const leftCardDef = leftUnit ? cardMap.get(leftUnit.cardId) : null
+            const rightCardDef = rightUnit ? cardMap.get(rightUnit.cardId) : null
+
+            return (
+              <div key={lane} className="relative h-44 w-full flex items-center justify-between px-16">
+                {/* Lane Line */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[1px] bg-white/10" />
+
+                {/* Left Slot */}
+                <div
+                  onClick={() => onSlotClick(lane)}
+                  className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all ${
+                    !leftUnit && selectedCardIdx !== null
+                      ? 'bg-cyan-400/10 border-2 border-cyan-400/50 shadow-[0_0_15px_cyan] animate-pulse cursor-pointer'
+                      : ''
+                  }`}
+                >
+                  {leftUnit && leftCardDef ? (
+                    <GameCard cardDef={leftCardDef} unit={leftUnit} isField />
+                  ) : (
+                    <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
+                  )}
+                  {/* Attack Progress L -> R */}
+                  {leftUnit && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-start left-32 w-[240%]">
+                      <div
+                        className="h-1 bg-cyan-400 shadow-[0_0_10px_cyan] rounded-full transition-all duration-75"
+                        style={{ width: `${leftProgress}%` }}
+                      />
+                      <div
+                        className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"
+                        style={{ marginLeft: '-6px' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Slot */}
+                <div className="relative z-20 w-28 h-40 flex items-center justify-center">
+                  {rightUnit && rightCardDef ? (
+                    <GameCard cardDef={rightCardDef} unit={rightUnit} isField />
+                  ) : (
+                    <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                  )}
+                  {/* Attack Progress R -> L */}
+                  {rightUnit && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-end right-32 w-[240%]">
+                      <div
+                        className="h-1 bg-red-500 shadow-[0_0_10px_red] rounded-full transition-all duration-75"
+                        style={{ width: `${rightProgress}%` }}
+                      />
+                      <div
+                        className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"
+                        style={{ marginRight: '-6px' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="w-1/4">
+          <HeroPortrait player={opponent} side="right" />
+        </div>
+      </div>
+
+      {/* Footer Area */}
+      <div className="relative z-20 h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
+        <div className="flex gap-4 items-end mb-6">
+          {player.hand.map((cardId, i) => {
             const cardDef = cardMap.get(cardId)
             if (!cardDef) return null
 
             const availableMp = player.mp + player.blueMp
             const isActiveResponse = gameState.activeResponse.isActive
-            // アクティブレスポンス中はユニットカードをプレイできない
             const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
-            const isDragging = draggedCardId === cardId
-            const isDraggable = cardDef.type === 'unit' && canPlay && !isActiveResponse
 
             return (
-              <div
+              <GameCard
                 key={cardId}
-                draggable={isDraggable}
-                onDragStart={(e) => {
-                  if (!isDraggable) {
-                    e.preventDefault()
-                    return
-                  }
-                  setDraggedCardId(cardId)
-                  e.dataTransfer.effectAllowed = 'move'
-                }}
-                onDragEnd={() => {
-                  setDraggedCardId(null)
-                  setDragOverLane(null)
-                }}
-                onClick={() => {
-                  if (!canPlay) return
-                  if (cardDef.type === 'unit') {
-                    // ユニットカードはドラッグアンドドロップで配置するのでクリックでは何もしない
-                    // レーン選択UIは残す（フォールバックとして）
-                    if (isActiveResponse) {
-                      alert('アクティブレスポンス中はユニットカードをプレイできません')
-                      return
-                    }
-                    setSelectedCardForLane({ playerId: 'player1', cardId })
-                  } else {
-                    // アクションカードはそのままプレイ
-                    handlePlayCard('player1', cardId)
-                  }
-                }}
-                style={{
-                  border: isDragging ? '2px solid #51cf66' : '1px solid #333',
-                  padding: '10px',
-                  minWidth: '100px',
-                  cursor: canPlay ? (cardDef.type === 'unit' ? 'grab' : 'pointer') : 'not-allowed',
-                  opacity: isDragging ? 0.5 : canPlay ? 1 : 0.5,
-                  backgroundColor: canPlay ? '#fff' : '#eee',
-                  transition: 'opacity 0.2s',
-                }}
-              >
-                <p style={{ fontWeight: 'bold' }}>{cardDef.name}</p>
-                <p>コスト: {cardDef.cost}</p>
-                <p>種別: {cardDef.type}</p>
-                <p>属性: {cardDef.attribute}</p>
-                <p>レア: {cardDef.rarity}</p>
-                {cardDef.unitStats && (
-                  <>
-                    <p>HP: {cardDef.unitStats.hp}</p>
-                    <p>攻撃: {cardDef.unitStats.attack}</p>
-                  </>
-                )}
-              </div>
+                cardDef={cardDef}
+                size="lg"
+                isSelected={selectedCardIdx === i}
+                onClick={() => onHandCardClick(i)}
+                canPlay={canPlay}
+              />
             )
           })}
         </div>
+        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} />
       </div>
+
+      {/* Game Over Overlay */}
+      {gameOver && winner && (
+        <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
+          <h2 className="text-8xl font-black italic tracking-tighter text-white animate-pulse">
+            {winner}
+          </h2>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-12 px-12 py-4 bg-yellow-500 text-black font-bold text-2xl hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+          >
+            リマッチ
+          </button>
+        </div>
+      )}
     </div>
   )
 }
-

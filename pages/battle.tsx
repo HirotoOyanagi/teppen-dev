@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import BottomNavigation from '@/components/BottomNavigation'
 import GameBoard from '@/components/GameBoard'
 import { getDeck } from '@/utils/deckStorage'
-import styles from './battle.module.css'
 
 export default function BattlePage() {
   const router = useRouter()
@@ -34,8 +32,8 @@ export default function BattlePage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>読み込み中...</div>
+      <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white">
+        <div className="text-2xl font-orbitron">読み込み中...</div>
       </div>
     )
   }
@@ -50,17 +48,8 @@ export default function BattlePage() {
         <title>TEPPEN - バトル</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <button className={styles.backButton} onClick={() => router.push('/deck-select')}>
-            ← デッキ選択に戻る
-          </button>
-          <h1>バトル</h1>
-        </div>
-        <div className={styles.gameArea}>
-          <GameBoard />
-        </div>
-        <BottomNavigation />
+      <div className="fixed inset-0 overflow-hidden">
+        <GameBoard />
       </div>
     </>
   )
