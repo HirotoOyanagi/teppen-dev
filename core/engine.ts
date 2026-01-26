@@ -80,8 +80,10 @@ export function updateGameState(
     newState.players.forEach((player, playerIndex) => {
       const opponentIndex = 1 - playerIndex
       const opponent = playerUpdates[opponentIndex]
+      // 現在のプレイヤー状態を取得（交戦で更新されている可能性がある）
+      const currentPlayer = playerUpdates[playerIndex]
 
-      const updatedUnits = player.units.map((unit): Unit | null => {
+      const updatedUnits = currentPlayer.units.map((unit): Unit | null => {
         const gaugeIncrease = deltaTime / unit.attackInterval
         const newGauge = Math.min(unit.attackGauge + gaugeIncrease, 1.0)
 
@@ -94,7 +96,7 @@ export function updateGameState(
             unit,
             targetUnit,
             opponent,
-            player,
+            currentPlayer,
             cardDefinitions
           )
           events.push(...attackResult.events)
@@ -139,13 +141,9 @@ export function updateGameState(
       )
 
       // 自分の状態を更新（ユニットリストのみ）
-      if (!playerUpdates[playerIndex]) {
-        playerUpdates[playerIndex] = { ...player, units: validUnits }
-      } else {
-        playerUpdates[playerIndex] = {
-          ...playerUpdates[playerIndex],
-          units: validUnits,
-        }
+      playerUpdates[playerIndex] = {
+        ...playerUpdates[playerIndex],
+        units: validUnits,
       }
     })
 
