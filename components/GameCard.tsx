@@ -12,7 +12,7 @@ interface GameCardProps {
   isDragging?: boolean
 }
 
-const LONG_PRESS_DURATION = 10 // 長押し判定時間（ミリ秒）
+const LONG_PRESS_DURATION = 150 // 長押し判定時間（ミリ秒）
 
 const GameCard: React.FC<GameCardProps> = ({
   cardDef,
@@ -26,17 +26,15 @@ const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const [shake, setShake] = useState(false)
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const isLongPressRef = useRef(false)
-  const startPosRef = useRef<{ x: number; y: number } | null>(null)
+  const isDraggingRef = useRef(false)
 
   // タッチ/マウス開始
   const handlePressStart = useCallback((clientX: number, clientY: number) => {
-    isLongPressRef.current = false
-    startPosRef.current = { x: clientX, y: clientY }
+    isDraggingRef.current = false
 
     if (onDragStart && canPlay) {
       pressTimerRef.current = setTimeout(() => {
-        isLongPressRef.current = true
+        isDraggingRef.current = true
         onDragStart(clientX, clientY)
       }, LONG_PRESS_DURATION)
     }
@@ -48,26 +46,12 @@ const GameCard: React.FC<GameCardProps> = ({
       clearTimeout(pressTimerRef.current)
       pressTimerRef.current = null
     }
-    // 長押しでなかった場合のみクリック処理（効果表示）
-    if (!isLongPressRef.current && onClick) {
+
+    // ドラッグしなかった場合のみクリック処理（効果表示）
+    if (!isDraggingRef.current && onClick) {
       onClick()
     }
-    isLongPressRef.current = false
-    startPosRef.current = null
   }, [onClick])
-
-  // 移動時（ドラッグ前に動いたらキャンセル）
-  const handleMove = useCallback((clientX: number, clientY: number) => {
-    if (startPosRef.current && pressTimerRef.current) {
-      const dx = Math.abs(clientX - startPosRef.current.x)
-      const dy = Math.abs(clientY - startPosRef.current.y)
-      if (dx > 10 || dy > 10) {
-        // 動きすぎたらキャンセル
-        clearTimeout(pressTimerRef.current)
-        pressTimerRef.current = null
-      }
-    }
-  }, [])
 
   // クリーンアップ
   useEffect(() => {
@@ -114,21 +98,22 @@ const GameCard: React.FC<GameCardProps> = ({
     <div
       onMouseDown={(e) => handlePressStart(e.clientX, e.clientY)}
       onMouseUp={handlePressEnd}
-      onMouseLeave={handlePressEnd}
-      onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+      onMouseLeave={() => {
+        if (pressTimerRef.current) {
+          clearTimeout(pressTimerRef.current)
+          pressTimerRef.current = null
+        }
+      }}
       onTouchStart={(e) => {
         if (e.touches[0]) handlePressStart(e.touches[0].clientX, e.touches[0].clientY)
       }}
       onTouchEnd={handlePressEnd}
-      onTouchMove={(e) => {
-        if (e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY)
-      }}
       onContextMenu={(e) => e.preventDefault()}
       className={`relative card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-200 ${
         (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
       } ${shake ? 'animate-bounce' : ''} ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''}`}
     >
-      {/* カード背景（画像がない場合はグラデーション） */}
+      {/* カード背景 */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
 

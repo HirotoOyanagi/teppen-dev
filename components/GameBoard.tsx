@@ -328,6 +328,7 @@ export default function GameBoard() {
     if (!dragging || !gameState) {
       setDragging(null)
       setHoveredLane(null)
+      setDetailCard(null)
       return
     }
 
@@ -348,6 +349,7 @@ export default function GameBoard() {
 
     setDragging(null)
     setHoveredLane(null)
+    setDetailCard(null)
   }, [dragging, hoveredLane, gameState, handlePlayCard])
 
   // グローバルマウス/タッチイベント
@@ -600,7 +602,7 @@ export default function GameBoard() {
                 key={cardId}
                 cardDef={cardDef}
                 size="lg"
-                onClick={() => onCardTap(cardDef, 'left')}
+                onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
                 onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
                 canPlay={canPlay}
                 isDragging={isDragging}
