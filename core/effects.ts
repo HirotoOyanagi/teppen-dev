@@ -184,26 +184,47 @@ function resolveDamageEffect(
     }
   } else if (targetUnit) {
     const newHp = Math.max(0, targetUnit.unit.hp - damage)
-    const playerIndex = newState.players.findIndex(
-      (p) => p.playerId === context.sourcePlayer.playerId
-    )
-    if (playerIndex !== -1) {
-      const unitIndex = newState.players[playerIndex].units.findIndex(
+    
+    // ターゲットユニットがどのプレイヤーに属しているか探す
+    let targetPlayerIndex = -1
+    for (let i = 0; i < newState.players.length; i++) {
+      const player = newState.players[i]
+      if (player.units.some((u) => u.id === targetUnit.unit.id)) {
+        targetPlayerIndex = i
+        break
+      }
+    }
+    
+    if (targetPlayerIndex !== -1) {
+      const player = newState.players[targetPlayerIndex]
+      const unitIndex = player.units.findIndex(
         (u) => u.id === targetUnit.unit.id
       )
       if (unitIndex !== -1) {
         if (newHp <= 0) {
           // ユニット破壊
-          newState.players[playerIndex].units.splice(unitIndex, 1)
+          const updatedUnits = player.units.filter(
+            (u) => u.id !== targetUnit.unit.id
+          )
+          newState.players[targetPlayerIndex] = {
+            ...player,
+            units: updatedUnits,
+            graveyard: [...player.graveyard, targetUnit.unit.cardId],
+          }
           events.push({
             type: 'unit_destroyed',
             unitId: targetUnit.unit.id,
             timestamp: Date.now(),
           })
         } else {
-          newState.players[playerIndex].units[unitIndex] = {
+          const updatedUnits = [...player.units]
+          updatedUnits[unitIndex] = {
             ...targetUnit.unit,
             hp: newHp,
+          }
+          newState.players[targetPlayerIndex] = {
+            ...player,
+            units: updatedUnits,
           }
           events.push({
             type: 'unit_damage',
@@ -243,17 +264,31 @@ function resolveHealEffect(
     }
   } else if (targetUnit) {
     const newHp = Math.min(targetUnit.unit.maxHp, targetUnit.unit.hp + heal)
-    const playerIndex = newState.players.findIndex(
-      (p) => p.playerId === context.sourcePlayer.playerId
-    )
-    if (playerIndex !== -1) {
-      const unitIndex = newState.players[playerIndex].units.findIndex(
+    
+    // ターゲットユニットがどのプレイヤーに属しているか探す
+    let targetPlayerIndex = -1
+    for (let i = 0; i < newState.players.length; i++) {
+      const player = newState.players[i]
+      if (player.units.some((u) => u.id === targetUnit.unit.id)) {
+        targetPlayerIndex = i
+        break
+      }
+    }
+    
+    if (targetPlayerIndex !== -1) {
+      const player = newState.players[targetPlayerIndex]
+      const unitIndex = player.units.findIndex(
         (u) => u.id === targetUnit.unit.id
       )
       if (unitIndex !== -1) {
-        newState.players[playerIndex].units[unitIndex] = {
+        const updatedUnits = [...player.units]
+        updatedUnits[unitIndex] = {
           ...targetUnit.unit,
           hp: newHp,
+        }
+        newState.players[targetPlayerIndex] = {
+          ...player,
+          units: updatedUnits,
         }
       }
     }
@@ -275,19 +310,33 @@ function resolveBuffEffect(
   if (targetUnit) {
     const attackBuff = effect.value || 0
     const hpBuff = effect.value || 0
-    const playerIndex = newState.players.findIndex(
-      (p) => p.playerId === context.sourcePlayer.playerId
-    )
-    if (playerIndex !== -1) {
-      const unitIndex = newState.players[playerIndex].units.findIndex(
+    
+    // ターゲットユニットがどのプレイヤーに属しているか探す
+    let targetPlayerIndex = -1
+    for (let i = 0; i < newState.players.length; i++) {
+      const player = newState.players[i]
+      if (player.units.some((u) => u.id === targetUnit.unit.id)) {
+        targetPlayerIndex = i
+        break
+      }
+    }
+    
+    if (targetPlayerIndex !== -1) {
+      const player = newState.players[targetPlayerIndex]
+      const unitIndex = player.units.findIndex(
         (u) => u.id === targetUnit.unit.id
       )
       if (unitIndex !== -1) {
-        newState.players[playerIndex].units[unitIndex] = {
+        const updatedUnits = [...player.units]
+        updatedUnits[unitIndex] = {
           ...targetUnit.unit,
           attack: targetUnit.unit.attack + attackBuff,
           hp: targetUnit.unit.hp + hpBuff,
           maxHp: targetUnit.unit.maxHp + hpBuff,
+        }
+        newState.players[targetPlayerIndex] = {
+          ...player,
+          units: updatedUnits,
         }
       }
     }
@@ -308,18 +357,32 @@ function resolveDebuffEffect(
 
   if (targetUnit) {
     const debuff = effect.value || 0
-    const playerIndex = newState.players.findIndex(
-      (p) => p.playerId === context.targetPlayer?.playerId || ''
-    )
-    if (playerIndex !== -1) {
-      const unitIndex = newState.players[playerIndex].units.findIndex(
+    
+    // ターゲットユニットがどのプレイヤーに属しているか探す
+    let targetPlayerIndex = -1
+    for (let i = 0; i < newState.players.length; i++) {
+      const player = newState.players[i]
+      if (player.units.some((u) => u.id === targetUnit.unit.id)) {
+        targetPlayerIndex = i
+        break
+      }
+    }
+    
+    if (targetPlayerIndex !== -1) {
+      const player = newState.players[targetPlayerIndex]
+      const unitIndex = player.units.findIndex(
         (u) => u.id === targetUnit.unit.id
       )
       if (unitIndex !== -1) {
         const newAttack = Math.max(0, targetUnit.unit.attack - debuff)
-        newState.players[playerIndex].units[unitIndex] = {
+        const updatedUnits = [...player.units]
+        updatedUnits[unitIndex] = {
           ...targetUnit.unit,
           attack: newAttack,
+        }
+        newState.players[targetPlayerIndex] = {
+          ...player,
+          units: updatedUnits,
         }
       }
     }
