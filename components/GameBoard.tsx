@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GameState, GameInput, Hero } from '@/core/types'
+import type { GameState, GameInput, Hero, CardDefinition } from '@/core/types'
 import {
   updateGameState,
   createInitialGameState,
@@ -9,6 +9,82 @@ import { useCards } from '@/utils/useCards'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
+
+// カード詳細ツールチップ（HPの上に表示）
+function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
+  const attributeColors: Record<string, string> = {
+    red: 'border-red-500 bg-red-950/95',
+    green: 'border-green-500 bg-green-950/95',
+    purple: 'border-purple-500 bg-purple-950/95',
+    black: 'border-gray-500 bg-gray-950/95',
+  }
+
+  // HPの上（ヒーローポートレートの上）に配置
+  const positionClass = side === 'left'
+    ? 'left-2 top-16'
+    : 'right-2 top-16'
+
+  return (
+    <div
+      className={`absolute ${positionClass} z-[100]
+        w-48 p-2 rounded border-2 shadow-lg backdrop-blur-sm
+        ${attributeColors[card.attribute] || attributeColors.black}
+        animate-in fade-in duration-100`}
+      onClick={onClose}
+    >
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-white font-bold text-[10px] truncate flex-1">{card.name}</span>
+        <span className="ml-1 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[8px] font-bold text-white">
+          {card.cost}
+        </span>
+      </div>
+
+      {/* スタッツ */}
+      {card.unitStats && (
+        <div className="flex gap-2 mb-1 text-[9px]">
+          <span className="text-red-400">⚔{card.unitStats.attack}</span>
+          <span className="text-blue-400">♥{card.unitStats.hp}</span>
+        </div>
+      )}
+
+      {/* 効果テキスト */}
+      {card.description && (
+        <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">
+          {card.description}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ドラッグ中のカード表示
+function DraggingCard({ card, position }: { card: CardDefinition; position: { x: number; y: number } }) {
+  return (
+    <div
+      className="fixed z-[200] pointer-events-none opacity-90"
+      style={{
+        left: position.x - 48,
+        top: position.y - 70,
+      }}
+    >
+      <div className="w-24 h-36 bg-black rounded border-2 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)]">
+        <div className="absolute top-1 left-1 w-5 h-5 bg-red-800 rounded-full flex items-center justify-center text-[10px] font-bold">
+          {card.cost}
+        </div>
+        <div className="absolute top-7 left-1 right-1 text-[8px] font-bold text-white truncate">
+          {card.name}
+        </div>
+        {card.unitStats && (
+          <div className="absolute bottom-1 w-full px-1 flex justify-between text-sm font-bold">
+            <span className="text-red-500">{card.unitStats.attack}</span>
+            <span className="text-blue-400">{card.unitStats.hp}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 const TICK_INTERVAL = 50 // 50ms
 
@@ -31,8 +107,12 @@ const OPPONENT_HERO: Hero = {
 export default function GameBoard() {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
-  const [selectedCardIdx, setSelectedCardIdx] = useState<number | null>(null)
+  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
+  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number } | null>(null)
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
+  const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
+  const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
 
   // ゲーム初期化
   useEffect(() => {
@@ -143,7 +223,6 @@ export default function GameBoard() {
 
       const result = updateGameState(gameState, input, 0, cardMap)
       setGameState(result.state)
-      setSelectedCardIdx(null)
     },
     [gameState, cardMap]
   )
@@ -207,49 +286,92 @@ export default function GameBoard() {
     [gameState, cardMap]
   )
 
-  // レーンクリック処理
-  const onSlotClick = (lane: number) => {
-    if (selectedCardIdx === null || !gameState) return
-
-    const player = gameState.players[0]
-    const cardId = player.hand[selectedCardIdx]
-    if (!cardId) return
-
-    const cardDef = cardMap.get(cardId)
-    if (!cardDef || cardDef.type !== 'unit') return
-
-    handlePlayCard('player1', cardId, lane)
+  // カードタップ → 効果表示
+  const onCardTap = (cardDef: CardDefinition, side: 'left' | 'right') => {
+    setDetailCard({ card: cardDef, side })
   }
 
-  // 手札カードクリック処理
-  const onHandCardClick = (idx: number) => {
+  // ドラッグ開始（長押し後）
+  const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number) => {
     if (!gameState) return
-
-    const cardId = player.hand[idx]
-    if (!cardId) return
-
-    const cardDef = cardMap.get(cardId)
-    if (!cardDef) return
-
+    const player = gameState.players[0]
     const availableMp = player.mp + player.blueMp
     const isActiveResponse = gameState.activeResponse.isActive
     const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
-
     if (!canPlay) return
 
-    // アクションカードの場合は直接プレイ
-    if (cardDef.type === 'action') {
-      handlePlayCard('player1', cardId)
+    setDragging({ cardId, cardDef, idx })
+    setDragPos({ x, y })
+    setDetailCard(null)
+  }
+
+  // ドラッグ中
+  const onDragMove = useCallback((x: number, y: number) => {
+    if (!dragging) return
+    setDragPos({ x, y })
+
+    // どのレーンの上にいるかチェック
+    let foundLane: number | null = null
+    laneRefs.current.forEach((ref, lane) => {
+      if (ref) {
+        const rect = ref.getBoundingClientRect()
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          foundLane = lane
+        }
+      }
+    })
+    setHoveredLane(foundLane)
+  }, [dragging])
+
+  // ドラッグ終了
+  const onDragEnd = useCallback(() => {
+    if (!dragging || !gameState) {
+      setDragging(null)
+      setHoveredLane(null)
       return
     }
 
-    // ユニットカードの場合は選択状態を切り替え
-    if (selectedCardIdx === idx) {
-      setSelectedCardIdx(null)
-    } else {
-      setSelectedCardIdx(idx)
+    const { cardId, cardDef } = dragging
+
+    // アクションカードはドロップ位置に関係なくプレイ
+    if (cardDef.type === 'action') {
+      handlePlayCard('player1', cardId)
     }
-  }
+    // ユニットカードはレーン上にドロップした場合のみプレイ
+    else if (hoveredLane !== null) {
+      const player = gameState.players[0]
+      const existingUnit = player.units.find((u) => u.lane === hoveredLane)
+      if (!existingUnit) {
+        handlePlayCard('player1', cardId, hoveredLane)
+      }
+    }
+
+    setDragging(null)
+    setHoveredLane(null)
+  }, [dragging, hoveredLane, gameState, handlePlayCard])
+
+  // グローバルマウス/タッチイベント
+  useEffect(() => {
+    if (!dragging) return
+
+    const handleMouseMove = (e: MouseEvent) => onDragMove(e.clientX, e.clientY)
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
+    }
+    const handleEnd = () => onDragEnd()
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleEnd)
+    window.addEventListener('touchmove', handleTouchMove)
+    window.addEventListener('touchend', handleEnd)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleEnd)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleEnd)
+    }
+  }, [dragging, onDragMove, onDragEnd])
 
   if (cardsLoading) {
     return (
@@ -294,7 +416,7 @@ export default function GameBoard() {
                     key={cardId}
                     cardDef={cardDef}
                     size="md"
-                    onClick={() => {}}
+                    onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
                   />
                 )
               })}
@@ -314,7 +436,12 @@ export default function GameBoard() {
               このまま
             </button>
           </div>
+          <p className="text-gray-400 text-sm mt-4">※カードをタップで詳細を確認</p>
         </div>
+
+        {detailCard && (
+          <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+        )}
       </div>
     )
   }
@@ -386,15 +513,22 @@ export default function GameBoard() {
 
                 {/* Left Slot */}
                 <div
-                  onClick={() => onSlotClick(lane)}
-                  className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all ${
-                    !leftUnit && selectedCardIdx !== null
-                      ? 'bg-cyan-400/10 border-2 border-cyan-400/50 shadow-[0_0_15px_cyan] animate-pulse cursor-pointer'
-                      : ''
+                  ref={(el) => { laneRefs.current[lane] = el }}
+                  className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all rounded ${
+                    dragging && !leftUnit && hoveredLane === lane
+                      ? 'bg-cyan-400/30 border-2 border-cyan-400 shadow-[0_0_20px_cyan]'
+                      : dragging && !leftUnit
+                        ? 'bg-cyan-400/10 border-2 border-cyan-400/30'
+                        : ''
                   }`}
                 >
                   {leftUnit && leftCardDef ? (
-                    <GameCard cardDef={leftCardDef} unit={leftUnit} isField />
+                    <GameCard
+                      cardDef={leftCardDef}
+                      unit={leftUnit}
+                      isField
+                      onClick={() => onCardTap(leftCardDef, 'left')}
+                    />
                   ) : (
                     <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
@@ -416,7 +550,12 @@ export default function GameBoard() {
                 {/* Right Slot */}
                 <div className="relative z-20 w-28 h-40 flex items-center justify-center">
                   {rightUnit && rightCardDef ? (
-                    <GameCard cardDef={rightCardDef} unit={rightUnit} isField />
+                    <GameCard
+                      cardDef={rightCardDef}
+                      unit={rightUnit}
+                      isField
+                      onClick={() => onCardTap(rightCardDef, 'right')}
+                    />
                   ) : (
                     <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}
@@ -454,15 +593,17 @@ export default function GameBoard() {
             const availableMp = player.mp + player.blueMp
             const isActiveResponse = gameState.activeResponse.isActive
             const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
+            const isDragging = dragging?.idx === i
 
             return (
               <GameCard
                 key={cardId}
                 cardDef={cardDef}
                 size="lg"
-                isSelected={selectedCardIdx === i}
-                onClick={() => onHandCardClick(i)}
+                onClick={() => onCardTap(cardDef, 'left')}
+                onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
                 canPlay={canPlay}
+                isDragging={isDragging}
               />
             )
           })}
@@ -483,6 +624,16 @@ export default function GameBoard() {
             リマッチ
           </button>
         </div>
+      )}
+
+      {/* Card Detail Tooltip */}
+      {detailCard && !dragging && (
+        <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+      )}
+
+      {/* Dragging Card */}
+      {dragging && (
+        <DraggingCard card={dragging.cardDef} position={dragPos} />
       )}
     </div>
   )

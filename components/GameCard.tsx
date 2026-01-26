@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import type { CardDefinition, Unit } from '@/core/types'
 
 interface GameCardProps {
@@ -6,21 +6,77 @@ interface GameCardProps {
   unit?: Unit | null
   size?: 'sm' | 'md' | 'lg'
   isField?: boolean
-  isSelected?: boolean
   onClick?: () => void
+  onDragStart?: (x: number, y: number) => void
   canPlay?: boolean
+  isDragging?: boolean
 }
+
+const LONG_PRESS_DURATION = 10 // 長押し判定時間（ミリ秒）
 
 const GameCard: React.FC<GameCardProps> = ({
   cardDef,
   unit,
   size = 'md',
   isField = false,
-  isSelected = false,
   onClick,
+  onDragStart,
   canPlay = true,
+  isDragging = false,
 }) => {
   const [shake, setShake] = useState(false)
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isLongPressRef = useRef(false)
+  const startPosRef = useRef<{ x: number; y: number } | null>(null)
+
+  // タッチ/マウス開始
+  const handlePressStart = useCallback((clientX: number, clientY: number) => {
+    isLongPressRef.current = false
+    startPosRef.current = { x: clientX, y: clientY }
+
+    if (onDragStart && canPlay) {
+      pressTimerRef.current = setTimeout(() => {
+        isLongPressRef.current = true
+        onDragStart(clientX, clientY)
+      }, LONG_PRESS_DURATION)
+    }
+  }, [onDragStart, canPlay])
+
+  // タッチ/マウス終了
+  const handlePressEnd = useCallback(() => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+    // 長押しでなかった場合のみクリック処理（効果表示）
+    if (!isLongPressRef.current && onClick) {
+      onClick()
+    }
+    isLongPressRef.current = false
+    startPosRef.current = null
+  }, [onClick])
+
+  // 移動時（ドラッグ前に動いたらキャンセル）
+  const handleMove = useCallback((clientX: number, clientY: number) => {
+    if (startPosRef.current && pressTimerRef.current) {
+      const dx = Math.abs(clientX - startPosRef.current.x)
+      const dy = Math.abs(clientY - startPosRef.current.y)
+      if (dx > 10 || dy > 10) {
+        // 動きすぎたらキャンセル
+        clearTimeout(pressTimerRef.current)
+        pressTimerRef.current = null
+      }
+    }
+  }, [])
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) {
+        clearTimeout(pressTimerRef.current)
+      }
+    }
+  }, [])
 
   // HPが減少したときに揺らす簡易エフェクト
   useEffect(() => {
@@ -32,9 +88,6 @@ const GameCard: React.FC<GameCardProps> = ({
   }, [unit?.hp, unit?.maxHp])
 
   const getBorderColor = () => {
-    if (isSelected) {
-      return 'border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] z-50 scale-110'
-    }
     if (!canPlay) {
       return 'border-gray-600 opacity-50'
     }
@@ -59,10 +112,21 @@ const GameCard: React.FC<GameCardProps> = ({
 
   return (
     <div
-      onClick={onClick}
-      className={`relative card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-300 ${
-        onClick && canPlay ? 'cursor-pointer' : 'cursor-default'
-      } ${shake ? 'animate-bounce' : ''} ${sizeClasses[size]}`}
+      onMouseDown={(e) => handlePressStart(e.clientX, e.clientY)}
+      onMouseUp={handlePressEnd}
+      onMouseLeave={handlePressEnd}
+      onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+      onTouchStart={(e) => {
+        if (e.touches[0]) handlePressStart(e.touches[0].clientX, e.touches[0].clientY)
+      }}
+      onTouchEnd={handlePressEnd}
+      onTouchMove={(e) => {
+        if (e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY)
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      className={`relative card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-200 ${
+        (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
+      } ${shake ? 'animate-bounce' : ''} ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''}`}
     >
       {/* カード背景（画像がない場合はグラデーション） */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
@@ -116,4 +180,3 @@ const GameCard: React.FC<GameCardProps> = ({
 }
 
 export default GameCard
-
