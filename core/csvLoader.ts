@@ -3,6 +3,7 @@
  */
 
 import type { CardDefinition, CardAttribute, CardRarity, CardType } from './types'
+import { parseEffectText } from './effectParser'
 
 interface CsvRow {
   ID: string
@@ -187,6 +188,11 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
       rarity,
       tribe: 'other', // CSVには種族情報がないのでデフォルト
       description,
+    }
+
+    // 効果をパース
+    if (description) {
+      card.effects = parseEffectText(description)
     }
 
     // ユニットカードの場合

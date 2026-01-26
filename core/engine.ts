@@ -13,6 +13,7 @@ import type {
   Hero,
 } from './types'
 import { calculateMaxMp } from './cards'
+import { resolveEffect, type EffectContext } from './effects'
 
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
@@ -93,7 +94,8 @@ export function updateGameState(
             unit,
             targetUnit,
             opponent,
-            player
+            player,
+            cardDefinitions
           )
           events.push(...attackResult.events)
 
@@ -363,6 +365,24 @@ function processInput(
       }
 
       newState.players[playerIndex].units.push(newUnit)
+
+      // プレイ時の効果を発動
+      if (cardDef.effects) {
+        const whenPlayedEffects = cardDef.effects.filter(
+          (e) => e.trigger === 'when_played'
+        )
+        for (const effect of whenPlayedEffects) {
+          const context: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourcePlayer: newState.players[playerIndex],
+            events,
+          }
+          const result = resolveEffect(effect, context)
+          newState = result.state
+          events.push(...result.events)
+        }
+      }
     }
   }
 
@@ -684,7 +704,8 @@ function executeUnitAttack(
   unit: Unit,
   targetUnit: Unit | undefined,
   opponent: PlayerState,
-  attackerPlayer: PlayerState
+  attackerPlayer: PlayerState,
+  cardDefinitions: Map<string, CardDefinition>
 ): {
   unit: Unit
   events: GameEvent[]
@@ -719,6 +740,15 @@ function executeUnitAttack(
 
     // 相手のユニットの状態を更新
     if (targetNewHp <= 0) {
+      // 破壊時の効果を発動
+      const targetCardDef = cardDefinitions.get(targetUnit.cardId)
+      if (targetCardDef?.effects) {
+        const deathEffects = targetCardDef.effects.filter(
+          (e) => e.trigger === 'death'
+        )
+        // 破壊時の効果は簡易的にスキップ（実装が複雑になるため）
+      }
+
       events.push({
         type: 'unit_destroyed',
         unitId: targetUnit.id,
@@ -754,6 +784,15 @@ function executeUnitAttack(
 
     // 自分のユニットの状態を更新
     if (attackerNewHp <= 0) {
+      // 破壊時の効果を発動
+      const attackerCardDef = cardDefinitions.get(unit.cardId)
+      if (attackerCardDef?.effects) {
+        const deathEffects = attackerCardDef.effects.filter(
+          (e) => e.trigger === 'death'
+        )
+        // 破壊時の効果は簡易的にスキップ（実装が複雑になるため）
+      }
+
       events.push({
         type: 'unit_destroyed',
         unitId: unit.id,

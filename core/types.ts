@@ -41,6 +41,8 @@ export interface CardDefinition {
   }
   // アクションカードの効果（JSONでDSL化、後で拡張）
   actionEffect?: Record<string, unknown>
+  // カード効果（ユニット・アクション共通）
+  effects?: import('./effects').Effect[]
 }
 
 // ユニットの状態
