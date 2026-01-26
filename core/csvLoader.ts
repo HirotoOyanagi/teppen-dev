@@ -219,17 +219,3 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
   return cards
 }
 
-/**
- * CSVファイルを読み込む（ブラウザ環境用）
- */
-export async function loadCardsFromCsvFile(filePath: string): Promise<CardDefinition[]> {
-  try {
-    const response = await fetch(filePath)
-    const csvText = await response.text()
-    return loadCardsFromCsv(csvText)
-  } catch (error) {
-    console.error('CSVファイルの読み込みに失敗しました:', error)
-    return []
-  }
-}
-

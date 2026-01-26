@@ -54,14 +54,6 @@ export async function createAllCards(): Promise<CardDefinition[]> {
 }
 
 /**
- * 同期的にカードリストを取得（キャッシュがある場合のみ）
- * 注意: キャッシュがない場合は空配列を返します
- */
-export function getCachedCards(): CardDefinition[] {
-  return cachedCards || []
-}
-
-/**
  * フォールバック用のカード（CSVが読み込めない場合）
  */
 function getFallbackCards(): CardDefinition[] {
@@ -86,14 +78,6 @@ function getFallbackCards(): CardDefinition[] {
  */
 export function createCardMap(cards: CardDefinition[]): Map<string, CardDefinition> {
   return new Map(cards.map((card) => [card.id, card]))
-}
-
-/**
- * サンプルデッキを生成
- */
-export function createSampleDeck(): string[] {
-  // 簡単なサンプルデッキ（後で拡張）
-  return []
 }
 
 /**

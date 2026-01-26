@@ -4,7 +4,7 @@ import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import { getDecks, deleteDeck, type SavedDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
-import type { Hero, CardDefinition } from '@/core/types'
+import type { Hero } from '@/core/types'
 import styles from './deck-list.module.css'
 
 const SAMPLE_HEROES: Hero[] = [
