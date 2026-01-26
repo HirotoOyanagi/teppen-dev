@@ -527,10 +527,58 @@ export default function GameBoard() {
 
             return (
               <div key={lane} className="relative h-44 w-full flex items-center justify-between px-16">
-                {/* Lane Line */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[1px] bg-white/10" />
+                {/* Lane Line (背景) */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
 
-                {/* Left Slot */}
+                {/* Attack Progress Bar - 左から右へ (自分のユニット) */}
+                {leftUnit && (
+                  <div 
+                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    style={{
+                      left: 'calc(4rem + 7rem)', // px-16 + w-28 (ユニットスロットの右端)
+                      width: 'calc(100% - 8rem - 14rem)', // 全幅 - 両側パディング - 両側ユニットスロット
+                    }}
+                  >
+                    {/* 進捗バー */}
+                    <div
+                      className="h-1 bg-gradient-to-r from-cyan-400 to-cyan-300 shadow-[0_0_12px_cyan] rounded-full"
+                      style={{ width: `${leftProgress}%` }}
+                    />
+                    {/* 矢印の先端 */}
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center"
+                      style={{ left: `calc(${leftProgress}% - 8px)` }}
+                    >
+                      <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[10px] border-l-cyan-400 drop-shadow-[0_0_6px_cyan]" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Attack Progress Bar - 右から左へ (相手のユニット) */}
+                {rightUnit && (
+                  <div 
+                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    style={{
+                      right: 'calc(4rem + 7rem)', // px-16 + w-28 (ユニットスロットの左端)
+                      width: 'calc(100% - 8rem - 14rem)', // 全幅 - 両側パディング - 両側ユニットスロット
+                    }}
+                  >
+                    {/* 進捗バー（右から左へ） */}
+                    <div
+                      className="h-1 bg-gradient-to-l from-red-500 to-red-400 shadow-[0_0_12px_red] rounded-full ml-auto"
+                      style={{ width: `${rightProgress}%` }}
+                    />
+                    {/* 矢印の先端 */}
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center"
+                      style={{ right: `calc(${rightProgress}% - 8px)` }}
+                    >
+                      <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[10px] border-r-red-500 drop-shadow-[0_0_6px_red]" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Left Slot (自分) */}
                 <div
                   ref={(el) => { laneRefs.current[lane] = el }}
                   className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all rounded ${
@@ -551,22 +599,9 @@ export default function GameBoard() {
                   ) : (
                     <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
-                  {/* Attack Progress L -> R */}
-                  {leftUnit && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-start left-32 w-[240%]">
-                      <div
-                        className="h-1 bg-cyan-400 shadow-[0_0_10px_cyan] rounded-full transition-all duration-75"
-                        style={{ width: `${leftProgress}%` }}
-                      />
-                      <div
-                        className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"
-                        style={{ marginLeft: '-6px' }}
-                      />
-                    </div>
-                  )}
                 </div>
 
-                {/* Right Slot */}
+                {/* Right Slot (相手) */}
                 <div className="relative z-20 w-28 h-40 flex items-center justify-center">
                   {rightUnit && rightCardDef ? (
                     <GameCard
@@ -577,19 +612,6 @@ export default function GameBoard() {
                     />
                   ) : (
                     <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
-                  )}
-                  {/* Attack Progress R -> L */}
-                  {rightUnit && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-end right-32 w-[240%]">
-                      <div
-                        className="h-1 bg-red-500 shadow-[0_0_10px_red] rounded-full transition-all duration-75"
-                        style={{ width: `${rightProgress}%` }}
-                      />
-                      <div
-                        className="w-3 h-3 bg-white rounded-full shadow-[0_0_10px_white]"
-                        style={{ marginRight: '-6px' }}
-                      />
-                    </div>
                   )}
                 </div>
               </div>

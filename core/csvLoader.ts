@@ -152,15 +152,11 @@ function decodeHtmlEntities(text: string): string {
 }
 
 /**
- * 攻撃間隔を計算（HPとコストに基づく）
+ * 攻撃間隔（一律10秒）
  */
-function calculateAttackInterval(hp: number, cost: number): number {
-  // 基本値: 10000ms
-  // HPが高いほど遅く、コストが高いほど早く
-  const baseInterval = 10000
-  const hpModifier = hp * 200 // HPが高いほど遅くなる
-  const costModifier = cost * -300 // コストが高いほど早くなる
-  return Math.max(5000, Math.min(15000, baseInterval + hpModifier + costModifier))
+function calculateAttackInterval(_hp: number, _cost: number): number {
+  // 全ユニット一律10秒で攻撃
+  return 10000
 }
 
 /**
