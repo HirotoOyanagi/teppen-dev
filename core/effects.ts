@@ -135,15 +135,6 @@ export function resolveEffectByFunctionName(
     case 'split_damage_all_enemy_units':
       // 全敵ユニットにダメージを振り分ける
       return resolveSplitDamageAllEnemyUnits(value, context)
-    case 'damage_unit_in_front':
-      // 正面のユニットにダメージ
-      return resolveDamageUnitInFront(value, context)
-    case 'damage_enemy_hero':
-      // 敵ヒーローにダメージ
-      return resolveDamageEnemyHero(value, context)
-    case 'damage_random_enemy_unit':
-      // ランダムな敵ユニットにダメージ
-      return resolveDamageRandomEnemyUnit(value, context)
     default:
       // 未実装の関数名
       console.warn(`Unknown effect function: ${functionName}`)
@@ -256,41 +247,9 @@ function resolveSplitDamageAllEnemyUnits(
   return { state: newState, events }
 }
 
-/**
- * 正面のユニットにダメージ（関数名ベース）
- */
-function resolveDamageUnitInFront(
-  damage: number,
-  context: EffectContext
-): { state: GameState; events: GameEvent[] } {
-  // TODO: 実装（必要に応じて）
-  return { state: context.gameState, events: context.events }
-}
 
 /**
- * 敵ヒーローにダメージ（関数名ベース）
- */
-function resolveDamageEnemyHero(
-  damage: number,
-  context: EffectContext
-): { state: GameState; events: GameEvent[] } {
-  // TODO: 実装（必要に応じて）
-  return { state: context.gameState, events: context.events }
-}
-
-/**
- * ランダムな敵ユニットにダメージ（関数名ベース）
- */
-function resolveDamageRandomEnemyUnit(
-  damage: number,
-  context: EffectContext
-): { state: GameState; events: GameEvent[] } {
-  // TODO: 実装（必要に応じて）
-  return { state: context.gameState, events: context.events }
-}
-
-/**
- * ダメージ効果を解決
+ * ダメージ効果を解決（従来のテキストパース方式用、フォールバック）
  */
 function resolveDamageEffect(
   effect: Effect,
@@ -300,65 +259,9 @@ function resolveDamageEffect(
   let newState = { ...gameState }
   const damage = effect.value || 0
 
-  // 全敵ユニットへの振り分けダメージ
-  if (effect.target === 'all_enemy_units') {
-    const sourcePlayerIndex = newState.players.findIndex(
-      (p) => p.playerId === sourcePlayer.playerId
-    )
-    const opponentIndex = 1 - sourcePlayerIndex
-    const opponent = newState.players[opponentIndex]
-    
-    if (opponent.units.length > 0) {
-      // ダメージをランダムに振り分ける
-      const enemyUnits = [...opponent.units]
-      const damagePerUnit = Math.floor(damage / enemyUnits.length)
-      const remainder = damage % enemyUnits.length
-      
-      // ランダムに選んだユニットに余りを配分
-      const shuffled = [...enemyUnits].sort(() => Math.random() - 0.5)
-      
-      const updatedUnits = [...opponent.units]
-      const destroyedCardIds: string[] = []
-      
-      for (let i = 0; i < shuffled.length; i++) {
-        const unit = shuffled[i]
-        const unitDamage = damagePerUnit + (i < remainder ? 1 : 0)
-        const unitIndex = updatedUnits.findIndex((u) => u.id === unit.id)
-        
-        if (unitIndex !== -1) {
-          const newHp = Math.max(0, unit.hp - unitDamage)
-          
-          if (newHp <= 0) {
-            // ユニット破壊
-            destroyedCardIds.push(unit.cardId)
-            updatedUnits.splice(unitIndex, 1)
-            events.push({
-              type: 'unit_destroyed',
-              unitId: unit.id,
-              timestamp: Date.now(),
-            })
-          } else {
-            updatedUnits[unitIndex] = {
-              ...unit,
-              hp: newHp,
-            }
-            events.push({
-              type: 'unit_damage',
-              unitId: unit.id,
-              damage: unitDamage,
-              timestamp: Date.now(),
-            })
-          }
-        }
-      }
-      
-      newState.players[opponentIndex] = {
-        ...opponent,
-        units: updatedUnits,
-        graveyard: [...opponent.graveyard, ...destroyedCardIds],
-      }
-    }
-    return { state: newState, events }
+  // 全敵ユニットへの振り分けダメージ（フォールバック用）
+  if (effect.target === 'all_enemy_units' && sourcePlayer) {
+    return resolveSplitDamageAllEnemyUnits(damage, context)
   }
 
   if (effect.target === 'enemy_hero' && targetPlayer) {

@@ -628,7 +628,6 @@ function processInput(
       ap: 0,
     }
 
-    // TODO: 必殺技の効果を実装
   }
 
   return { state: newState, events }
@@ -759,8 +758,7 @@ function resolveActionEffect(
 
   // アクション効果の解決（簡易版）
   if (cardDef.actionEffect) {
-    // TODO: 効果の種類に応じた処理を実装
-    // 例：ダメージ、回復、バフなど
+    // 効果の種類に応じた処理を実装予定
   }
 
   return { state: newState, events }
