@@ -898,6 +898,7 @@ export function createInitialGameState(
 
   const maxMp1 = calculateMaxMp(hero1.attribute, deck1, cardDefinitions)
   const maxMp2 = calculateMaxMp(hero2.attribute, deck2, cardDefinitions)
+  const initialMp = 4
 
   return {
     gameId: `game_${Date.now()}`,
@@ -915,7 +916,7 @@ export function createInitialGameState(
         playerId: player1Id,
         hp: GAME_CONFIG.INITIAL_HP,
         maxHp: GAME_CONFIG.INITIAL_HP,
-        mp: 0,
+        mp: Math.min(initialMp, maxMp1),
         maxMp: maxMp1,
         blueMp: 0,
         ap: 0,
@@ -929,7 +930,7 @@ export function createInitialGameState(
         playerId: player2Id,
         hp: GAME_CONFIG.INITIAL_HP,
         maxHp: GAME_CONFIG.INITIAL_HP,
-        mp: 0,
+        mp: Math.min(initialMp, maxMp2),
         maxMp: maxMp2,
         blueMp: 0,
         ap: 0,
