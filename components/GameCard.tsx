@@ -58,6 +58,7 @@ const GameCard: React.FC<GameCardProps> = ({
   isDragging = false,
 }) => {
   const [shake, setShake] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isDraggingRef = useRef(false)
   
@@ -149,9 +150,25 @@ const GameCard: React.FC<GameCardProps> = ({
         (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
       } ${shake ? 'animate-bounce' : ''} ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''}`}
     >
-      {/* カード背景 */}
-      <div className="absolute inset-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
+      {/* カード背景レイヤー */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
+      
+      {/* カード画像（背景レイヤー、操作を妨げないようにpointer-events-none） */}
+      {cardDef.imageUrl && !imageError ? (
+        <>
+          <img
+            src={cardDef.imageUrl}
+            alt={cardDef.name}
+            className="absolute inset-0 z-0 w-full h-full object-cover pointer-events-none"
+            onError={() => setImageError(true)}
+            loading="lazy"
+          />
+          {/* 画像の上にグラデーションオーバーレイ（テキストの可読性向上） */}
+          <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-black/40 to-black/80 pointer-events-none" />
+        </>
+      ) : (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
+      )}
 
       {/* Cost */}
       {!isField && (

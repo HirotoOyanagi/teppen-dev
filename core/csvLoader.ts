@@ -184,6 +184,7 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
       rarity,
       tribe: 'other', // CSVには種族情報がないのでデフォルト
       description,
+      imageUrl: `/images/cards/${id}.jpg`, // IDから画像パスを自動生成
     }
 
     // 効果をパース

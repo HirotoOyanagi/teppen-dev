@@ -32,6 +32,7 @@ export interface CardDefinition {
   rarity: CardRarity
   tribe: CardTribe
   description?: string
+  imageUrl?: string // カード画像のパス（IDから自動生成）
   // ユニットカードの属性
   unitStats?: {
     hp: number
