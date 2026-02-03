@@ -47,3 +47,5 @@ const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0 }) => {
 
 export default ManaBar
 
+
+
