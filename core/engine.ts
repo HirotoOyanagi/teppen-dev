@@ -13,7 +13,15 @@ import type {
   Hero,
 } from './types'
 import { calculateMaxMp } from './cards'
-import { resolveEffect, type EffectContext } from './effects'
+import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
+
+/**
+ * 数値をパース（空文字や無効値は0）
+ */
+function parseNumber(value: string): number {
+  const num = parseInt(value, 10)
+  return isNaN(num) ? 0 : num
+}
 
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
@@ -347,21 +355,89 @@ function processInput(
       // （既に墓地に追加されていないはずだが、念のため確認）
       // ユニットが破壊された時点で墓地に送られる
 
+      // Rush効果の確認（7秒進んだ状態から始まる）
+      // effectFunctionsに"rush"が含まれている場合、またはeffectsにRushステータスがある場合
+      let initialAttackGauge = 0
+      let hasRushInFunctionName = false
+      
+      if (cardDef.effectFunctions) {
+        // 形式: "関数名:数値" または "関数名1;関数名2:数値"
+        const colonIndex = cardDef.effectFunctions.lastIndexOf(':')
+        if (colonIndex !== -1) {
+          const functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
+          const functionNames = functionNamesStr.split(';').map((name) => name.trim())
+          hasRushInFunctionName = functionNames.some(
+            (name) => name.toLowerCase() === 'rush'
+          )
+        }
+      }
+      
+      const hasRushInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'rush'
+      )
+      
+      if (hasRushInFunctionName || hasRushInEffects) {
+        // 7秒進んだ状態から始まる = 攻撃ゲージを7秒分進める
+        const rushTime = 7000 // 7秒（ミリ秒）
+        initialAttackGauge = Math.min(1.0, rushTime / cardDef.unitStats.attackInterval)
+      }
+
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
         cardId: input.cardId,
         hp: cardDef.unitStats.hp,
         maxHp: cardDef.unitStats.hp,
         attack: cardDef.unitStats.attack,
-        attackGauge: 0,
+        attackGauge: initialAttackGauge,
         attackInterval: cardDef.unitStats.attackInterval,
         lane: lane,
       }
 
       newState.players[playerIndex].units.push(newUnit)
 
-      // プレイ時の効果を発動
-      if (cardDef.effects) {
+      // 効果関数ベースの効果を発動（優先）
+      // 形式: "関数名:数値" または "関数名1;関数名2:数値"
+      if (cardDef.effectFunctions) {
+        const colonIndex = cardDef.effectFunctions.lastIndexOf(':')
+        if (colonIndex !== -1) {
+          const functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
+          const valueStr = cardDef.effectFunctions.substring(colonIndex + 1)
+          const effectValue = parseNumber(valueStr)
+          
+          const functionNames = functionNamesStr.split(';').map((name) => name.trim())
+          
+          for (const functionName of functionNames) {
+            // Rushは既に攻撃ゲージで処理済みなのでスキップ
+            if (functionName.toLowerCase() === 'rush') {
+              continue
+            }
+            
+            const context: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourcePlayer: newState.players[playerIndex],
+              sourceUnit: {
+                unit: newUnit,
+                statusEffects: new Set(),
+                temporaryBuffs: { attack: 0, hp: 0 },
+                counters: {},
+                flags: {},
+              },
+              events,
+            }
+            const result = resolveEffectByFunctionName(
+              functionName,
+              effectValue,
+              context
+            )
+            newState = result.state
+            events.push(...result.events)
+          }
+        }
+      }
+
+      // プレイ時の効果を発動（従来のテキストパース方式、effectFunctionsがない場合のみ）
+      if (!cardDef.effectFunctions && cardDef.effects) {
         const whenPlayedEffects = cardDef.effects.filter(
           (e) => e.trigger === 'when_played'
         )

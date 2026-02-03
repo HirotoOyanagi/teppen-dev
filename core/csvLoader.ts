@@ -16,6 +16,7 @@ interface CsvRow {
   攻撃力: string
   HP: string
   効果: string
+  効果関数?: string // 形式: "関数名:数値" または "関数名1;関数名2:数値"
 }
 
 /**
@@ -175,6 +176,9 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
     const rarity = mapRarity(row.レアリティ)
     const description = decodeHtmlEntities(row.効果 || '')
 
+    // 効果関数を読み込む（形式: "関数名:数値" または "関数名1;関数名2:数値"）
+    const effectFunctions = row.効果関数?.trim() || undefined
+
     const card: CardDefinition = {
       id,
       name,
@@ -185,6 +189,7 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
       tribe: 'other', // CSVには種族情報がないのでデフォルト
       description,
       imageUrl: `/images/cards/${id}.jpg`, // IDから画像パスを自動生成
+      effectFunctions,
     }
 
     // 効果をパース

@@ -1,6 +1,6 @@
-ID,カードパック,カード名,属性,カード種別,レアリティ,コスト,攻撃力,HP,効果
-1,COR,目覚めの一撃,Red,Unit Card,Common,3,2,4,"When played: Deals 1 damage to unit in front. &lt;Growth&gt;: 3 Lv. 2: Gain +3 HP. Lv. 3: Gain ""Attacking: Deal damage equal to this unit's Attack to the unit in front."""
-2,COR,バレッタ,Red,Unit Card,Epic,4,2,6,&lt;Rush&gt; When placed on the field: Deal 4 damage split among all enemy units.
+ID,カードパック,カード名,属性,カード種別,レアリティ,コスト,攻撃力,HP,効果,効果関数
+1,COR,目覚めの一撃,Red,Unit Card,Common,3,2,4,"When played: Deals 1 damage to unit in front. &lt;Growth&gt;: 3 Lv. 2: Gain +3 HP. Lv. 3: Gain ""Attacking: Deal damage equal to this unit's Attack to the unit in front.""",
+2,COR,バレッタ,Red,Unit Card,Epic,4,2,6,&lt;Rush&gt; When placed on the field: Deal 4 damage split among all enemy units.,rush;split_damage_all_enemy_units:4
 3,COR,カーネル,Red,Unit Card,Epic,5,2,10,When a friendly Machine unit is placed on the field: Gain +1 Attack and &lt;Combo&gt;. (Effective for 1 attack.) While on the field: Give all other friendly red units +1 Attack and &lt;Rush&gt;.
 4,COR,ドンガッチャ,Red,Unit Card,Rare,5,2,8,"When placed on the field: Give 1 other random friendly unit +2 Attack, then give 1 random Unit Card in your hand or EX Pocket -1 MP. &lt;Coordination&gt;: 1 Gain +1 Attack."
 5,COR,怒れる竜王 リオレウス,Red,Unit Card,Legendary,7,3,7,&lt;Flight&gt; &lt;Rush&gt; After dealing damage to enemy Hero: Deals 6 damage to 1 random enemy unit.
