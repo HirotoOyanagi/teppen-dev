@@ -95,3 +95,4 @@ export default function CardModal({ card, onClose }: CardModalProps) {
 
 
 
+
