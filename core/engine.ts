@@ -354,32 +354,67 @@ function processInput(
       // ユニットカードは場に出した時点では墓地には行かない
       // （既に墓地に追加されていないはずだが、念のため確認）
       // ユニットが破壊された時点で墓地に送られる
-
-      // Rush効果の確認（7秒進んだ状態から始まる）
-      // effectFunctionsに"rush"が含まれている場合、またはeffectsにRushステータスがある場合
-      let initialAttackGauge = 0
-      let hasRushInFunctionName = false
       
+      // effectFunctions からキーワードを抽出
+      let functionNames: string[] = []
       if (cardDef.effectFunctions) {
-        // 形式: "関数名:数値" または "関数名1;関数名2:数値"
-        const colonIndex = cardDef.effectFunctions.lastIndexOf(':')
-        if (colonIndex !== -1) {
-          const functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
-          const functionNames = functionNamesStr.split(';').map((name) => name.trim())
-          hasRushInFunctionName = functionNames.some(
-            (name) => name.toLowerCase() === 'rush'
+        const colonIndexForKeywords = cardDef.effectFunctions.lastIndexOf(':')
+        let functionNamesStrForKeywords = cardDef.effectFunctions
+        if (colonIndexForKeywords !== -1) {
+          functionNamesStrForKeywords = cardDef.effectFunctions.substring(
+            0,
+            colonIndexForKeywords
           )
         }
+        functionNames = functionNamesStrForKeywords
+          .split(';')
+          .map((name) => name.trim().toLowerCase())
+          .filter((name) => name.length > 0)
       }
-      
+
+      // Rush効果の確認（7秒進んだ状態から始まる）
+      const hasRushInFunctionName = functionNames.includes('rush')
       const hasRushInEffects = cardDef.effects?.some(
         (e) => e.type === 'status' && e.status === 'rush'
       )
-      
+
+      let initialAttackGauge = 0
       if (hasRushInFunctionName || hasRushInEffects) {
         // 7秒進んだ状態から始まる = 攻撃ゲージを7秒分進める
         const rushTime = 7000 // 7秒（ミリ秒）
         initialAttackGauge = Math.min(1.0, rushTime / cardDef.unitStats.attackInterval)
+      }
+
+      // 俊敏（agility）: 攻撃間隔を半分にする
+      const hasAgilityInFunctionName = functionNames.includes('agility')
+      const hasAgilityInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'agility'
+      )
+      const hasAgility = hasAgilityInFunctionName || hasAgilityInEffects
+      const baseAttackInterval = cardDef.unitStats.attackInterval
+      const adjustedAttackInterval = hasAgility
+        ? Math.max(500, Math.floor(baseAttackInterval / 2))
+        : baseAttackInterval
+
+      // 空戦・重貫通フラグ
+      const hasFlightInFunctionName = functionNames.includes('flight')
+      const hasHeavyPierceInFunctionName = functionNames.includes('heavy_pierce')
+      const hasFlightInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'flight'
+      )
+      const hasHeavyPierceInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'heavy_pierce'
+      )
+
+      const statusEffects: string[] = []
+      if (hasFlightInFunctionName || hasFlightInEffects) {
+        statusEffects.push('flight')
+      }
+      if (hasHeavyPierceInFunctionName || hasHeavyPierceInEffects) {
+        statusEffects.push('heavy_pierce')
+      }
+      if (hasAgility) {
+        statusEffects.push('agility')
       }
 
       const newUnit: Unit = {
@@ -389,50 +424,66 @@ function processInput(
         maxHp: cardDef.unitStats.hp,
         attack: cardDef.unitStats.attack,
         attackGauge: initialAttackGauge,
-        attackInterval: cardDef.unitStats.attackInterval,
+        attackInterval: adjustedAttackInterval,
         lane: lane,
+        statusEffects: statusEffects.length > 0 ? statusEffects : undefined,
       }
 
       newState.players[playerIndex].units.push(newUnit)
 
       // 効果関数ベースの効果を発動（優先）
-      // 形式: "関数名:数値" または "関数名1;関数名2:数値"
+      // 形式:
+      // - "関数名"
+      // - "関数名:数値"
+      // - "関数名1;関数名2:数値"
       if (cardDef.effectFunctions) {
         const colonIndex = cardDef.effectFunctions.lastIndexOf(':')
+        let functionNamesStr = cardDef.effectFunctions
+        let valueStr = ''
         if (colonIndex !== -1) {
-          const functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
-          const valueStr = cardDef.effectFunctions.substring(colonIndex + 1)
-          const effectValue = parseNumber(valueStr)
-          
-          const functionNames = functionNamesStr.split(';').map((name) => name.trim())
-          
-          for (const functionName of functionNames) {
-            // Rushは既に攻撃ゲージで処理済みなのでスキップ
-            if (functionName.toLowerCase() === 'rush') {
-              continue
-            }
-            
-            const context: EffectContext = {
-              gameState: newState,
-              cardMap: cardDefinitions,
-              sourcePlayer: newState.players[playerIndex],
-              sourceUnit: {
-                unit: newUnit,
-                statusEffects: new Set(),
-                temporaryBuffs: { attack: 0, hp: 0 },
-                counters: {},
-                flags: {},
-              },
-              events,
-            }
-            const result = resolveEffectByFunctionName(
-              functionName,
-              effectValue,
-              context
-            )
-            newState = result.state
-            events.push(...result.events)
+          functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
+          valueStr = cardDef.effectFunctions.substring(colonIndex + 1)
+        }
+        const effectValue = parseNumber(valueStr)
+        
+        const functionNamesForInvoke = functionNamesStr
+          .split(';')
+          .map((name) => name.trim())
+          .filter((name) => name.length > 0)
+        
+        for (const functionName of functionNamesForInvoke) {
+          const lowerName = functionName.toLowerCase()
+          // Rush / Flight / Agility / Heavy Pierce は継続ステータスとして扱うため、
+          // ここでは個別の即時効果を発動しない
+          if (
+            lowerName === 'rush' ||
+            lowerName === 'flight' ||
+            lowerName === 'agility' ||
+            lowerName === 'heavy_pierce'
+          ) {
+            continue
           }
+          
+          const context: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourcePlayer: newState.players[playerIndex],
+            sourceUnit: {
+              unit: newUnit,
+              statusEffects: new Set(),
+              temporaryBuffs: { attack: 0, hp: 0 },
+              counters: {},
+              flags: {},
+            },
+            events,
+          }
+          const result = resolveEffectByFunctionName(
+            functionName,
+            effectValue,
+            context
+          )
+          newState = result.state
+          events.push(...result.events)
         }
       }
 
@@ -786,7 +837,18 @@ function executeUnitAttack(
   let updatedAttacker = attackerPlayer
   let updatedOpponent = opponent
 
-  if (targetUnit) {
+  const attackerHasFlight =
+    unit.statusEffects?.some((s) => s === 'flight') ?? false
+  const attackerHasHeavyPierce =
+    unit.statusEffects?.some((s) => s === 'heavy_pierce') ?? false
+
+  // 空戦: 正面ユニットを無視してヒーローを攻撃（対空などは未実装のため現状は常に貫通）
+  if (attackerHasFlight && !targetUnit) {
+    // 既に targetUnit がいない場合もそのままヒーロー攻撃へ
+  }
+
+  // 正面にユニットがいる & 空戦で無視しない場合
+  if (targetUnit && !attackerHasFlight) {
     // 交戦：互いにダメージを与え合う
     const targetNewHp = targetUnit.hp - unit.attack
     events.push({
@@ -830,8 +892,21 @@ function executeUnitAttack(
         reason: 'unit_destroyed',
         timestamp: Date.now(),
       })
+      // 重貫通: ユニットを倒した分のダメージをヒーローにも与える
+      let newOpponentHp = opponent.hp
+      if (attackerHasHeavyPierce) {
+        newOpponentHp = Math.max(0, opponent.hp - unit.attack)
+        events.push({
+          type: 'player_damage',
+          playerId: opponent.playerId,
+          damage: unit.attack,
+          timestamp: Date.now(),
+        })
+      }
+
       updatedOpponent = {
         ...opponent,
+        hp: newOpponentHp,
         units: opponent.units.filter((u: Unit) => u.id !== targetUnit.id),
         graveyard: [...opponent.graveyard, targetUnit.cardId],
       }
@@ -897,6 +972,17 @@ function executeUnitAttack(
       }
     }
 
+    // 重貫通でヒーローHPが0になった場合、ここでゲーム終了フラグを返す
+    if (updatedOpponent.hp <= 0) {
+      return {
+        unit: updatedUnit,
+        events,
+        opponentUpdate: updatedOpponent,
+        attackerUpdate: updatedAttacker,
+        gameEnded: { winner: attackerPlayer.playerId, reason: 'hp_zero' },
+      }
+    }
+
     return {
       unit: updatedUnit,
       events,
@@ -904,7 +990,7 @@ function executeUnitAttack(
       attackerUpdate: updatedAttacker,
     }
   } else {
-    // 正面にユニットがいない場合：プレイヤーに直接攻撃
+    // 正面にユニットがいない場合、または空戦で無視した場合：プレイヤーに直接攻撃
     events.push({
       type: 'unit_attack',
       unitId: unit.id,

@@ -19,30 +19,91 @@ interface KeywordEffect {
   color: string
 }
 
+// 内部キーワードID -> 表示用設定
 const KEYWORD_EFFECTS: Record<string, KeywordEffect> = {
-  Rush: { name: 'Rush', icon: '⚡', color: 'text-yellow-400' },
-  Flight: { name: 'Flight', icon: '🪽', color: 'text-sky-400' },
-  Shield: { name: 'Shield', icon: '🛡️', color: 'text-green-400' },
-  Agility: { name: 'Agility', icon: '💨', color: 'text-cyan-400' },
-  Veil: { name: 'Veil', icon: '👁️', color: 'text-purple-400' },
-  Combo: { name: 'Combo', icon: '🔥', color: 'text-orange-400' },
-  'Heavy Pierce': { name: 'H.Pierce', icon: '🗡️', color: 'text-red-400' },
-  'Anti-Air': { name: 'Anti-Air', icon: '🎯', color: 'text-blue-400' },
+  rush: { name: 'Rush', icon: '⚡', color: 'text-yellow-400' },
+  flight: { name: 'Flight', icon: '🪽', color: 'text-sky-400' },
+  shield: { name: 'Shield', icon: '🛡️', color: 'text-green-400' },
+  agility: { name: 'Agility', icon: '💨', color: 'text-cyan-400' },
+  veil: { name: 'Veil', icon: '👁️', color: 'text-purple-400' },
+  combo: { name: 'Combo', icon: '🔥', color: 'text-orange-400' },
+  heavy_pierce: { name: 'H.Pierce', icon: '🗡️', color: 'text-red-400' },
+  anti_air: { name: 'Anti-Air', icon: '🎯', color: 'text-blue-400' },
 }
 
-// カードテキストからキーワード効果を抽出
-function extractKeywords(description: string | undefined): KeywordEffect[] {
-  if (!description) return []
-  
-  const keywords: KeywordEffect[] = []
-  for (const [key, effect] of Object.entries(KEYWORD_EFFECTS)) {
-    // <Rush> のような形式を検出
-    const pattern = new RegExp(`<${key}>`, 'i')
-    if (pattern.test(description)) {
-      keywords.push(effect)
+// effectFunctions / statusEffects / description からキーワード効果を抽出
+function extractKeywords(params: {
+  effectFunctions?: string
+  statusEffects?: string[]
+  description?: string
+}): KeywordEffect[] {
+  const internalKeys: Record<string, boolean> = {}
+
+  // 1. effectFunctions から抽出（例: "flight;rush:4"）
+  if (params.effectFunctions) {
+    const text = params.effectFunctions
+    const colonIndex = text.lastIndexOf(':')
+    let functionNamesPart = text
+    if (colonIndex >= 0) {
+      functionNamesPart = text.substring(0, colonIndex)
     }
+    const names = functionNamesPart
+      .split(';')
+      .map((name) => name.trim().toLowerCase())
+      .filter((name) => name.length > 0)
+
+    names.forEach((name) => {
+      if (KEYWORD_EFFECTS[name]) {
+        internalKeys[name] = true
+      }
+    })
   }
-  return keywords
+
+  // 2. Unit.statusEffects から抽出
+  if (params.statusEffects && params.statusEffects.length > 0) {
+    params.statusEffects.forEach((s) => {
+      const key = s.toLowerCase()
+      if (KEYWORD_EFFECTS[key]) {
+        internalKeys[key] = true
+      }
+    })
+  }
+
+  // 3. 英語テキストの <Rush> 形式からのフォールバック（古いCSV用）
+  if (params.description) {
+    const description = params.description
+    const descriptionLower = description.toLowerCase()
+
+    const textToKeyMap: Record<string, string> = {
+      '<rush>': 'rush',
+      '<flight>': 'flight',
+      '<shield>': 'shield',
+      '<agility>': 'agility',
+      '<veil>': 'veil',
+      '<combo>': 'combo',
+      '<heavy pierce>': 'heavy_pierce',
+      '<anti-air>': 'anti_air',
+    }
+
+    Object.keys(textToKeyMap).forEach((pattern) => {
+      const key = textToKeyMap[pattern]
+      const index = descriptionLower.indexOf(pattern)
+      const hasPattern = index >= 0
+      if (hasPattern && KEYWORD_EFFECTS[key]) {
+        internalKeys[key] = true
+      }
+    })
+  }
+
+  const result: KeywordEffect[] = []
+  Object.keys(internalKeys).forEach((key) => {
+    const effect = KEYWORD_EFFECTS[key]
+    if (effect) {
+      result.push(effect)
+    }
+  })
+
+  return result
 }
 
 const LONG_PRESS_DURATION = 150 // 長押し判定時間（ミリ秒）
@@ -63,7 +124,14 @@ const GameCard: React.FC<GameCardProps> = ({
   const isDraggingRef = useRef(false)
   
   // キーワード効果を抽出
-  const keywords = useMemo(() => extractKeywords(cardDef.description), [cardDef.description])
+  const keywords = useMemo(() => {
+    const statusEffects = unit && Array.isArray(unit.statusEffects) ? unit.statusEffects : []
+    return extractKeywords({
+      effectFunctions: cardDef.effectFunctions,
+      statusEffects,
+      description: cardDef.description,
+    })
+  }, [cardDef.effectFunctions, cardDef.description, unit?.statusEffects])
 
   // タッチ/マウス開始
   const handlePressStart = useCallback((clientX: number, clientY: number) => {
