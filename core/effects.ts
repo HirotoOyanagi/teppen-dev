@@ -263,7 +263,15 @@ function resolveSplitDamageAllEnemyUnits(
         continue
       }
 
-      const newHp = Math.max(0, originalUnit.hp - damageToThisUnit)
+      // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+      let actualDamage = damageToThisUnit
+      let newShieldCount = originalUnit.shieldCount || 0
+      if (newShieldCount > 0 && damageToThisUnit > 0) {
+        actualDamage = 0
+        newShieldCount = newShieldCount - 1
+      }
+
+      const newHp = Math.max(0, originalUnit.hp - actualDamage)
       const isAliveMap: Record<string, boolean> = {
         true: true,
         false: false,
@@ -274,6 +282,7 @@ function resolveSplitDamageAllEnemyUnits(
         finalUnits.push({
           ...originalUnit,
           hp: newHp,
+          shieldCount: newShieldCount,
         })
       } else {
         destroyedCardIds.push(originalUnit.cardId)
@@ -287,7 +296,7 @@ function resolveSplitDamageAllEnemyUnits(
       events.push({
         type: 'unit_damage',
         unitId: originalUnit.id,
-        damage: damageToThisUnit,
+        damage: actualDamage,
         timestamp: Date.now(),
       })
     }
@@ -337,7 +346,15 @@ function resolveDamageEffect(
       })
     }
   } else if (targetUnit) {
-    const newHp = Math.max(0, targetUnit.unit.hp - damage)
+    // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+    let actualDamage = damage
+    let newShieldCount = targetUnit.unit.shieldCount || 0
+    if (newShieldCount > 0 && damage > 0) {
+      actualDamage = 0
+      newShieldCount = newShieldCount - 1
+    }
+
+    const newHp = Math.max(0, targetUnit.unit.hp - actualDamage)
     
     // ターゲットユニットがどのプレイヤーに属しているか探す
     let targetPlayerIndex = -1
@@ -375,6 +392,7 @@ function resolveDamageEffect(
           updatedUnits[unitIndex] = {
             ...targetUnit.unit,
             hp: newHp,
+            shieldCount: newShieldCount,
           }
           newState.players[targetPlayerIndex] = {
             ...player,
@@ -383,7 +401,7 @@ function resolveDamageEffect(
           events.push({
             type: 'unit_damage',
             unitId: targetUnit.unit.id,
-            damage,
+            damage: actualDamage,
             timestamp: Date.now(),
           })
         }

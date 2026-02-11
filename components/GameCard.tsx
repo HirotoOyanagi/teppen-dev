@@ -272,6 +272,21 @@ const GameCard: React.FC<GameCardProps> = ({
         </div>
       )}
 
+      {/* Shield Count */}
+      {cardDef.type === 'unit' && unit && (unit.shieldCount || 0) > 0 && (
+        <div className="absolute top-8 right-1 flex gap-0.5 z-10">
+          {Array.from({ length: unit.shieldCount || 0 }).map((_, idx) => (
+            <span
+              key={idx}
+              className="text-xs text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
+              title={`シールド ${unit.shieldCount}枚`}
+            >
+              🛡️
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Stats */}
       {cardDef.type === 'unit' && (
         <div className="absolute bottom-1 w-full px-2 flex justify-between items-end z-10">

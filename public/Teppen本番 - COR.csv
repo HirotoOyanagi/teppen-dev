@@ -44,7 +44,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 43,COR,連鎖する烈火,Red,Action Card,Epic,3,,,敵ユニット1体に、このバトル中の連鎖する烈火の使用回数+4ダメージこのダメージでユニットを破壊した場合、死亡時能力は発動せず、ゲームから除外する（使用回数：0）,
 44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,action_effect;split_damage_all_enemy_units:12
 45,COR,双龍の波動,Red,Action Card,Legendary,2,,,敵ユニット1体に、場の味方ユニット数+3ダメージ,
-46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,
+46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,shield:1
 47,COR,まこと,Green,Unit Card,Common,3,2,5,撃破：+1/+1,
 48,COR,アベル,Green,Unit Card,Common,4,2,6,プレイ時：味方ヒーローのライフ+4,
 49,COR,ヒューゴー,Green,Unit Card,Common,5,3,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+2,
@@ -57,7 +57,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 56,COR,アーマー・アルマージ,Green,Unit Card,Common,3,1,6,プレイ時：自身を除く全ての味方緑ユニットのHP+2攻撃時：味方緑ユニットにHP3を振り分ける,
 57,COR,シェリー・バーキン,Green,Unit Card,Common,3,2,5,プレイ時：味方ヒーローのライフ+2,
 58,COR,神月かりん,Green,Unit Card,Rare,5,3,6,撃破：HP+2初めてHPが6以上になった時：攻撃力+2,
-59,COR,ザンギエフ,Green,Unit Card,Rare,5,3,5,＜シールド＞＜成長＞：5Lv.2：全ての味方ユニットのHP+3Lv.3：ランダムな敵ユニット1体に自身のHP分のダメージ,
+59,COR,ザンギエフ,Green,Unit Card,Rare,5,3,5,＜シールド＞＜成長＞：5Lv.2：全ての味方ユニットのHP+3Lv.3：ランダムな敵ユニット1体に自身のHP分のダメージ,shield:1
 60,COR,ツィツィヤック,Green,Unit Card,Rare,4,2,5,プレイ時：正面の敵ユニットを封印味方ユニットが場に出た時：自身の正面を除くランダムな敵ユニット1体を封印,
 61,COR,クレッセント・グリズリー,Green,Unit Card,Rare,8,4,10,＜重貫通＞撃破：MP+2初めてHPが12以上になった時：MP+2,heavy_pierce
 62,COR,エレナ,Green,Unit Card,Rare,3,1,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+3,
@@ -65,7 +65,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 64,COR,レベッカ・チェンバース,Green,Unit Card,Epic,4,1,13,攻撃時：自身のHP-2、自身を除くランダムな味方ユニット1体のHP+2＜数攻＞＞20自分の手札とEXポケットにある全ての人間ユニットカードの攻撃力+1,
 65,COR,クレド,Green,Unit Card,Rare,4,2,4,プレイ時：自身を除くランダムな味方ユニット1体のHP+3,
 66,COR,ラージャン,Green,Unit Card,Rare,6,2,9,＜連撃＞＜エナジー＞：+1/+1攻撃時：エナジーポイント+2戦闘ダメージを受けずに生き残った時：エナジーポイント+3,combo
-67,COR,アイリス,Green,Unit Card,Epic,5,1,4,＜シールド＞＜MPブースト：50＞,mp_boost:50
+67,COR,アイリス,Green,Unit Card,Epic,5,1,4,＜シールド＞＜MPブースト：50＞,shield:1;mp_boost:50
 68,COR,クリス・レッドフィールド,Green,Unit Card,Epic,5,2,9,撃破：HP+3場にいる間：自身を除く味方緑ユニットに「撃破：+2/+2」付与,
 69,COR,フェリシア,Green,Unit Card,Epic,6,2,5,プレイ時：全ての自分の枠にフェリシアを出す,
 70,COR,超文明の遺物 エックス,Green,Unit Card,Legendary,5,4,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+5撃破：倒したユニットの能力を得る（1回まで）,

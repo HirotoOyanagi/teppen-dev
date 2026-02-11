@@ -616,6 +616,7 @@ function processInput(
       const hasSpilloverInFunctionName = functionNames.includes('spillover')
       const hasRevengeInFunctionName = functionNames.includes('revenge')
       const hasMpBoostInFunctionName = functionNames.includes('mp_boost')
+      const hasShieldInFunctionName = functionNames.includes('shield')
       const hasFlightInEffects = cardDef.effects?.some(
         (e) => e.type === 'status' && e.status === 'flight'
       )
@@ -652,6 +653,15 @@ function processInput(
         statusEffects.push('mp_boost')
       }
 
+      // シールドの枚数を取得（effectFunctionsで"shield:数値"の形式で指定）
+      let shieldCount = 0
+      if (hasShieldInFunctionName) {
+        const shieldToken = parseEffectFunctionTokens(cardDef.effectFunctions).find(
+          (t) => t.name === 'shield'
+        )
+        shieldCount = shieldToken ? (shieldToken.value || 1) : 1
+      }
+
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
         cardId: input.cardId,
@@ -664,6 +674,9 @@ function processInput(
       }
       if (statusEffects.length > 0) {
         newUnit.statusEffects = statusEffects
+      }
+      if (shieldCount > 0) {
+        newUnit.shieldCount = shieldCount
       }
 
       newState.players[playerIndex].units.push(newUnit)
@@ -1145,8 +1158,16 @@ function executeUnitAttack(
       return { opponentState: currentOpponent, damageDealt: 0, destroyed: false }
     }
 
-    const damageDealt = Math.min(victim.hp, damage)
-    const nextHp = victim.hp - damage
+    // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+    let actualDamage = damage
+    let newShieldCount = victim.shieldCount || 0
+    if (newShieldCount > 0 && damage > 0) {
+      actualDamage = 0
+      newShieldCount = newShieldCount - 1
+    }
+
+    const damageDealt = Math.min(victim.hp, actualDamage)
+    const nextHp = victim.hp - actualDamage
 
     if (nextHp <= 0) {
       events.push({
@@ -1203,7 +1224,7 @@ function executeUnitAttack(
     const updatedUnits = currentOpponent.units.map((u) => {
       const isVictimKey = String(u.id === victim.id)
       const unitMap: Record<string, Unit> = {
-        true: { ...u, hp: nextHp },
+        true: { ...u, hp: nextHp, shieldCount: newShieldCount },
         false: u,
       }
       return unitMap[isVictimKey]

@@ -64,6 +64,7 @@ export interface Unit {
   attackInterval: number
   lane: number
   statusEffects?: string[] // 状態異常（後で拡張）
+  shieldCount?: number // シールドの枚数（1回のダメージを0にする）
 }
 
 // ヒーロー定義
