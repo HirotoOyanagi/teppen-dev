@@ -29,6 +29,21 @@ type EffectFunctionToken = {
   value: number
 }
 
+type EffectFunctionTrigger =
+  | 'play' // プレイ時（手札／EXポケットからMPを支払って場に出した時）
+  | 'attack' // 攻撃時（攻撃動作の直前）
+  | 'death' // 死亡時（破壊された時）
+  | 'resonate' // 呼応（アクションカードを使用した時）
+  | 'decimate' // 撃破（一方的に相手ユニットを倒した時）
+  | 'explore' // 探索時（味方が探索した時）
+  | 'damage' // ダメージ時（ダメージを受けた時）
+  | 'effect_damage_destroy' // 効果ダメージで破壊時
+  | 'enter_field' // 場に出た時（出所を問わず場に出た瞬間）
+
+type TriggeredEffectFunctionToken = EffectFunctionToken & {
+  trigger: EffectFunctionTrigger
+}
+
 function parseEffectFunctionTokens(effectFunctions: string | undefined): EffectFunctionToken[] {
   if (!effectFunctions) {
     return []
@@ -60,6 +75,92 @@ function parseEffectFunctionTokens(effectFunctions: string | undefined): EffectF
   }
 
   return tokens
+}
+
+function parseTriggeredEffectFunctionTokens(
+  effectFunctions: string | undefined
+): TriggeredEffectFunctionToken[] {
+  const baseTokens = parseEffectFunctionTokens(effectFunctions)
+  if (!effectFunctions) {
+    return []
+  }
+
+  const parts = effectFunctions
+    .split(';')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+  const triggerKeyMap: Record<string, EffectFunctionTrigger> = {
+    play: 'play',
+    attack: 'attack',
+    death: 'death',
+    resonate: 'resonate',
+    decimate: 'decimate',
+    explore: 'explore',
+    damage: 'damage',
+    effect_damage_destroy: 'effect_damage_destroy',
+    enter_field: 'enter_field',
+  }
+
+  const triggeredTokens: TriggeredEffectFunctionToken[] = []
+
+  for (const part of parts) {
+    const firstColonIndex = part.indexOf(':')
+
+    if (firstColonIndex === -1) {
+      const normalized = part.toLowerCase()
+      const matchedBase = baseTokens.find((t) => t.name === normalized)
+      if (matchedBase) {
+        triggeredTokens.push({
+          name: matchedBase.name,
+          value: matchedBase.value,
+          trigger: 'play',
+        })
+      }
+      continue
+    }
+
+    const possibleTriggerKey = part.substring(0, firstColonIndex).trim().toLowerCase()
+    const trigger = triggerKeyMap[possibleTriggerKey]
+
+    const hasTriggerMap: Record<string, boolean> = {
+      true: true,
+      false: false,
+    }
+    const hasTriggerKey = String(typeof trigger !== 'undefined')
+    const hasTrigger = hasTriggerMap[hasTriggerKey]
+
+    const remainingTextMap: Record<string, string> = {
+      true: part.substring(firstColonIndex + 1).trim(),
+      false: part,
+    }
+    const remainingText = remainingTextMap[hasTriggerKey]
+
+    const baseTokenParts = remainingText.split(':').map((p) => p.trim())
+    const baseNameMap: Record<string, string> = {
+      true: baseTokenParts[0] || '',
+      false: part.toLowerCase(),
+    }
+    const baseName = baseNameMap[String(baseTokenParts.length > 0)]
+    const valueText = baseTokenParts.length > 1 ? baseTokenParts[1] : ''
+    const valueNumber = parseNumber(valueText)
+
+    const finalTriggerMap: Record<string, EffectFunctionTrigger> = {
+      true: trigger,
+      false: 'play',
+    }
+    const finalTrigger = finalTriggerMap[hasTriggerKey]
+
+    if (baseName.length > 0) {
+      triggeredTokens.push({
+        name: baseName.toLowerCase(),
+        value: valueNumber,
+        trigger: finalTrigger,
+      })
+    }
+  }
+
+  return triggeredTokens
 }
 
 function removeOneCardFromHand(hand: string[], cardId: string): string[] {
@@ -365,8 +466,8 @@ function processInput(
       })
     }
 
-    // アクションカードの場合はActive Responseに入る
-    if (cardDef.type === 'action') {
+      // アクションカードの場合はActive Responseに入る
+      if (cardDef.type === 'action') {
       const opponentIndex = 1 - playerIndex
       const opponent = newState.players[opponentIndex]
 
@@ -375,6 +476,60 @@ function processInput(
       newState.players[playerIndex] = {
         ...newState.players[playerIndex],
         blueMp: newState.players[playerIndex].blueMp + blueMpGain,
+      }
+
+      // 呼応トリガー（resonate）：アクションカードを使用した時に発動
+      const triggeredTokensForResonate = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
+      if (triggeredTokensForResonate.length > 0) {
+        const sourcePlayerIndexForResonate = newState.players.findIndex(
+          (p) => p.playerId === input.playerId
+        )
+        if (sourcePlayerIndexForResonate !== -1) {
+          const sourcePlayerForResonate = newState.players[sourcePlayerIndexForResonate]
+
+          const invokeSkipForResonate: Record<string, boolean> = {
+            rush: true,
+            flight: true,
+            agility: true,
+            heavy_pierce: true,
+            combo: true,
+            spillover: true,
+            revenge: true,
+            mp_boost: true,
+          }
+
+          for (const token of triggeredTokensForResonate) {
+            const isResonateTriggerMap: Record<string, boolean> = {
+              true: token.trigger === 'resonate',
+              false: false,
+            }
+            const isResonateTrigger = isResonateTriggerMap.true
+
+            const isSkipped = invokeSkipForResonate[token.name] === true
+
+            const shouldInvokeMap: Record<string, boolean> = {
+              true: isResonateTrigger && !isSkipped,
+              false: false,
+            }
+            const shouldInvoke = shouldInvokeMap.true
+
+            if (shouldInvoke) {
+              const context: EffectContext = {
+                gameState: newState,
+                cardMap: cardDefinitions,
+                sourcePlayer: sourcePlayerForResonate,
+                events,
+              }
+              const result = resolveEffectByFunctionName(
+                token.name,
+                token.value,
+                context
+              )
+              newState = result.state
+              events.push(...result.events)
+            }
+          }
+        }
       }
       newState.players[opponentIndex] = {
         ...opponent,
@@ -424,7 +579,6 @@ function processInput(
       // ユニットカードは場に出した時点では墓地には行かない
       // （既に墓地に追加されていないはずだが、念のため確認）
       // ユニットが破壊された時点で墓地に送られる
-      
       const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
       const functionNames = functionTokens.map((t) => t.name)
 
@@ -514,11 +668,13 @@ function processInput(
 
       newState.players[playerIndex].units.push(newUnit)
 
-      // 効果関数ベースの効果を発動（優先）
+      // 効果関数ベースの効果を発動
       // 形式:
       // - "関数名"
       // - "関数名:数値"
-      // - "関数名1;関数名2:数値;関数名3:数値"
+      // - "play:関数名:数値"（プレイ時）
+      // - "enter_field:関数名:数値"（場に出た時）
+      // - "関数名1;attack:関数名2:数値;resonate:関数名3:数値"
       if (cardDef.effectFunctions) {
         const invokeSkip: Record<string, boolean> = {
           rush: true,
@@ -531,31 +687,41 @@ function processInput(
           mp_boost: true,
         }
 
-        for (const token of functionTokens) {
-          if (invokeSkip[token.name]) {
-            continue
+        const triggeredTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
+        const playTriggers: EffectFunctionTrigger[] = ['play', 'enter_field']
+
+        for (const token of triggeredTokens) {
+          const isPlayTrigger = playTriggers.includes(token.trigger)
+          const isSkipped = invokeSkip[token.name] === true
+
+          const shouldInvokeMap: Record<string, boolean> = {
+            true: isPlayTrigger && !isSkipped,
+            false: false,
           }
-          
-          const context: EffectContext = {
-            gameState: newState,
-            cardMap: cardDefinitions,
-            sourcePlayer: newState.players[playerIndex],
-            sourceUnit: {
-              unit: newUnit,
-              statusEffects: new Set(),
-              temporaryBuffs: { attack: 0, hp: 0 },
-              counters: {},
-              flags: {},
-            },
-            events,
+          const shouldInvoke = shouldInvokeMap.true
+
+          if (shouldInvoke) {
+            const context: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourcePlayer: newState.players[playerIndex],
+              sourceUnit: {
+                unit: newUnit,
+                statusEffects: new Set(),
+                temporaryBuffs: { attack: 0, hp: 0 },
+                counters: {},
+                flags: {},
+              },
+              events,
+            }
+            const result = resolveEffectByFunctionName(
+              token.name,
+              token.value,
+              context
+            )
+            newState = result.state
+            events.push(...result.events)
           }
-          const result = resolveEffectByFunctionName(
-            token.name,
-            token.value,
-            context
-          )
-          newState = result.state
-          events.push(...result.events)
         }
       }
 
@@ -882,7 +1048,7 @@ function resolveActionEffect(
   let newState = { ...state }
 
   // アクション効果の解決（簡易版）
-  const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
+  const functionTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
   if (functionTokens.length > 0) {
     const playerIndex = newState.players.findIndex((p) => p.playerId === playerId)
     if (playerIndex !== -1) {
@@ -898,19 +1064,30 @@ function resolveActionEffect(
       }
 
       for (const token of functionTokens) {
-        if (invokeSkip[token.name]) {
-          continue
+        const isSkipped = invokeSkip[token.name] === true
+        const isPlayableTriggerMap: Record<string, boolean> = {
+          true: token.trigger === 'play',
+          false: false,
         }
+        const isPlayableTrigger = isPlayableTriggerMap.true
 
-        const context: EffectContext = {
-          gameState: newState,
-          cardMap: cardDefinitions,
-          sourcePlayer: newState.players[playerIndex],
-          events,
+        const shouldInvokeMap: Record<string, boolean> = {
+          true: !isSkipped && isPlayableTrigger,
+          false: false,
         }
-        const result = resolveEffectByFunctionName(token.name, token.value, context)
-        newState = result.state
-        events.push(...result.events)
+        const shouldInvoke = shouldInvokeMap.true
+
+        if (shouldInvoke) {
+          const context: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourcePlayer: newState.players[playerIndex],
+            events,
+          }
+          const result = resolveEffectByFunctionName(token.name, token.value, context)
+          newState = result.state
+          events.push(...result.events)
+        }
       }
     }
   }

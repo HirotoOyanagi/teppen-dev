@@ -13,7 +13,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 12,COR,キュービィ,Red,Unit Card,Common,5,2,7,＜空戦＞,flight
 13,COR,さくら,Red,Unit Card,Rare,5,3,6,プレイ時：正面のユニットに2ダメージ、＜アーツチャージ2＞初めて攻撃力が5以上になった時：全ての味方ユニットに＜圧倒＞（1回攻撃するまで）付与,art_charge:2
 14,COR,フェイロン,Red,Unit Card,Rare,4,3,5,プレイ時：激昂を探索攻撃時：敵ヒーローに1ダメージ,
-15,COR,ラギアクルス,Red,Unit Card,Rare,4,2,5,プレイ時：敵ユニットに5ダメージを振り分ける,
+15,COR,ラギアクルス,Red,Unit Card,Rare,4,2,5,プレイ時：敵ユニットに5ダメージを振り分ける,play:split_damage_all_enemy_units:5
 16,COR,ジンオウガ,Red,Unit Card,Rare,5,2,8,プレイ時：全てのユニットに1ダメージ,
 17,COR,ストーム・イーグリード,Red,Unit Card,Rare,6,1,11,＜空戦＞プレイ時：攻撃力+2（1回攻撃するまで）,flight
 18,COR,シャイニング・タイガード,Red,Unit Card,Rare,3,1,10,敵ヒーローにダメージを与えた時：全ての敵ユニットに1ダメージ,
@@ -21,8 +21,8 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 20,COR,ドノヴァン・バイン,Red,Unit Card,Rare,5,2,8,場に出た時：自身を除くランダムな味方ユニット1体の攻撃力+2、自分の手札かEXポケットにあるランダムなユニットカード1枚のMP-1＜連撃＞：1攻撃力+1,
 21,COR,レオン・S・ケネディ,Red,Unit Card,Epic,3,2,4,プレイ時：ハンドガンを探索場にいる間：自分のアクションカードとユニットカードのダメージを与える効果+1,
 22,COR,カーネル,Red,Unit Card,Epic,5,2,10,味方マシーンユニットが場に出た時：自身の攻撃力+1、＜連撃＞（1回攻撃するまで）を得る場にいる間：自身を除く味方赤ユニットに攻撃力+1、＜臨戦＞付与,
-23,COR,バレッタ,Red,Unit Card,Epic,4,2,6,＜臨戦＞場に出た時：敵ユニットに4ダメージを振り分ける,rush;split_damage_all_enemy_units:4
-24,COR,レディ,Red,Unit Card,Epic,6,2,7,＜対空＞プレイ時：敵ユニットに7ダメージを振り分ける、相手の墓地にあるランダムなユニットを3体まで除外攻撃で破壊時：攻撃力+1、＜連撃＞（1回攻撃するまで）を得る,
+23,COR,バレッタ,Red,Unit Card,Epic,4,2,6,＜臨戦＞場に出た時：敵ユニットに4ダメージを振り分ける,rush;enter_field:split_damage_all_enemy_units:4
+24,COR,レディ,Red,Unit Card,Epic,6,2,7,＜対空＞プレイ時：敵ユニットに7ダメージを振り分ける、相手の墓地にあるランダムなユニットを3体まで除外攻撃で破壊時：攻撃力+1、＜連撃＞（1回攻撃するまで）を得る,play:split_damage_all_enemy_units:7
 25,COR,宿命に抗う者 リュウ,Red,Unit Card,Legendary,6,3,6,＜臨戦＞＜俊敏＞攻撃時：正面のユニットにこのバトル中に使用したアクションカード枚数分のダメージ［使用回数：0］,agility;rush
 26,COR,怒れる竜王 リオレウス,Red,Unit Card,Legendary,7,3,7,＜空戦＞＜臨戦＞敵ヒーローにダメージを与えた時：ランダムな敵ユニット1体に6ダメージ,flight;rush
 27,COR,衝撃波,Red,Action Card,Common,3,,,＜アーツチャージ1＞敵ユニット1体に3ダメージ,art_charge:1
@@ -42,7 +42,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 41,COR,冷徹な悪魔狩り,Red,Action Card,Epic,4,,,全てのユニットに4ダメージ,
 42,COR,上空からの強襲,Red,Action Card,Epic,3,,,味方ユニット1体の攻撃力+2（1回攻撃するまで）＜空戦＞付与,
 43,COR,連鎖する烈火,Red,Action Card,Epic,3,,,敵ユニット1体に、このバトル中の連鎖する烈火の使用回数+4ダメージこのダメージでユニットを破壊した場合、死亡時能力は発動せず、ゲームから除外する（使用回数：0）,
-44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,
+44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,play:split_damage_all_enemy_units:12
 45,COR,双龍の波動,Red,Action Card,Legendary,2,,,敵ユニット1体に、場の味方ユニット数+3ダメージ,
 46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,
 47,COR,まこと,Green,Unit Card,Common,3,2,5,撃破：+1/+1,
