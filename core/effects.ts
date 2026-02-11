@@ -227,54 +227,74 @@ function resolveSplitDamageAllEnemyUnits(
   )
   const opponentIndex = 1 - sourcePlayerIndex
   const opponent = newState.players[opponentIndex]
-  
+
   if (opponent.units.length > 0) {
-    // ダメージをランダムに振り分ける
-    const enemyUnits = [...opponent.units]
-    const damagePerUnit = Math.floor(damage / enemyUnits.length)
-    const remainder = damage % enemyUnits.length
-    
-    // ランダムに選んだユニットに余りを配分
-    const shuffled = [...enemyUnits].sort(() => Math.random() - 0.5)
-    
-    const updatedUnits = [...opponent.units]
+    // ダメージそのものを完全ランダムに振り分ける
+    // どのユニットが何ダメージ受けるかだけをランダムに決め、
+    // 実際のダメージ適用と破壊判定は一気に行う。
+    const damageMap: Record<string, number> = {}
     const destroyedCardIds: string[] = []
-    
-    for (let i = 0; i < shuffled.length; i++) {
-      const unit = shuffled[i]
-      const unitDamage = damagePerUnit + (i < remainder ? 1 : 0)
-      const unitIndex = updatedUnits.findIndex((u) => u.id === unit.id)
-      
-      if (unitIndex !== -1) {
-        const newHp = Math.max(0, unit.hp - unitDamage)
-        
-        if (newHp <= 0) {
-          // ユニット破壊
-          destroyedCardIds.push(unit.cardId)
-          updatedUnits.splice(unitIndex, 1)
-          events.push({
-            type: 'unit_destroyed',
-            unitId: unit.id,
-            timestamp: Date.now(),
-          })
-        } else {
-          updatedUnits[unitIndex] = {
-            ...unit,
-            hp: newHp,
-          }
-          events.push({
-            type: 'unit_damage',
-            unitId: unit.id,
-            damage: unitDamage,
-            timestamp: Date.now(),
-          })
-        }
+
+    for (let remain = damage; remain > 0; remain--) {
+      if (opponent.units.length === 0) {
+        break
       }
+
+      const randomIndex = Math.floor(Math.random() * opponent.units.length)
+      const targetUnit = opponent.units[randomIndex]
+
+      const currentDamage = damageMap[targetUnit.id] || 0
+      const nextDamage = currentDamage + 1
+      damageMap[targetUnit.id] = nextDamage
     }
-    
+
+    const finalUnits: typeof opponent.units = []
+
+    for (const originalUnit of opponent.units) {
+      const damageToThisUnit = damageMap[originalUnit.id] || 0
+      const isZeroDamageMap: Record<string, boolean> = {
+        true: true,
+        false: false,
+      }
+      const isZeroDamage = isZeroDamageMap[String(damageToThisUnit === 0)]
+
+      if (isZeroDamage) {
+        finalUnits.push(originalUnit)
+        continue
+      }
+
+      const newHp = Math.max(0, originalUnit.hp - damageToThisUnit)
+      const isAliveMap: Record<string, boolean> = {
+        true: true,
+        false: false,
+      }
+      const isAlive = isAliveMap[String(newHp > 0)]
+
+      if (isAlive) {
+        finalUnits.push({
+          ...originalUnit,
+          hp: newHp,
+        })
+      } else {
+        destroyedCardIds.push(originalUnit.cardId)
+        events.push({
+          type: 'unit_destroyed',
+          unitId: originalUnit.id,
+          timestamp: Date.now(),
+        })
+      }
+
+      events.push({
+        type: 'unit_damage',
+        unitId: originalUnit.id,
+        damage: damageToThisUnit,
+        timestamp: Date.now(),
+      })
+    }
+
     newState.players[opponentIndex] = {
       ...opponent,
-      units: updatedUnits,
+      units: finalUnits,
       graveyard: [...opponent.graveyard, ...destroyedCardIds],
     }
   }
