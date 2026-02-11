@@ -559,6 +559,7 @@ function processInput(
         playerId: input.playerId,
         cardId: input.cardId,
         timestamp: input.timestamp,
+        target: input.target,
       })
     }
 
@@ -899,6 +900,7 @@ function processInput(
         playerId: input.playerId,
         cardId: input.cardId,
         timestamp: input.timestamp,
+        target: input.target,
       })
 
       // アクション権限を相手に移す
@@ -1055,7 +1057,7 @@ function resolveActionEffect(
   playerId: string,
   cardDef: CardDefinition,
   cardDefinitions: Map<string, CardDefinition>,
-  stackItem: { playerId: string; cardId: string; timestamp: number }
+  stackItem: { playerId: string; cardId: string; timestamp: number; target?: string }
 ): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = []
   let newState = { ...state }
@@ -1077,6 +1079,39 @@ function resolveActionEffect(
         revenge: true,
         mp_boost: true,
         action_effect: true,
+        shield: true, // シールドは別途処理
+      }
+
+      // シールド付与の処理（targetが指定されている場合）
+      if (stackItem.target) {
+        const shieldToken = functionTokens.find((t) => t.name === 'shield')
+        if (shieldToken) {
+          const targetUnitId = stackItem.target
+          const targetPlayerIndex = newState.players.findIndex((p) =>
+            p.units.some((u) => u.id === targetUnitId)
+          )
+          if (targetPlayerIndex !== -1) {
+            const targetPlayer = newState.players[targetPlayerIndex]
+            const targetUnitIndex = targetPlayer.units.findIndex((u) => u.id === targetUnitId)
+            if (targetUnitIndex !== -1) {
+              const targetUnit = targetPlayer.units[targetUnitIndex]
+              const shieldCount = shieldToken.value || 1
+              const currentShieldCount = targetUnit.shieldCount || 0
+              const newShieldCount = currentShieldCount + shieldCount
+
+              const updatedUnits = [...targetPlayer.units]
+              updatedUnits[targetUnitIndex] = {
+                ...targetUnit,
+                shieldCount: newShieldCount,
+              }
+
+              newState.players[targetPlayerIndex] = {
+                ...targetPlayer,
+                units: updatedUnits,
+              }
+            }
+          }
+        }
       }
 
       for (const token of functionTokens) {
@@ -1337,7 +1372,15 @@ function executeUnitAttack(
 
     // 反撃ダメージ（簡易: 最初の交戦時のみ受ける。連撃の追加ヒットでは受けない）
     if (hitIndex === 0) {
-      const attackerNewHp = updatedUnit.hp - target.attack
+      // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+      let actualDamage = target.attack
+      let newShieldCount = updatedUnit.shieldCount || 0
+      if (newShieldCount > 0 && target.attack > 0) {
+        actualDamage = 0
+        newShieldCount = newShieldCount - 1
+      }
+
+      const attackerNewHp = updatedUnit.hp - actualDamage
       if (attackerNewHp <= 0) {
         events.push({
           type: 'unit_destroyed',
@@ -1388,17 +1431,17 @@ function executeUnitAttack(
       events.push({
         type: 'unit_damage',
         unitId: unit.id,
-        damage: target.attack,
+        damage: actualDamage,
         timestamp: Date.now(),
       })
 
-      updatedUnit = { ...updatedUnit, hp: attackerNewHp }
+      updatedUnit = { ...updatedUnit, hp: attackerNewHp, shieldCount: newShieldCount }
       updatedAttacker = {
         ...updatedAttacker,
         units: updatedAttacker.units.map((u) => {
           const isSelfKey = String(u.id === unit.id)
           const unitMap: Record<string, Unit> = {
-            true: { ...u, hp: attackerNewHp, attackGauge: 0 },
+            true: { ...u, hp: attackerNewHp, shieldCount: newShieldCount, attackGauge: 0 },
             false: u,
           }
           return unitMap[isSelfKey]

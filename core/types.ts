@@ -97,6 +97,7 @@ export interface ActiveResponseStack {
   playerId: string
   cardId: string
   timestamp: number // ARに入った時刻
+  target?: string // 対象（ユニットIDなど）
 }
 
 // アクティブレスポンスの状態
@@ -150,6 +151,7 @@ export type GameInput =
       type: 'active_response_action'
       playerId: string
       cardId: string
+      target?: string
       timestamp: number
     }
   | {

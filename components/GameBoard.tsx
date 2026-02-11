@@ -112,8 +112,10 @@ export default function GameBoard() {
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
+  const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
+  const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   // ゲーム初期化
   useEffect(() => {
@@ -198,9 +200,22 @@ export default function GameBoard() {
     return () => cancelAnimationFrame(animId)
   }, [gameState, cardMap])
 
+  // アクションカードが対象を必要とするか判定
+  const requiresTarget = useCallback((cardDef: CardDefinition): boolean => {
+    if (cardDef.type !== 'action') return false
+    
+    // 効果関数にtarget:が指定されているかチェック
+    if (cardDef.effectFunctions) {
+      const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
+      return tokens.some(t => t.startsWith('target:'))
+    }
+    
+    return false
+  }, [])
+
   // カードプレイ
   const handlePlayCard = useCallback(
-    (playerId: string, cardId: string, lane?: number) => {
+    (playerId: string, cardId: string, lane?: number, target?: string) => {
       if (!gameState) return
 
       const player = gameState.players.find((p) => p.playerId === playerId)
@@ -231,18 +246,24 @@ export default function GameBoard() {
         }
       }
 
+      // アクションカードで対象が必要な場合、targetが指定されているかチェック
+      if (cardDef.type === 'action' && requiresTarget(cardDef)) {
+        if (!target) return
+      }
+
       const input: GameInput = {
         type: 'play_card',
         playerId,
         cardId,
         lane,
+        target,
         timestamp: Date.now(),
       }
 
       const result = updateGameState(gameState, input, 0, cardMap)
       setGameState(result.state)
     },
-    [gameState, cardMap]
+    [gameState, cardMap, requiresTarget]
   )
 
   // AR終了
@@ -328,32 +349,63 @@ export default function GameBoard() {
     if (!dragging) return
     setDragPos({ x, y })
 
-    // どのレーンの上にいるかチェック
-    let foundLane: number | null = null
-    laneRefs.current.forEach((ref, lane) => {
-      if (ref) {
-        const rect = ref.getBoundingClientRect()
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          foundLane = lane
+    const { cardDef } = dragging
+    const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
+
+    // アクションカードで対象が必要な場合、ユニットの上にいるかチェック
+    if (needsTarget) {
+      let foundUnitId: string | null = null
+      unitRefs.current.forEach((ref, unitId) => {
+        if (ref) {
+          const rect = ref.getBoundingClientRect()
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            // 味方ユニットのみ対象にできる
+            const player = gameState?.players[0]
+            if (player?.units.some(u => u.id === unitId)) {
+              foundUnitId = unitId
+            }
+          }
         }
-      }
-    })
-    setHoveredLane(foundLane)
-  }, [dragging])
+      })
+      setHoveredUnitId(foundUnitId)
+      setHoveredLane(null)
+    } else {
+      // ユニットカードの場合はレーンの上にいるかチェック
+      let foundLane: number | null = null
+      laneRefs.current.forEach((ref, lane) => {
+        if (ref) {
+          const rect = ref.getBoundingClientRect()
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            foundLane = lane
+          }
+        }
+      })
+      setHoveredLane(foundLane)
+      setHoveredUnitId(null)
+    }
+  }, [dragging, gameState, requiresTarget])
 
   // ドラッグ終了
   const onDragEnd = useCallback(() => {
     if (!dragging || !gameState) {
       setDragging(null)
       setHoveredLane(null)
+      setHoveredUnitId(null)
       setDetailCard(null)
       return
     }
 
     const { cardId, cardDef } = dragging
+    const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
 
-    // アクションカードはドロップ位置に関係なくプレイ
-    if (cardDef.type === 'action') {
+    // アクションカードで対象が必要な場合
+    if (needsTarget) {
+      if (hoveredUnitId) {
+        handlePlayCard('player1', cardId, undefined, hoveredUnitId)
+      }
+    }
+    // 対象不要のアクションカードはドロップ位置に関係なくプレイ
+    else if (cardDef.type === 'action') {
       handlePlayCard('player1', cardId)
     }
     // ユニットカードはレーン上にドロップした場合のみプレイ
@@ -367,8 +419,9 @@ export default function GameBoard() {
 
     setDragging(null)
     setHoveredLane(null)
+    setHoveredUnitId(null)
     setDetailCard(null)
-  }, [dragging, hoveredLane, gameState, handlePlayCard])
+  }, [dragging, hoveredLane, hoveredUnitId, gameState, handlePlayCard, requiresTarget])
 
   // グローバルマウス/タッチイベント
   useEffect(() => {
@@ -597,12 +650,24 @@ export default function GameBoard() {
                   }`}
                 >
                   {leftUnit && leftCardDef ? (
-                    <GameCard
-                      cardDef={leftCardDef}
-                      unit={leftUnit}
-                      isField
-                      onClick={() => onCardTap(leftCardDef, 'left')}
-                    />
+                    <div
+                      ref={(el) => {
+                        if (el) unitRefs.current.set(leftUnit.id, el)
+                        else unitRefs.current.delete(leftUnit.id)
+                      }}
+                      className={`transition-all ${
+                        dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
+                          ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
+                          : ''
+                      }`}
+                    >
+                      <GameCard
+                        cardDef={leftCardDef}
+                        unit={leftUnit}
+                        isField
+                        onClick={() => onCardTap(leftCardDef, 'left')}
+                      />
+                    </div>
                   ) : (
                     <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
