@@ -1086,16 +1086,18 @@ function resolveActionEffect(
       if (stackItem.target) {
         const shieldToken = functionTokens.find((t) => t.name === 'shield')
         if (shieldToken) {
-          const targetUnitId = stackItem.target
+          const targetId = stackItem.target
+          const shieldCount = shieldToken.value || 1
+
+          // ユニットを対象にする場合
           const targetPlayerIndex = newState.players.findIndex((p) =>
-            p.units.some((u) => u.id === targetUnitId)
+            p.units.some((u) => u.id === targetId)
           )
           if (targetPlayerIndex !== -1) {
             const targetPlayer = newState.players[targetPlayerIndex]
-            const targetUnitIndex = targetPlayer.units.findIndex((u) => u.id === targetUnitId)
+            const targetUnitIndex = targetPlayer.units.findIndex((u) => u.id === targetId)
             if (targetUnitIndex !== -1) {
               const targetUnit = targetPlayer.units[targetUnitIndex]
-              const shieldCount = shieldToken.value || 1
               const currentShieldCount = targetUnit.shieldCount || 0
               const newShieldCount = currentShieldCount + shieldCount
 
@@ -1108,6 +1110,19 @@ function resolveActionEffect(
               newState.players[targetPlayerIndex] = {
                 ...targetPlayer,
                 units: updatedUnits,
+              }
+            }
+          } else {
+            // ヒーローを対象にする場合
+            const heroPlayerIndex = newState.players.findIndex((p) => p.playerId === targetId)
+            if (heroPlayerIndex !== -1) {
+              const heroPlayer = newState.players[heroPlayerIndex]
+              const currentShieldCount = heroPlayer.shieldCount || 0
+              const newShieldCount = currentShieldCount + shieldCount
+
+              newState.players[heroPlayerIndex] = {
+                ...heroPlayer,
+                shieldCount: newShieldCount,
               }
             }
           }
@@ -1296,14 +1311,22 @@ function executeUnitAttack(
         timestamp: Date.now(),
       })
 
-      const newHp = Math.max(0, updatedOpponent.hp - unit.attack)
+      // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+      let actualDamage = unit.attack
+      let newShieldCount = updatedOpponent.shieldCount || 0
+      if (newShieldCount > 0 && unit.attack > 0) {
+        actualDamage = 0
+        newShieldCount = newShieldCount - 1
+      }
+
+      const newHp = Math.max(0, updatedOpponent.hp - actualDamage)
       events.push({
         type: 'player_damage',
         playerId: updatedOpponent.playerId,
-        damage: unit.attack,
+        damage: actualDamage,
         timestamp: Date.now(),
       })
-      updatedOpponent = { ...updatedOpponent, hp: newHp }
+      updatedOpponent = { ...updatedOpponent, hp: newHp, shieldCount: newShieldCount }
 
       if (newHp <= 0) {
         return {
@@ -1360,14 +1383,22 @@ function executeUnitAttack(
 
     // 重貫通: 相手ユニットを倒した時、ヒーローに攻撃力分ダメージ
     if (attackerHasHeavyPierce && damageResult.destroyed) {
-      const newHp = Math.max(0, updatedOpponent.hp - unit.attack)
+      // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+      let actualDamage = unit.attack
+      let newShieldCount = updatedOpponent.shieldCount || 0
+      if (newShieldCount > 0 && unit.attack > 0) {
+        actualDamage = 0
+        newShieldCount = newShieldCount - 1
+      }
+
+      const newHp = Math.max(0, updatedOpponent.hp - actualDamage)
       events.push({
         type: 'player_damage',
         playerId: updatedOpponent.playerId,
-        damage: unit.attack,
+        damage: actualDamage,
         timestamp: Date.now(),
       })
-      updatedOpponent = { ...updatedOpponent, hp: newHp }
+      updatedOpponent = { ...updatedOpponent, hp: newHp, shieldCount: newShieldCount }
     }
 
     // 反撃ダメージ（簡易: 最初の交戦時のみ受ける。連撃の追加ヒットでは受けない）

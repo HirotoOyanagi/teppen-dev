@@ -70,6 +70,21 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
         <div className="mt-4 text-center">
           <div className={`text-sm font-orbitron font-bold ${attributeColor}`}>{player.hero.name}</div>
         </div>
+
+        {/* シールド表示 */}
+        {player.shieldCount && player.shieldCount > 0 && (
+          <div className="mt-2 flex gap-0.5 justify-center">
+            {Array.from({ length: player.shieldCount }).map((_, idx) => (
+              <span
+                key={idx}
+                className="text-xs text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
+                title={`シールド ${player.shieldCount}枚`}
+              >
+                🛡️
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {shake && <div className="absolute inset-0 bg-red-500/20 pointer-events-none z-50" />}
     </div>

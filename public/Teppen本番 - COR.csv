@@ -71,7 +71,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 70,COR,超文明の遺物 エックス,Green,Unit Card,Legendary,5,4,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+5撃破：倒したユニットの能力を得る（1回まで）,
 71,COR,神脚美技 春麗,Green,Unit Card,Legendary,5,2,6,＜俊敏＞＜連撃＞,agility;combo
 72,COR,三角跳び,Green,Action Card,Common,1,,,味方ユニット1体に＜シールド＞付与,target:friendly_unit;shield:1
-73,COR,吹き荒れる砂塵,Green,Action Card,Common,1,,,味方ヒーローに＜シールド＞付与,
+73,COR,吹き荒れる砂塵,Green,Action Card,Common,1,,,味方ヒーローに＜シールド＞付与,target:friendly_hero;shield:1
 74,COR,武装解除,Green,Action Card,Common,2,,,敵ユニット1体を封印,
 75,COR,ハチミツ,Green,Action Card,Common,1,,,味方ユニット1体のHP+2,
 76,COR,グリーンハーブ,Green,Action Card,Common,3,,,＜アーツチャージ＞1味方ユニット1体のHP+5,art_charge:1

@@ -329,7 +329,15 @@ function resolveDamageEffect(
   }
 
   if (effect.target === 'enemy_hero' && targetPlayer) {
-    const newHp = Math.max(0, targetPlayer.hp - damage)
+    // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
+    let actualDamage = damage
+    let newShieldCount = targetPlayer.shieldCount || 0
+    if (newShieldCount > 0 && damage > 0) {
+      actualDamage = 0
+      newShieldCount = newShieldCount - 1
+    }
+
+    const newHp = Math.max(0, targetPlayer.hp - actualDamage)
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === targetPlayer.playerId
     )
@@ -337,11 +345,12 @@ function resolveDamageEffect(
       newState.players[playerIndex] = {
         ...targetPlayer,
         hp: newHp,
+        shieldCount: newShieldCount,
       }
       events.push({
         type: 'player_damage',
         playerId: targetPlayer.playerId,
-        damage,
+        damage: actualDamage,
         timestamp: Date.now(),
       })
     }

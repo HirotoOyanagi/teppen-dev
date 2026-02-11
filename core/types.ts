@@ -90,6 +90,7 @@ export interface PlayerState {
   units: Unit[] // 盤面上のユニット
   heroArtGauge?: number // ヒーローアーツ用（後で拡張）
   graveyard: string[] // 墓地のカードID
+  shieldCount?: number // シールドの枚数（1回のダメージを0にする）
 }
 
 // Active Responseスタック

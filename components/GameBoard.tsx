@@ -113,9 +113,11 @@ export default function GameBoard() {
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
+  const [hoveredHeroId, setHoveredHeroId] = useState<string | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   // ゲーム初期化
   useEffect(() => {
@@ -211,6 +213,20 @@ export default function GameBoard() {
     }
     
     return false
+  }, [])
+
+  // アクションカードの対象タイプを取得
+  const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | null => {
+    if (cardDef.type !== 'action' || !cardDef.effectFunctions) return null
+    
+    const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
+    const targetToken = tokens.find(t => t.startsWith('target:'))
+    if (!targetToken) return null
+    
+    const targetType = targetToken.split(':')[1]?.trim()
+    if (targetType === 'friendly_unit') return 'friendly_unit'
+    if (targetType === 'friendly_hero') return 'friendly_hero'
+    return null
   }, [])
 
   // カードプレイ
@@ -351,23 +367,45 @@ export default function GameBoard() {
 
     const { cardDef } = dragging
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
+    const targetType = getTargetType(cardDef)
 
-    // アクションカードで対象が必要な場合、ユニットの上にいるかチェック
+    // アクションカードで対象が必要な場合
     if (needsTarget) {
-      let foundUnitId: string | null = null
-      unitRefs.current.forEach((ref, unitId) => {
-        if (ref) {
-          const rect = ref.getBoundingClientRect()
-          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-            // 味方ユニットのみ対象にできる
-            const player = gameState?.players[0]
-            if (player?.units.some(u => u.id === unitId)) {
-              foundUnitId = unitId
+      if (targetType === 'friendly_unit') {
+        // ユニットの上にいるかチェック
+        let foundUnitId: string | null = null
+        unitRefs.current.forEach((ref, unitId) => {
+          if (ref) {
+            const rect = ref.getBoundingClientRect()
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              // 味方ユニットのみ対象にできる
+              const player = gameState?.players[0]
+              if (player?.units.some(u => u.id === unitId)) {
+                foundUnitId = unitId
+              }
             }
           }
-        }
-      })
-      setHoveredUnitId(foundUnitId)
+        })
+        setHoveredUnitId(foundUnitId)
+        setHoveredHeroId(null)
+      } else if (targetType === 'friendly_hero') {
+        // ヒーローの上にいるかチェック
+        let foundHeroId: string | null = null
+        heroRefs.current.forEach((ref, heroId) => {
+          if (ref) {
+            const rect = ref.getBoundingClientRect()
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              // 味方ヒーローのみ対象にできる
+              const player = gameState?.players[0]
+              if (player?.playerId === heroId) {
+                foundHeroId = heroId
+              }
+            }
+          }
+        })
+        setHoveredHeroId(foundHeroId)
+        setHoveredUnitId(null)
+      }
       setHoveredLane(null)
     } else {
       // ユニットカードの場合はレーンの上にいるかチェック
@@ -397,11 +435,14 @@ export default function GameBoard() {
 
     const { cardId, cardDef } = dragging
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
+    const targetType = getTargetType(cardDef)
 
     // アクションカードで対象が必要な場合
     if (needsTarget) {
-      if (hoveredUnitId) {
+      if (targetType === 'friendly_unit' && hoveredUnitId) {
         handlePlayCard('player1', cardId, undefined, hoveredUnitId)
+      } else if (targetType === 'friendly_hero' && hoveredHeroId) {
+        handlePlayCard('player1', cardId, undefined, hoveredHeroId)
       }
     }
     // 対象不要のアクションカードはドロップ位置に関係なくプレイ
@@ -420,8 +461,9 @@ export default function GameBoard() {
     setDragging(null)
     setHoveredLane(null)
     setHoveredUnitId(null)
+    setHoveredHeroId(null)
     setDetailCard(null)
-  }, [dragging, hoveredLane, hoveredUnitId, gameState, handlePlayCard, requiresTarget])
+  }, [dragging, hoveredLane, hoveredUnitId, hoveredHeroId, gameState, handlePlayCard, requiresTarget, getTargetType])
 
   // グローバルマウス/タッチイベント
   useEffect(() => {
@@ -566,7 +608,19 @@ export default function GameBoard() {
       {/* Main Area */}
       <div className="relative z-10 flex-1 flex items-stretch">
         <div className="w-1/4">
-          <HeroPortrait player={player} side="left" />
+          <div
+            ref={(el) => {
+              if (el) heroRefs.current.set(player.playerId, el)
+              else heroRefs.current.delete(player.playerId)
+            }}
+            className={`transition-all ${
+              dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'friendly_hero' && hoveredHeroId === player.playerId
+                ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow] rounded'
+                : ''
+            }`}
+          >
+            <HeroPortrait player={player} side="left" />
+          </div>
         </div>
 
         {/* Battle Slots */}
