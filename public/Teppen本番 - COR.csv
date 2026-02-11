@@ -42,7 +42,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 41,COR,冷徹な悪魔狩り,Red,Action Card,Epic,4,,,全てのユニットに4ダメージ,
 42,COR,上空からの強襲,Red,Action Card,Epic,3,,,味方ユニット1体の攻撃力+2（1回攻撃するまで）＜空戦＞付与,
 43,COR,連鎖する烈火,Red,Action Card,Epic,3,,,敵ユニット1体に、このバトル中の連鎖する烈火の使用回数+4ダメージこのダメージでユニットを破壊した場合、死亡時能力は発動せず、ゲームから除外する（使用回数：0）,
-44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,play:split_damage_all_enemy_units:12
+44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,action_effect;split_damage_all_enemy_units:12
 45,COR,双龍の波動,Red,Action Card,Legendary,2,,,敵ユニット1体に、場の味方ユニット数+3ダメージ,
 46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,
 47,COR,まこと,Green,Unit Card,Common,3,2,5,撃破：+1/+1,

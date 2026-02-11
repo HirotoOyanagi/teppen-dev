@@ -1047,8 +1047,10 @@ function resolveActionEffect(
   const events: GameEvent[] = []
   let newState = { ...state }
 
-  // アクション効果の解決（簡易版）
-  const functionTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
+  // アクション効果の解決
+  // action_effect は「AR解決タイミングで発動する」という条件を表すマーカーで、
+  // 実際の効果（ダメージ振り分けなど）は他の関数名で表現する。
+  const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
   if (functionTokens.length > 0) {
     const playerIndex = newState.players.findIndex((p) => p.playerId === playerId)
     if (playerIndex !== -1) {
@@ -1061,18 +1063,14 @@ function resolveActionEffect(
         spillover: true,
         revenge: true,
         mp_boost: true,
+        action_effect: true,
       }
 
       for (const token of functionTokens) {
         const isSkipped = invokeSkip[token.name] === true
-        const isPlayableTriggerMap: Record<string, boolean> = {
-          true: token.trigger === 'play',
-          false: false,
-        }
-        const isPlayableTrigger = isPlayableTriggerMap.true
 
         const shouldInvokeMap: Record<string, boolean> = {
-          true: !isSkipped && isPlayableTrigger,
+          true: !isSkipped,
           false: false,
         }
         const shouldInvoke = shouldInvokeMap.true

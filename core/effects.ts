@@ -132,6 +132,10 @@ export function resolveEffectByFunctionName(
 
   // 関数名に応じて適切な効果を解決
   switch (functionName) {
+    case 'action_effect':
+      // アクション効果用の発動条件マーカー
+      // 実際の処理はエンジン側（resolveActionEffect）で制御するためここでは何もしない
+      return { state: newState, events }
     case 'split_damage_all_enemy_units':
       // 全敵ユニットにダメージを振り分ける
       return resolveSplitDamageAllEnemyUnits(value, context)
