@@ -33,8 +33,13 @@ export interface CardDefinition {
   tribe: CardTribe
   description?: string
   imageUrl?: string // カード画像のパス（IDから自動生成）
-  // 効果関数（CSVから直接読み込む、形式: "関数名:数値" または "関数名1;関数名2:数値"）
-  effectFunctions?: string // 例: "split_damage_all_enemy_units:4" または "rush;split_damage_all_enemy_units:4"
+  // 効果関数（CSVから直接読み込む）
+  // 形式:
+  // - "関数名"
+  // - "関数名:数値"
+  // - "関数名1;関数名2:数値;関数名3:数値"
+  // 例: "rush;split_damage_all_enemy_units:4;art_charge:2"
+  effectFunctions?: string
   // ユニットカードの属性
   unitStats?: {
     hp: number

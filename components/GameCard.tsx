@@ -25,10 +25,12 @@ const KEYWORD_EFFECTS: Record<string, KeywordEffect> = {
   flight: { name: 'Flight', icon: '🪽', color: 'text-sky-400' },
   shield: { name: 'Shield', icon: '🛡️', color: 'text-green-400' },
   agility: { name: 'Agility', icon: '💨', color: 'text-cyan-400' },
+  mp_boost: { name: 'MP Boost', icon: '🔋', color: 'text-lime-400' },
   veil: { name: 'Veil', icon: '👁️', color: 'text-purple-400' },
   combo: { name: 'Combo', icon: '🔥', color: 'text-orange-400' },
   heavy_pierce: { name: 'H.Pierce', icon: '🗡️', color: 'text-red-400' },
   anti_air: { name: 'Anti-Air', icon: '🎯', color: 'text-blue-400' },
+  revenge: { name: 'Revenge', icon: '♻️', color: 'text-pink-400' },
 }
 
 // effectFunctions / statusEffects / description からキーワード効果を抽出
@@ -42,19 +44,20 @@ function extractKeywords(params: {
   // 1. effectFunctions から抽出（例: "flight;rush:4"）
   if (params.effectFunctions) {
     const text = params.effectFunctions
-    const colonIndex = text.lastIndexOf(':')
-    let functionNamesPart = text
-    if (colonIndex >= 0) {
-      functionNamesPart = text.substring(0, colonIndex)
-    }
-    const names = functionNamesPart
+    const parts = text
       .split(';')
-      .map((name) => name.trim().toLowerCase())
-      .filter((name) => name.length > 0)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
 
-    names.forEach((name) => {
-      if (KEYWORD_EFFECTS[name]) {
-        internalKeys[name] = true
+    parts.forEach((part) => {
+      const colonIndex = part.indexOf(':')
+      let name = part
+      if (colonIndex !== -1) {
+        name = part.substring(0, colonIndex).trim()
+      }
+      const key = name.toLowerCase()
+      if (KEYWORD_EFFECTS[key]) {
+        internalKeys[key] = true
       }
     })
   }

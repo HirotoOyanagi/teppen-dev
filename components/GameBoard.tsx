@@ -6,6 +6,7 @@ import {
 } from '@/core/engine'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
+import { resolveCardDefinition } from '@/core/cardId'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
@@ -205,7 +206,7 @@ export default function GameBoard() {
       const player = gameState.players.find((p) => p.playerId === playerId)
       if (!player) return
 
-      const cardDef = cardMap.get(cardId)
+      const cardDef = resolveCardDefinition(cardMap, cardId)
 
       if (!cardDef || !player.hand.includes(cardId)) return
       
@@ -427,7 +428,7 @@ export default function GameBoard() {
             <h3 className="text-xl text-white mb-4">あなたの手札</h3>
             <div className="flex gap-4 flex-wrap justify-center">
               {player.hand.map((cardId, idx) => {
-                const cardDef = cardMap.get(cardId)
+                const cardDef = resolveCardDefinition(cardMap, cardId)
                 if (!cardDef) return null
 
                 return (
@@ -522,8 +523,14 @@ export default function GameBoard() {
             const rightUnit = getUnitInLane(opponent.units, lane)
             const leftProgress = getAttackProgress(leftUnit)
             const rightProgress = getAttackProgress(rightUnit)
-            const leftCardDef = leftUnit ? cardMap.get(leftUnit.cardId) : null
-            const rightCardDef = rightUnit ? cardMap.get(rightUnit.cardId) : null
+            let leftCardDef: CardDefinition | null = null
+            let rightCardDef: CardDefinition | null = null
+            if (leftUnit) {
+              leftCardDef = resolveCardDefinition(cardMap, leftUnit.cardId)
+            }
+            if (rightUnit) {
+              rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
+            }
 
             return (
               <div key={lane} className="relative h-44 w-full flex items-center justify-between px-16">
@@ -628,7 +635,7 @@ export default function GameBoard() {
       <div className="relative z-20 h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
         <div className="flex gap-4 items-end mb-6">
           {player.hand.map((cardId, i) => {
-            const cardDef = cardMap.get(cardId)
+            const cardDef = resolveCardDefinition(cardMap, cardId)
             if (!cardDef) return null
 
             const availableMp = player.mp + player.blueMp

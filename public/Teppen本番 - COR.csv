@@ -11,30 +11,30 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 10,COR,フレイム・スタッガー,Red,Unit Card,Common,7,2,16,＜重貫通＞初めて攻撃力が5以上になった時：ランダムな敵ユニット1体に10ダメージ＜エナジー＞：攻撃力+1、MP+1・攻撃時：エナジーポイント+2・味方ヒーローアーツ使用時：エナジーポイント+3,heavy_pierce
 11,COR,ガンボルト,Red,Unit Card,Common,3,2,5,死亡時：最もHPの低いランダムな敵ユニット1体に1ダメージ＜目覚め＞：敵ユニットに4ダメージを振り分ける,
 12,COR,キュービィ,Red,Unit Card,Common,5,2,7,＜空戦＞,flight
-13,COR,さくら,Red,Unit Card,Rare,5,3,6,プレイ時：正面のユニットに2ダメージ、＜アーツチャージ2＞初めて攻撃力が5以上になった時：全ての味方ユニットに＜圧倒＞（1回攻撃するまで）付与,
+13,COR,さくら,Red,Unit Card,Rare,5,3,6,プレイ時：正面のユニットに2ダメージ、＜アーツチャージ2＞初めて攻撃力が5以上になった時：全ての味方ユニットに＜圧倒＞（1回攻撃するまで）付与,art_charge:2
 14,COR,フェイロン,Red,Unit Card,Rare,4,3,5,プレイ時：激昂を探索攻撃時：敵ヒーローに1ダメージ,
 15,COR,ラギアクルス,Red,Unit Card,Rare,4,2,5,プレイ時：敵ユニットに5ダメージを振り分ける,
 16,COR,ジンオウガ,Red,Unit Card,Rare,5,2,8,プレイ時：全てのユニットに1ダメージ,
 17,COR,ストーム・イーグリード,Red,Unit Card,Rare,6,1,11,＜空戦＞プレイ時：攻撃力+2（1回攻撃するまで）,flight
 18,COR,シャイニング・タイガード,Red,Unit Card,Rare,3,1,10,敵ヒーローにダメージを与えた時：全ての敵ユニットに1ダメージ,
 19,COR,エンリコ・マリーニ,Red,Unit Card,Rare,5,3,5,＜臨戦＞場に出た時：敵ユニットがいない場合、+1/+2、MP+2死亡時：正面のユニットに3ダメージ,rush
-20,COR,ドノヴァン・バイン,Red,Unit Card,Rare,5,2,8,場に出た時：自身を除くランダムな味方ユニット1体の攻撃力+2、自分の手札かEXポケットにあるランダムなユニットカード1枚のMP-1＜連撃＞：1攻撃力+1,
+20,COR,ドノヴァン・バイン,Red,Unit Card,Rare,5,2,8,場に出た時：自身を除くランダムな味方ユニット1体の攻撃力+2、自分の手札かEXポケットにあるランダムなユニットカード1枚のMP-1＜連撃＞：1攻撃力+1,combo
 21,COR,レオン・S・ケネディ,Red,Unit Card,Epic,3,2,4,プレイ時：ハンドガンを探索場にいる間：自分のアクションカードとユニットカードのダメージを与える効果+1,
-22,COR,カーネル,Red,Unit Card,Epic,5,2,10,味方マシーンユニットが場に出た時：自身の攻撃力+1、＜連撃＞（1回攻撃するまで）を得る場にいる間：自身を除く味方赤ユニットに攻撃力+1、＜臨戦＞付与,rush
+22,COR,カーネル,Red,Unit Card,Epic,5,2,10,味方マシーンユニットが場に出た時：自身の攻撃力+1、＜連撃＞（1回攻撃するまで）を得る場にいる間：自身を除く味方赤ユニットに攻撃力+1、＜臨戦＞付与,rush;combo
 23,COR,バレッタ,Red,Unit Card,Epic,4,2,6,＜臨戦＞場に出た時：敵ユニットに4ダメージを振り分ける,rush;split_damage_all_enemy_units:4
-24,COR,レディ,Red,Unit Card,Epic,6,2,7,＜対空＞プレイ時：敵ユニットに7ダメージを振り分ける、相手の墓地にあるランダムなユニットを3体まで除外攻撃で破壊時：攻撃力+1、＜連撃＞（1回攻撃するまで）を得る,
+24,COR,レディ,Red,Unit Card,Epic,6,2,7,＜対空＞プレイ時：敵ユニットに7ダメージを振り分ける、相手の墓地にあるランダムなユニットを3体まで除外攻撃で破壊時：攻撃力+1、＜連撃＞（1回攻撃するまで）を得る,combo
 25,COR,宿命に抗う者 リュウ,Red,Unit Card,Legendary,6,3,6,＜臨戦＞＜俊敏＞攻撃時：正面のユニットにこのバトル中に使用したアクションカード枚数分のダメージ［使用回数：0］,agility;rush
 26,COR,怒れる竜王 リオレウス,Red,Unit Card,Legendary,7,3,7,＜空戦＞＜臨戦＞敵ヒーローにダメージを与えた時：ランダムな敵ユニット1体に6ダメージ,flight;rush
-27,COR,衝撃波,Red,Action Card,Common,3,,,＜アーツチャージ1＞敵ユニット1体に3ダメージ,
+27,COR,衝撃波,Red,Action Card,Common,3,,,＜アーツチャージ1＞敵ユニット1体に3ダメージ,art_charge:1
 28,COR,タル爆弾,Red,Action Card,Common,5,,,全ての敵ユニットに1ダメージ敵ヒーローに3ダメージ,
 29,COR,捨て身の突撃,Red,Action Card,Common,1,,,味方ユニット1体に+2/-2,
-30,COR,ヘッドショット,Red,Action Card,Common,5,,,＜アーツチャージ2＞敵ヒーローに3ダメージ,
-31,COR,アングリーチャージ,Red,Action Card,Common,3,,,＜アーツチャージ2＞味方ユニット1体の攻撃力+2,
+30,COR,ヘッドショット,Red,Action Card,Common,5,,,＜アーツチャージ2＞敵ヒーローに3ダメージ,art_charge:2
+31,COR,アングリーチャージ,Red,Action Card,Common,3,,,＜アーツチャージ2＞味方ユニット1体の攻撃力+2,art_charge:2
 32,COR,信頼の力,Red,Action Card,Common,2,,,味方ユニット1体の攻撃力+2,
 33,COR,使命感,Red,Action Card,Common,2,,,全ての味方ユニットの攻撃力+1,
 34,COR,加撃,Red,Action Card,Common,2,,,味方ユニット1体の攻撃力+1ランダムな敵ユニット1体に1ダメージ,
-35,COR,不意打ち,Red,Action Card,Rare,4,,,＜アーツチャージ1＞敵ヒーローに2ダメージ,
-36,COR,精密射撃,Red,Action Card,Rare,5,,,＜アーツチャージ1＞敵ユニット1体に6ダメージ,
+35,COR,不意打ち,Red,Action Card,Rare,4,,,＜アーツチャージ1＞敵ヒーローに2ダメージ,art_charge:1
+36,COR,精密射撃,Red,Action Card,Rare,5,,,＜アーツチャージ1＞敵ユニット1体に6ダメージ,art_charge:1
 37,COR,ストームトルネード,Red,Action Card,Rare,5,,,敵ユニット1体に6貫通ダメージ,
 38,COR,託された弾薬,Red,Action Card,Rare,4,,,敵ユニット1体に4貫通ダメージ,
 39,COR,統率された部隊,Red,Action Card,Rare,3,,,全ての味方ユニットの攻撃力+2（1回攻撃するまで）,
@@ -50,7 +50,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 49,COR,ヒューゴー,Green,Unit Card,Common,5,3,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+2,
 50,COR,ドスジャギィ,Green,Unit Card,Common,4,2,6,プレイ時：ジャギィ1体を場に出す,
 51,COR,クルペッコ,Green,Unit Card,Common,3,2,4,プレイ時：自身を除くランダムな味方ユニット1体のHP+2,
-52,COR,アイルー,Green,Unit Card,Common,3,1,7,＜MPブースト：20＞,
+52,COR,アイルー,Green,Unit Card,Common,3,1,7,＜MPブースト：20＞,mp_boost:20
 53,COR,ウラガンキン,Green,Unit Card,Common,5,2,7,プレイ時：自身を含む全ての味方ユニットのHP+2,
 54,COR,ホーガンマー,Green,Unit Card,Common,5,3,7,場に出た時：敵ユニットがいない場合、+1/+1、＜シールド＞を得る,
 55,COR,バブリー・クラブロス,Green,Unit Card,Common,3,2,3,プレイ時：自身を除く味方ユニットにHP3を振り分ける,
@@ -64,23 +64,23 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 63,COR,リチャード・エイゲン,Green,Unit Card,Rare,4,2,7,プレイ時：デッキ内のユニットカード1枚をEXポケットに加え、そのカードに＜シールド＞付与死亡時：自身を除くランダムな味方ユニット1体に＜シールド＞付与,
 64,COR,レベッカ・チェンバース,Green,Unit Card,Epic,4,1,13,攻撃時：自身のHP-2、自身を除くランダムな味方ユニット1体のHP+2＜数攻＞＞20自分の手札とEXポケットにある全ての人間ユニットカードの攻撃力+1,
 65,COR,クレド,Green,Unit Card,Rare,4,2,4,プレイ時：自身を除くランダムな味方ユニット1体のHP+3,
-66,COR,ラージャン,Green,Unit Card,Rare,6,2,9,＜連撃＞＜エナジー＞：+1/+1攻撃時：エナジーポイント+2戦闘ダメージを受けずに生き残った時：エナジーポイント+3,
-67,COR,アイリス,Green,Unit Card,Epic,5,1,4,＜シールド＞＜MPブースト：50＞,
+66,COR,ラージャン,Green,Unit Card,Rare,6,2,9,＜連撃＞＜エナジー＞：+1/+1攻撃時：エナジーポイント+2戦闘ダメージを受けずに生き残った時：エナジーポイント+3,combo
+67,COR,アイリス,Green,Unit Card,Epic,5,1,4,＜シールド＞＜MPブースト：50＞,mp_boost:50
 68,COR,クリス・レッドフィールド,Green,Unit Card,Epic,5,2,9,撃破：HP+3場にいる間：自身を除く味方緑ユニットに「撃破：+2/+2」付与,
 69,COR,フェリシア,Green,Unit Card,Epic,6,2,5,プレイ時：全ての自分の枠にフェリシアを出す,
 70,COR,超文明の遺物 エックス,Green,Unit Card,Legendary,5,4,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+5撃破：倒したユニットの能力を得る（1回まで）,
-71,COR,神脚美技 春麗,Green,Unit Card,Legendary,5,2,6,＜俊敏＞＜連撃＞,agility
+71,COR,神脚美技 春麗,Green,Unit Card,Legendary,5,2,6,＜俊敏＞＜連撃＞,agility;combo
 72,COR,三角跳び,Green,Action Card,Common,1,,,味方ユニット1体に＜シールド＞付与,
 73,COR,吹き荒れる砂塵,Green,Action Card,Common,1,,,味方ヒーローに＜シールド＞付与,
 74,COR,武装解除,Green,Action Card,Common,2,,,敵ユニット1体を封印,
 75,COR,ハチミツ,Green,Action Card,Common,1,,,味方ユニット1体のHP+2,
-76,COR,グリーンハーブ,Green,Action Card,Common,3,,,＜アーツチャージ＞1味方ユニット1体のHP+5,
+76,COR,グリーンハーブ,Green,Action Card,Common,3,,,＜アーツチャージ＞1味方ユニット1体のHP+5,art_charge:1
 77,COR,癒しの鳴踊り,Green,Action Card,Common,3,,,全ての味方ユニットのHP+3,
 78,COR,燃料補給,Green,Action Card,Common,6,,,全ての味方ユニットのHP+7,
 79,COR,ビーストキャノン,Green,Action Card,Common,2,,,味方ユニット1体の攻撃力+2,
 80,COR,揺るぎない信仰心,Green,Action Card,Rare,4,,,デッキ内の緑ユニット1体のMPを半分（端数切り上げ）にしてEXポケットに加える,
 81,COR,ヒーリング,Green,Action Card,Rare,2,,,味方ユニット1体のHP+4,
-82,COR,応急手当,Green,Action Card,Rare,4,,,＜アーツチャージ＞1味方ユニット1体のHP+6,
+82,COR,応急手当,Green,Action Card,Rare,4,,,＜アーツチャージ＞1味方ユニット1体のHP+6,art_charge:1
 83,COR,頭目の招集,Green,Action Card,Rare,3,,,全ての自分の枠にジャギィを出す,
 84,COR,猪突猛進,Green,Action Card,Rare,3,,,味方ユニット1体のHP+2そのユニットは即時攻撃をする,
 85,COR,緊急出撃,Green,Action Card,Epic,2,,,ランダムな味方ユニット1体に味方緑ユニット1体のHPと同じダメージ,
@@ -134,19 +134,19 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 133,COR,隠された真意,Purple,Action Card,Epic,3,,,MP4以下のアクションカードを打ち消す味方ヒーローのライフを半減する,
 134,COR,魔人化,Purple,Action Card,Legendary,3,,,味方紫ユニット1体に＜空戦＞＜俊敏＞付与,
 135,COR,支配された頭脳,Purple,Action Card,Legendary,7,,,敵ユニット1体のコントロールを奪う,
-136,COR,ソドム,Black,Unit Card,Common,5,2,7,＜リベンジ＞：+1/+5,
-137,COR,ドスギルオス,Black,Unit Card,Common,4,3,7,プレイ時：3ライフ犠牲＜クエスト＞：敵ユニットが死亡するLv 2：+1/+1Lv 3：＜波及＞を得るLv 4：味方ヒーローのライフ+3,
+136,COR,ソドム,Black,Unit Card,Common,5,2,7,＜リベンジ＞：+1/+5,revenge
+137,COR,ドスギルオス,Black,Unit Card,Common,4,3,7,プレイ時：3ライフ犠牲＜クエスト＞：敵ユニットが死亡するLv 2：+1/+1Lv 3：＜波及＞を得るLv 4：味方ヒーローのライフ+3,spillover
 138,COR,ラドバルキン,Black,Unit Card,Common,5,3,6,撃破：+1/+3＜成長＞：3Lv 2：相手の手札とEXポケットにある全てのユニットカードに「プレイ時：1ライフ犠牲」を付与,
 139,COR,ホイール・アリゲイツ,Black,Unit Card,Common,4,2,10,場にいる間：自分のEXポケットを使用できない,
 140,COR,レイダーキラー,Black,Unit Card,Common,3,2,6,プレイ時：味方ユニットが3回以上レベルアップしていた場合、攻撃力+1＜成長＞：3Lv 2：HP+2Lv 3：＜シールド＞を得る［レベルが上がった回数：0］,
-141,COR,ゾンビ,Black,Unit Card,Common,3,3,2,死亡時：MP+1＜リベンジ＞：攻撃力+2,
-142,COR,ケルベロス,Black,Unit Card,Common,3,2,4,＜リベンジ＞：+1/+3、＜俊敏＞を得る,agility
+141,COR,ゾンビ,Black,Unit Card,Common,3,3,2,死亡時：MP+1＜リベンジ＞：攻撃力+2,revenge
+142,COR,ケルベロス,Black,Unit Card,Common,3,2,4,＜リベンジ＞：+1/+3、＜俊敏＞を得る,agility;revenge
 143,COR,ダイナモ,Black,Unit Card,Common,4,4,9,味方ユニットが場に出た時：自身を破壊,
 144,COR,クロウ,Black,Unit Card,Rare,3,2,5,＜空戦＞,flight
 145,COR,アーカム,Black,Unit Card,Common,4,2,5,死亡時：デッキ内の＜リベンジ＞が発動しているユニット1体をEXポケットに加える,
 146,COR,ファントム,Black,Unit Card,Common,4,3,7,プレイ時：デッキ内のMP4以下のユニットカード2枚を墓地に送る死亡時：デッキ内のユニットカード1枚をEXポケットに加える,
 147,COR,ビシャモン,Black,Unit Card,Common,4,3,8,攻撃時：自身に1ダメージ死亡時：ランダムな敵ユニット1体のHP-2,
-148,COR,セス,Black,Unit Card,Rare,5,3,6,＜リベンジ＞：+2/+3＜目覚め＞：+1/+2、MP+1,
+148,COR,セス,Black,Unit Card,Rare,5,3,6,＜リベンジ＞：+2/+3＜目覚め＞：+1/+2、MP+1,revenge
 149,COR,ロレント,Black,Unit Card,Rare,5,3,6,プレイ時：味方ヒーローのライフが15以下の場合、＜空戦＞を得る＜目覚め＞：ランダムな敵ユニット1体に味方ユニットが＜目覚め＞状態となった回数分の貫通ダメージ（最大7ダメージまで）［目覚め回数：0］,flight
 150,COR,イビルジョー,Black,Unit Card,Rare,8,6,8,＜臨戦＞撃破：+1/+2,rush
 151,COR,ハンター,Black,Unit Card,Rare,5,4,7,プレイ時：3ライフ犠牲,
@@ -156,8 +156,8 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 155,COR,ザベル・ザロック,Black,Unit Card,Rare,4,2,5,HPが3以下の間：攻撃力+3,
 156,COR,ベガ,Black,Unit Card,Epic,10,6,7,死亡時：自分の墓地からMP5以下の黒ユニット1体を+2/+2してEXポケットに戻し、そのカードのMP-5、MP6以下のランダムな敵ユニット1体を破壊,
 157,COR,VAVA,Black,Unit Card,Epic,4,3,7,場にいる間：自分のMP最大値-2＜成長＞：3Lv 2：+1/+1Lv 3：全ての敵ユニットに3ダメージ,
-158,COR,T-002 タイラント,Black,Unit Card,Epic,4,4,1,死亡時：攻撃力1以下の全てのユニットを破壊＜リベンジ＞：HP+8,
-159,COR,ジェダ・ドーマ,Black,Unit Card,Epic,5,3,4,＜リベンジ＞：+2/+5,
+158,COR,T-002 タイラント,Black,Unit Card,Epic,4,4,1,死亡時：攻撃力1以下の全てのユニットを破壊＜リベンジ＞：HP+8,revenge
+159,COR,ジェダ・ドーマ,Black,Unit Card,Epic,5,3,4,＜リベンジ＞：+2/+5,revenge
 160,COR,野望の継承者 ウェスカー,Black,Unit Card,Legendary,6,17,17,場に出た時：攻撃力とHPを味方ヒーローのライフ分マイナスする＜解放＞：10MP5以下のランダムな敵ユニット1体を破壊,
 161,COR,伝説喰らいの古龍 ネルギガンテ,Black,Unit Card,Legendary,6,0,1,＜ヴェール＞プレイ時：自分のデッキからカードを5枚まで墓地に送り、+4/+10敵ユニットが死亡：自分の墓地からMP4以下のランダムなユニット1体をEXポケットに戻す,
 162,COR,強化蘇生,Black,Action Card,Common,5,,,自分の墓地からランダムなユニット1体を+1/+1して場に出す,

@@ -13,6 +13,7 @@ import type {
   Hero,
 } from './types'
 import { calculateMaxMp } from './cards'
+import { parseCardId, resolveCardDefinition } from './cardId'
 import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
 
 /**
@@ -21,6 +22,44 @@ import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from '
 function parseNumber(value: string): number {
   const num = parseInt(value, 10)
   return isNaN(num) ? 0 : num
+}
+
+type EffectFunctionToken = {
+  name: string
+  value: number
+}
+
+function parseEffectFunctionTokens(effectFunctions: string | undefined): EffectFunctionToken[] {
+  if (!effectFunctions) {
+    return []
+  }
+
+  const parts = effectFunctions
+    .split(';')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+  const tokens: EffectFunctionToken[] = []
+
+  for (const part of parts) {
+    const colonIndex = part.indexOf(':')
+
+    let name = part
+    let value = 0
+
+    if (colonIndex !== -1) {
+      name = part.substring(0, colonIndex).trim()
+      const valueStr = part.substring(colonIndex + 1).trim()
+      value = parseNumber(valueStr)
+    }
+
+    const normalizedName = name.toLowerCase()
+    if (normalizedName.length > 0) {
+      tokens.push({ name: normalizedName, value })
+    }
+  }
+
+  return tokens
 }
 
 // ゲーム設定（後で外部化）
@@ -67,9 +106,29 @@ export function updateGameState(
 
   // Active Response中は時間停止（MP回復・攻撃ゲージ更新は停止）
   if (!newState.activeResponse.isActive) {
+    const getMpBoostPercent = (player: PlayerState): number => {
+      let percent = 0
+
+      for (const unit of player.units) {
+        const def = resolveCardDefinition(cardDefinitions, unit.cardId)
+        if (!def) continue
+
+        const tokens = parseEffectFunctionTokens(def.effectFunctions)
+        for (const token of tokens) {
+          if (token.name === 'mp_boost') {
+            percent += token.value
+          }
+        }
+      }
+
+      return percent
+    }
+
     // MP回復
     newState.players = newState.players.map((player): PlayerState => {
-      const mpRecovery = (GAME_CONFIG.MP_RECOVERY_RATE * deltaTime) / 1000
+      const boostPercent = getMpBoostPercent(player)
+      const mpRecoveryRate = GAME_CONFIG.MP_RECOVERY_RATE * ((100 + boostPercent) / 100)
+      const mpRecovery = (mpRecoveryRate * deltaTime) / 1000
       const newMp = Math.min(player.mp + mpRecovery, player.maxMp)
       if (newMp > player.mp) {
         events.push({
@@ -205,7 +264,7 @@ function processInput(
     const player = newState.players.find((p) => p.playerId === input.playerId)
     if (!player) return { state: newState, events }
 
-    const cardDef = cardDefinitions.get(input.cardId)
+    const cardDef = resolveCardDefinition(cardDefinitions, input.cardId)
     if (!cardDef) return { state: newState, events }
 
     // アクティブレスポンス中はユニットカードをプレイできない
@@ -263,9 +322,12 @@ function processInput(
     )
     
     // アクションカードは使用時に墓地に送る、ユニットカードは場に出した時点では墓地には行かない
-    const updatedGraveyard = cardDef.type === 'action'
-      ? [...player.graveyard, input.cardId]
-      : player.graveyard
+    const updatedGraveyardMap: Record<string, string[]> = {
+      true: [...player.graveyard, input.cardId],
+      false: player.graveyard,
+    }
+    const isActionKey = String(cardDef.type === 'action')
+    const updatedGraveyard = updatedGraveyardMap[isActionKey]
     
     newState.players[playerIndex] = {
       ...player,
@@ -355,22 +417,8 @@ function processInput(
       // （既に墓地に追加されていないはずだが、念のため確認）
       // ユニットが破壊された時点で墓地に送られる
       
-      // effectFunctions からキーワードを抽出
-      let functionNames: string[] = []
-      if (cardDef.effectFunctions) {
-        const colonIndexForKeywords = cardDef.effectFunctions.lastIndexOf(':')
-        let functionNamesStrForKeywords = cardDef.effectFunctions
-        if (colonIndexForKeywords !== -1) {
-          functionNamesStrForKeywords = cardDef.effectFunctions.substring(
-            0,
-            colonIndexForKeywords
-          )
-        }
-        functionNames = functionNamesStrForKeywords
-          .split(';')
-          .map((name) => name.trim().toLowerCase())
-          .filter((name) => name.length > 0)
-      }
+      const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
+      const functionNames = functionTokens.map((t) => t.name)
 
       // Rush効果の確認（7秒進んだ状態から始まる）
       const hasRushInFunctionName = functionNames.includes('rush')
@@ -392,18 +440,31 @@ function processInput(
       )
       const hasAgility = hasAgilityInFunctionName || hasAgilityInEffects
       const baseAttackInterval = cardDef.unitStats.attackInterval
-      const adjustedAttackInterval = hasAgility
-        ? Math.max(500, Math.floor(baseAttackInterval / 2))
-        : baseAttackInterval
+      const adjustedAttackIntervalMap: Record<string, number> = {
+        true: Math.max(500, Math.floor(baseAttackInterval / 2)),
+        false: baseAttackInterval,
+      }
+      const hasAgilityKey = String(hasAgility)
+      const adjustedAttackInterval = adjustedAttackIntervalMap[hasAgilityKey]
 
       // 空戦・重貫通フラグ
       const hasFlightInFunctionName = functionNames.includes('flight')
       const hasHeavyPierceInFunctionName = functionNames.includes('heavy_pierce')
+      const hasComboInFunctionName = functionNames.includes('combo')
+      const hasSpilloverInFunctionName = functionNames.includes('spillover')
+      const hasRevengeInFunctionName = functionNames.includes('revenge')
+      const hasMpBoostInFunctionName = functionNames.includes('mp_boost')
       const hasFlightInEffects = cardDef.effects?.some(
         (e) => e.type === 'status' && e.status === 'flight'
       )
       const hasHeavyPierceInEffects = cardDef.effects?.some(
         (e) => e.type === 'status' && e.status === 'heavy_pierce'
+      )
+      const hasComboInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'combo'
+      )
+      const hasSpilloverInEffects = cardDef.effects?.some(
+        (e) => e.type === 'status' && e.status === 'spillover'
       )
 
       const statusEffects: string[] = []
@@ -416,6 +477,18 @@ function processInput(
       if (hasAgility) {
         statusEffects.push('agility')
       }
+      if (hasComboInFunctionName || hasComboInEffects) {
+        statusEffects.push('combo')
+      }
+      if (hasSpilloverInFunctionName || hasSpilloverInEffects) {
+        statusEffects.push('spillover')
+      }
+      if (hasRevengeInFunctionName) {
+        statusEffects.push('revenge')
+      }
+      if (hasMpBoostInFunctionName) {
+        statusEffects.push('mp_boost')
+      }
 
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
@@ -426,7 +499,9 @@ function processInput(
         attackGauge: initialAttackGauge,
         attackInterval: adjustedAttackInterval,
         lane: lane,
-        statusEffects: statusEffects.length > 0 ? statusEffects : undefined,
+      }
+      if (statusEffects.length > 0) {
+        newUnit.statusEffects = statusEffects
       }
 
       newState.players[playerIndex].units.push(newUnit)
@@ -435,32 +510,21 @@ function processInput(
       // 形式:
       // - "関数名"
       // - "関数名:数値"
-      // - "関数名1;関数名2:数値"
+      // - "関数名1;関数名2:数値;関数名3:数値"
       if (cardDef.effectFunctions) {
-        const colonIndex = cardDef.effectFunctions.lastIndexOf(':')
-        let functionNamesStr = cardDef.effectFunctions
-        let valueStr = ''
-        if (colonIndex !== -1) {
-          functionNamesStr = cardDef.effectFunctions.substring(0, colonIndex)
-          valueStr = cardDef.effectFunctions.substring(colonIndex + 1)
+        const invokeSkip: Record<string, boolean> = {
+          rush: true,
+          flight: true,
+          agility: true,
+          heavy_pierce: true,
+          combo: true,
+          spillover: true,
+          revenge: true,
+          mp_boost: true,
         }
-        const effectValue = parseNumber(valueStr)
-        
-        const functionNamesForInvoke = functionNamesStr
-          .split(';')
-          .map((name) => name.trim())
-          .filter((name) => name.length > 0)
-        
-        for (const functionName of functionNamesForInvoke) {
-          const lowerName = functionName.toLowerCase()
-          // Rush / Flight / Agility / Heavy Pierce は継続ステータスとして扱うため、
-          // ここでは個別の即時効果を発動しない
-          if (
-            lowerName === 'rush' ||
-            lowerName === 'flight' ||
-            lowerName === 'agility' ||
-            lowerName === 'heavy_pierce'
-          ) {
+
+        for (const token of functionTokens) {
+          if (invokeSkip[token.name]) {
             continue
           }
           
@@ -478,8 +542,8 @@ function processInput(
             events,
           }
           const result = resolveEffectByFunctionName(
-            functionName,
-            effectValue,
+            token.name,
+            token.value,
             context
           )
           newState = result.state
@@ -764,12 +828,13 @@ function resolveActiveResponse(
 
   // スタック内のアクションを順に解決
   for (const stackItem of resolvedStack) {
-    const cardDef = cardDefinitions.get(stackItem.cardId)
+    const cardDef = resolveCardDefinition(cardDefinitions, stackItem.cardId)
     if (cardDef && cardDef.type === 'action') {
       const effectResult = resolveActionEffect(
         newState,
         stackItem.playerId,
         cardDef,
+        cardDefinitions,
         stackItem
       )
       newState = effectResult.state
@@ -802,14 +867,44 @@ function resolveActionEffect(
   state: GameState,
   playerId: string,
   cardDef: CardDefinition,
+  cardDefinitions: Map<string, CardDefinition>,
   stackItem: { playerId: string; cardId: string; timestamp: number }
 ): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = []
   let newState = { ...state }
 
   // アクション効果の解決（簡易版）
-  if (cardDef.actionEffect) {
-    // 効果の種類に応じた処理を実装予定
+  const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
+  if (functionTokens.length > 0) {
+    const playerIndex = newState.players.findIndex((p) => p.playerId === playerId)
+    if (playerIndex !== -1) {
+      const invokeSkip: Record<string, boolean> = {
+        rush: true,
+        flight: true,
+        agility: true,
+        heavy_pierce: true,
+        combo: true,
+        spillover: true,
+        revenge: true,
+        mp_boost: true,
+      }
+
+      for (const token of functionTokens) {
+        if (invokeSkip[token.name]) {
+          continue
+        }
+
+        const context: EffectContext = {
+          gameState: newState,
+          cardMap: cardDefinitions,
+          sourcePlayer: newState.players[playerIndex],
+          events,
+        }
+        const result = resolveEffectByFunctionName(token.name, token.value, context)
+        newState = result.state
+        events.push(...result.events)
+      }
+    }
   }
 
   return { state: newState, events }
@@ -841,107 +936,231 @@ function executeUnitAttack(
     unit.statusEffects?.some((s) => s === 'flight') ?? false
   const attackerHasHeavyPierce =
     unit.statusEffects?.some((s) => s === 'heavy_pierce') ?? false
+  const attackerHasCombo =
+    unit.statusEffects?.some((s) => s === 'combo') ?? false
+  const attackerHasSpillover =
+    unit.statusEffects?.some((s) => s === 'spillover') ?? false
 
-  // 空戦: 正面ユニットを無視してヒーローを攻撃（対空などは未実装のため現状は常に貫通）
-  if (attackerHasFlight && !targetUnit) {
-    // 既に targetUnit がいない場合もそのままヒーロー攻撃へ
+  const hitCountMap: Record<string, number> = {
+    true: 2,
+    false: 1,
   }
+  const hitCountKey = String(attackerHasCombo)
+  const hitCount = hitCountMap[hitCountKey]
 
-  // 正面にユニットがいる & 空戦で無視しない場合
-  if (targetUnit && !attackerHasFlight) {
-    // 交戦：互いにダメージを与え合う
-    const targetNewHp = targetUnit.hp - unit.attack
-    events.push({
-      type: 'unit_attack',
-      unitId: unit.id,
-      targetId: targetUnit.id,
-      damage: unit.attack,
-      timestamp: Date.now(),
-    })
+  function dealDamageToUnit(
+    currentOpponent: PlayerState,
+    victimUnitId: string,
+    damage: number
+  ): {
+    opponentState: PlayerState
+    damageDealt: number
+    destroyed: boolean
+  } {
+    const victim = currentOpponent.units.find((u) => u.id === victimUnitId)
+    if (!victim) {
+      return { opponentState: currentOpponent, damageDealt: 0, destroyed: false }
+    }
 
-    const attackerNewHp = unit.hp - targetUnit.attack
-    events.push({
-      type: 'unit_attack',
-      unitId: targetUnit.id,
-      targetId: unit.id,
-      damage: targetUnit.attack,
-      timestamp: Date.now(),
-    })
+    const damageDealt = Math.min(victim.hp, damage)
+    const nextHp = victim.hp - damage
 
-    // 相手のユニットの状態を更新
-    if (targetNewHp <= 0) {
-      // 破壊時の効果を発動
-      const targetCardDef = cardDefinitions.get(targetUnit.cardId)
-      if (targetCardDef?.effects) {
-        const deathEffects = targetCardDef.effects.filter(
-          (e) => e.trigger === 'death'
-        )
-        // 破壊時の効果は簡易的にスキップ（実装が複雑になるため）
+    if (nextHp <= 0) {
+      events.push({
+        type: 'unit_destroyed',
+        unitId: victim.id,
+        timestamp: Date.now(),
+      })
+
+      const hasRevenge =
+        Array.isArray(victim.statusEffects) && victim.statusEffects.includes('revenge')
+
+      if (hasRevenge) {
+        const meta = parseCardId(victim.cardId)
+        const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
+        if (baseDef) {
+          const halvedCost = Math.floor((baseDef.cost + 1) / 2)
+          const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
+
+          const nextDeck = [...currentOpponent.deck]
+          const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))
+          nextDeck.splice(insertIndex, 0, returnCardId)
+
+          return {
+            opponentState: {
+              ...currentOpponent,
+              units: currentOpponent.units.filter((u) => u.id !== victim.id),
+              deck: nextDeck,
+            },
+            damageDealt,
+            destroyed: true,
+          }
+        }
       }
 
       events.push({
-        type: 'unit_destroyed',
-        unitId: targetUnit.id,
-        timestamp: Date.now(),
-      })
-      // ユニットが破壊された時、墓地に送る
-      events.push({
         type: 'card_sent_to_graveyard',
-        playerId: opponent.playerId,
-        cardId: targetUnit.cardId,
+        playerId: currentOpponent.playerId,
+        cardId: victim.cardId,
         reason: 'unit_destroyed',
         timestamp: Date.now(),
       })
-      // 重貫通: ユニットを倒した分のダメージをヒーローにも与える
-      let newOpponentHp = opponent.hp
-      if (attackerHasHeavyPierce) {
-        newOpponentHp = Math.max(0, opponent.hp - unit.attack)
-        events.push({
-          type: 'player_damage',
-          playerId: opponent.playerId,
-          damage: unit.attack,
-          timestamp: Date.now(),
-        })
-      }
-
-      updatedOpponent = {
-        ...opponent,
-        hp: newOpponentHp,
-        units: opponent.units.filter((u: Unit) => u.id !== targetUnit.id),
-        graveyard: [...opponent.graveyard, targetUnit.cardId],
-      }
-    } else {
-      events.push({
-        type: 'unit_damage',
-        unitId: targetUnit.id,
-        damage: unit.attack,
-        timestamp: Date.now(),
-      })
-      updatedOpponent = {
-        ...opponent,
-        units: opponent.units.map((u: Unit) =>
-          u.id === targetUnit.id ? { ...u, hp: targetNewHp } : u
-        ),
+      return {
+        opponentState: {
+          ...currentOpponent,
+          units: currentOpponent.units.filter((u) => u.id !== victim.id),
+          graveyard: [...currentOpponent.graveyard, victim.cardId],
+        },
+        damageDealt,
+        destroyed: true,
       }
     }
 
-    // 自分のユニットの状態を更新
-    if (attackerNewHp <= 0) {
-      // 破壊時の効果を発動
-      const attackerCardDef = cardDefinitions.get(unit.cardId)
-      if (attackerCardDef?.effects) {
-        const deathEffects = attackerCardDef.effects.filter(
-          (e) => e.trigger === 'death'
-        )
-        // 破壊時の効果は簡易的にスキップ（実装が複雑になるため）
+    // 生存
+    const updatedUnits = currentOpponent.units.map((u) => {
+      const isVictimKey = String(u.id === victim.id)
+      const unitMap: Record<string, Unit> = {
+        true: { ...u, hp: nextHp },
+        false: u,
       }
+      return unitMap[isVictimKey]
+    })
 
+    events.push({
+      type: 'unit_damage',
+      unitId: victim.id,
+      damage: damageDealt,
+      timestamp: Date.now(),
+    })
+
+    return {
+      opponentState: {
+        ...currentOpponent,
+        units: updatedUnits,
+      },
+      damageDealt,
+      destroyed: false,
+    }
+  }
+
+  for (let hitIndex = 0; hitIndex < hitCount; hitIndex++) {
+    const currentTargetUnit = updatedOpponent.units.find((u) => u.lane === unit.lane)
+    const shouldAttackHero = attackerHasFlight || !currentTargetUnit
+
+    if (shouldAttackHero) {
+      // ヒーロー攻撃
+      events.push({
+        type: 'unit_attack',
+        unitId: unit.id,
+        targetId: updatedOpponent.playerId,
+        damage: unit.attack,
+        timestamp: Date.now(),
+      })
+
+      const newHp = Math.max(0, updatedOpponent.hp - unit.attack)
+      events.push({
+        type: 'player_damage',
+        playerId: updatedOpponent.playerId,
+        damage: unit.attack,
+        timestamp: Date.now(),
+      })
+      updatedOpponent = { ...updatedOpponent, hp: newHp }
+
+      if (newHp <= 0) {
+        return {
+          unit: updatedUnit,
+          events,
+          opponentUpdate: updatedOpponent,
+          attackerUpdate: updatedAttacker,
+          gameEnded: { winner: attackerPlayer.playerId, reason: 'hp_zero' },
+        }
+      }
+      continue
+    }
+
+    // 交戦（ユニット同士）
+    const target = currentTargetUnit
+    events.push({
+      type: 'unit_attack',
+      unitId: unit.id,
+      targetId: target.id,
+      damage: unit.attack,
+      timestamp: Date.now(),
+    })
+    events.push({
+      type: 'unit_attack',
+      unitId: target.id,
+      targetId: unit.id,
+      damage: target.attack,
+      timestamp: Date.now(),
+    })
+
+    const beforeTargetHp = target.hp
+    const damageToTarget = unit.attack
+
+    const damageResult = dealDamageToUnit(updatedOpponent, target.id, damageToTarget)
+    updatedOpponent = damageResult.opponentState
+
+    // 波及: 隣レーンへ、与えた攻撃ダメージの半分
+    if (attackerHasSpillover && damageResult.damageDealt > 0) {
+      const spillDamage = Math.floor(damageResult.damageDealt / 2)
+      if (spillDamage > 0) {
+        const adjacentLanes = [unit.lane - 1, unit.lane + 1]
+        for (const lane of adjacentLanes) {
+          const adjacent = updatedOpponent.units.find((u) => u.lane === lane)
+          if (adjacent) {
+            const spillResult = dealDamageToUnit(updatedOpponent, adjacent.id, spillDamage)
+            updatedOpponent = spillResult.opponentState
+          }
+        }
+      }
+    }
+
+    // 重貫通: 相手ユニットを倒した時、ヒーローに攻撃力分ダメージ
+    if (attackerHasHeavyPierce && damageResult.destroyed) {
+      const newHp = Math.max(0, updatedOpponent.hp - unit.attack)
+      events.push({
+        type: 'player_damage',
+        playerId: updatedOpponent.playerId,
+        damage: unit.attack,
+        timestamp: Date.now(),
+      })
+      updatedOpponent = { ...updatedOpponent, hp: newHp }
+    }
+
+    // 反撃ダメージ（簡易: 交戦時は常に受ける）
+    const attackerNewHp = updatedUnit.hp - target.attack
+    if (attackerNewHp <= 0) {
       events.push({
         type: 'unit_destroyed',
         unitId: unit.id,
         timestamp: Date.now(),
       })
-      // ユニットが破壊された時、墓地に送る
+
+      const attackerHasRevenge =
+        Array.isArray(updatedUnit.statusEffects) && updatedUnit.statusEffects.includes('revenge')
+
+      if (attackerHasRevenge) {
+        const meta = parseCardId(unit.cardId)
+        const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
+        if (baseDef) {
+          const halvedCost = Math.floor((baseDef.cost + 1) / 2)
+          const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
+
+          const nextDeck = [...updatedAttacker.deck]
+          const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))
+          nextDeck.splice(insertIndex, 0, returnCardId)
+
+          updatedUnit = { ...updatedUnit, hp: 0 }
+          updatedAttacker = {
+            ...updatedAttacker,
+            units: updatedAttacker.units.filter((u) => u.id !== unit.id),
+            deck: nextDeck,
+          }
+          break
+        }
+      }
+
       events.push({
         type: 'card_sent_to_graveyard',
         playerId: attackerPlayer.playerId,
@@ -951,28 +1170,34 @@ function executeUnitAttack(
       })
       updatedUnit = { ...updatedUnit, hp: 0 }
       updatedAttacker = {
-        ...attackerPlayer,
-        units: attackerPlayer.units.filter((u: Unit) => u.id !== unit.id),
-        graveyard: [...attackerPlayer.graveyard, unit.cardId],
+        ...updatedAttacker,
+        units: updatedAttacker.units.filter((u) => u.id !== unit.id),
+        graveyard: [...updatedAttacker.graveyard, unit.cardId],
       }
-    } else {
-      events.push({
-        type: 'unit_damage',
-        unitId: unit.id,
-        damage: targetUnit.attack,
-        timestamp: Date.now(),
-      })
-      updatedUnit = { ...updatedUnit, hp: attackerNewHp }
-      // 攻撃ゲージをリセット + HPを更新
-      updatedAttacker = {
-        ...attackerPlayer,
-        units: attackerPlayer.units.map((u: Unit) =>
-          u.id === unit.id ? { ...u, hp: attackerNewHp, attackGauge: 0 } : u
-        ),
-      }
+      break
     }
 
-    // 重貫通でヒーローHPが0になった場合、ここでゲーム終了フラグを返す
+    events.push({
+      type: 'unit_damage',
+      unitId: unit.id,
+      damage: target.attack,
+      timestamp: Date.now(),
+    })
+
+    updatedUnit = { ...updatedUnit, hp: attackerNewHp }
+    updatedAttacker = {
+      ...updatedAttacker,
+      units: updatedAttacker.units.map((u) => {
+        const isSelfKey = String(u.id === unit.id)
+        const unitMap: Record<string, Unit> = {
+          true: { ...u, hp: attackerNewHp, attackGauge: 0 },
+          false: u,
+        }
+        return unitMap[isSelfKey]
+      }),
+    }
+
+    // ゲーム終了チェック（重貫通・通常ダメージ後）
     if (updatedOpponent.hp <= 0) {
       return {
         unit: updatedUnit,
@@ -982,53 +1207,29 @@ function executeUnitAttack(
         gameEnded: { winner: attackerPlayer.playerId, reason: 'hp_zero' },
       }
     }
+  }
 
-    return {
-      unit: updatedUnit,
-      events,
-      opponentUpdate: updatedOpponent,
-      attackerUpdate: updatedAttacker,
-    }
-  } else {
-    // 正面にユニットがいない場合、または空戦で無視した場合：プレイヤーに直接攻撃
-    events.push({
-      type: 'unit_attack',
-      unitId: unit.id,
-      targetId: opponent.playerId,
-      damage: unit.attack,
-      timestamp: Date.now(),
-    })
-
-    const newHp = Math.max(0, opponent.hp - unit.attack)
-    events.push({
-      type: 'player_damage',
-      playerId: opponent.playerId,
-      damage: unit.attack,
-      timestamp: Date.now(),
-    })
-
-    updatedOpponent = { ...opponent, hp: newHp }
-
-    // 攻撃ゲージをリセット
+  // 攻撃ゲージをリセット（生存している場合）
+  const hasAttackerUnit = updatedAttacker.units.some((u) => u.id === unit.id)
+  if (hasAttackerUnit) {
     updatedAttacker = {
-      ...attackerPlayer,
-      units: attackerPlayer.units.map((u: Unit) =>
-        u.id === unit.id ? { ...u, attackGauge: 0 } : u
-      ),
+      ...updatedAttacker,
+      units: updatedAttacker.units.map((u) => {
+        const isSelfKey = String(u.id === unit.id)
+        const unitMap: Record<string, Unit> = {
+          true: { ...u, attackGauge: 0 },
+          false: u,
+        }
+        return unitMap[isSelfKey]
+      }),
     }
+  }
 
-    // HPが0になったらゲーム終了
-    if (newHp <= 0) {
-      return {
-        unit: updatedUnit,
-        events,
-        opponentUpdate: updatedOpponent,
-        attackerUpdate: updatedAttacker,
-        gameEnded: { winner: '', reason: 'hp_zero' },
-      }
-    }
-
-    return { unit: updatedUnit, events, opponentUpdate: updatedOpponent, attackerUpdate: updatedAttacker }
+  return {
+    unit: updatedUnit,
+    events,
+    opponentUpdate: updatedOpponent,
+    attackerUpdate: updatedAttacker,
   }
 }
 

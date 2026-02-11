@@ -135,11 +135,42 @@ export function resolveEffectByFunctionName(
     case 'split_damage_all_enemy_units':
       // 全敵ユニットにダメージを振り分ける
       return resolveSplitDamageAllEnemyUnits(value, context)
+    case 'art_charge':
+      // アーツチャージ（AP獲得）
+      return resolveArtCharge(value, context)
     default:
       // 未実装の関数名
       console.warn(`Unknown effect function: ${functionName}`)
       return { state: newState, events }
   }
+}
+
+/**
+ * アーツチャージ（AP獲得）
+ */
+function resolveArtCharge(
+  apGain: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, sourcePlayer, events } = context
+  let newState = { ...gameState }
+
+  const playerIndex = newState.players.findIndex(
+    (p) => p.playerId === sourcePlayer.playerId
+  )
+  if (playerIndex === -1) {
+    return { state: newState, events }
+  }
+
+  const player = newState.players[playerIndex]
+  const nextAp = Math.min(10, player.ap + apGain)
+
+  newState.players[playerIndex] = {
+    ...player,
+    ap: nextAp,
+  }
+
+  return { state: newState, events }
 }
 
 /**
