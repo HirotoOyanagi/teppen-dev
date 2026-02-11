@@ -62,6 +62,14 @@ function parseEffectFunctionTokens(effectFunctions: string | undefined): EffectF
   return tokens
 }
 
+function removeOneCardFromHand(hand: string[], cardId: string): string[] {
+  const index = hand.indexOf(cardId)
+  if (index === -1) {
+    return hand
+  }
+  return [...hand.slice(0, index), ...hand.slice(index + 1)]
+}
+
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
   TICK_INTERVAL: 50, // 50ms
@@ -276,8 +284,8 @@ function processInput(
     const availableMp = player.mp + player.blueMp
     if (availableMp < cardDef.cost) return { state: newState, events }
 
-    // 手札からカードを削除
-    const newHand = player.hand.filter((id) => id !== input.cardId)
+    // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
+    const newHand = removeOneCardFromHand(player.hand, input.cardId)
 
     // カードをプレイしたらデッキから1枚引く
     const newDeck = [...player.deck]
@@ -629,8 +637,8 @@ function processInput(
       const availableMp = player.mp + player.blueMp
       if (availableMp < cardDef.cost) return { state: newState, events }
 
-      // 手札からカードを削除
-      const newHand = player.hand.filter((id) => id !== input.cardId)
+      // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
+      const newHand = removeOneCardFromHand(player.hand, input.cardId)
 
       // カードをプレイしたらデッキから1枚引く
       const newDeck = [...player.deck]

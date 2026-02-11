@@ -433,7 +433,7 @@ export default function GameBoard() {
 
                 return (
                   <GameCard
-                    key={cardId}
+                    key={`${cardId}_${idx}`}
                     cardDef={cardDef}
                     size="md"
                     onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
@@ -645,7 +645,7 @@ export default function GameBoard() {
 
             return (
               <GameCard
-                key={cardId}
+                key={`${cardId}_${i}`}
                 cardDef={cardDef}
                 size="lg"
                 onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
