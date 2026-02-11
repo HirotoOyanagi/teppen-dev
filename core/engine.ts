@@ -1095,13 +1095,16 @@ function executeUnitAttack(
       damage: unit.attack,
       timestamp: Date.now(),
     })
-    events.push({
-      type: 'unit_attack',
-      unitId: target.id,
-      targetId: unit.id,
-      damage: target.attack,
-      timestamp: Date.now(),
-    })
+    // 連撃の場合でも、反撃は最初の交戦時のみ発生させる
+    if (hitIndex === 0) {
+      events.push({
+        type: 'unit_attack',
+        unitId: target.id,
+        targetId: unit.id,
+        damage: target.attack,
+        timestamp: Date.now(),
+      })
+    }
 
     const beforeTargetHp = target.hp
     const damageToTarget = unit.attack
@@ -1136,73 +1139,75 @@ function executeUnitAttack(
       updatedOpponent = { ...updatedOpponent, hp: newHp }
     }
 
-    // 反撃ダメージ（簡易: 交戦時は常に受ける）
-    const attackerNewHp = updatedUnit.hp - target.attack
-    if (attackerNewHp <= 0) {
-      events.push({
-        type: 'unit_destroyed',
-        unitId: unit.id,
-        timestamp: Date.now(),
-      })
+    // 反撃ダメージ（簡易: 最初の交戦時のみ受ける。連撃の追加ヒットでは受けない）
+    if (hitIndex === 0) {
+      const attackerNewHp = updatedUnit.hp - target.attack
+      if (attackerNewHp <= 0) {
+        events.push({
+          type: 'unit_destroyed',
+          unitId: unit.id,
+          timestamp: Date.now(),
+        })
 
-      const attackerHasRevenge =
-        Array.isArray(updatedUnit.statusEffects) && updatedUnit.statusEffects.includes('revenge')
+        const attackerHasRevenge =
+          Array.isArray(updatedUnit.statusEffects) && updatedUnit.statusEffects.includes('revenge')
 
-      if (attackerHasRevenge) {
-        const meta = parseCardId(unit.cardId)
-        const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
-        if (baseDef) {
-          const halvedCost = Math.floor((baseDef.cost + 1) / 2)
-          const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
+        if (attackerHasRevenge) {
+          const meta = parseCardId(unit.cardId)
+          const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
+          if (baseDef) {
+            const halvedCost = Math.floor((baseDef.cost + 1) / 2)
+            const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
 
-          const nextDeck = [...updatedAttacker.deck]
-          const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))
-          nextDeck.splice(insertIndex, 0, returnCardId)
+            const nextDeck = [...updatedAttacker.deck]
+            const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))
+            nextDeck.splice(insertIndex, 0, returnCardId)
 
-          updatedUnit = { ...updatedUnit, hp: 0 }
-          updatedAttacker = {
-            ...updatedAttacker,
-            units: updatedAttacker.units.filter((u) => u.id !== unit.id),
-            deck: nextDeck,
+            updatedUnit = { ...updatedUnit, hp: 0 }
+            updatedAttacker = {
+              ...updatedAttacker,
+              units: updatedAttacker.units.filter((u) => u.id !== unit.id),
+              deck: nextDeck,
+            }
+            break
           }
-          break
         }
+
+        events.push({
+          type: 'card_sent_to_graveyard',
+          playerId: attackerPlayer.playerId,
+          cardId: unit.cardId,
+          reason: 'unit_destroyed',
+          timestamp: Date.now(),
+        })
+        updatedUnit = { ...updatedUnit, hp: 0 }
+        updatedAttacker = {
+          ...updatedAttacker,
+          units: updatedAttacker.units.filter((u) => u.id !== unit.id),
+          graveyard: [...updatedAttacker.graveyard, unit.cardId],
+        }
+        break
       }
 
       events.push({
-        type: 'card_sent_to_graveyard',
-        playerId: attackerPlayer.playerId,
-        cardId: unit.cardId,
-        reason: 'unit_destroyed',
+        type: 'unit_damage',
+        unitId: unit.id,
+        damage: target.attack,
         timestamp: Date.now(),
       })
-      updatedUnit = { ...updatedUnit, hp: 0 }
+
+      updatedUnit = { ...updatedUnit, hp: attackerNewHp }
       updatedAttacker = {
         ...updatedAttacker,
-        units: updatedAttacker.units.filter((u) => u.id !== unit.id),
-        graveyard: [...updatedAttacker.graveyard, unit.cardId],
+        units: updatedAttacker.units.map((u) => {
+          const isSelfKey = String(u.id === unit.id)
+          const unitMap: Record<string, Unit> = {
+            true: { ...u, hp: attackerNewHp, attackGauge: 0 },
+            false: u,
+          }
+          return unitMap[isSelfKey]
+        }),
       }
-      break
-    }
-
-    events.push({
-      type: 'unit_damage',
-      unitId: unit.id,
-      damage: target.attack,
-      timestamp: Date.now(),
-    })
-
-    updatedUnit = { ...updatedUnit, hp: attackerNewHp }
-    updatedAttacker = {
-      ...updatedAttacker,
-      units: updatedAttacker.units.map((u) => {
-        const isSelfKey = String(u.id === unit.id)
-        const unitMap: Record<string, Unit> = {
-          true: { ...u, hp: attackerNewHp, attackGauge: 0 },
-          false: u,
-        }
-        return unitMap[isSelfKey]
-      }),
     }
 
     // ゲーム終了チェック（重貫通・通常ダメージ後）
