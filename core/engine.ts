@@ -15,6 +15,7 @@ import type {
 import { calculateMaxMp } from './cards'
 import { parseCardId, resolveCardDefinition } from './cardId'
 import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
+import { cardSpecificEffects } from './cardSpecificEffects'
 
 /**
  * 数値をパース（空文字や無効値は0）
@@ -282,6 +283,180 @@ export function updateGameState(
         return u
       })
       newState.players[pi] = { ...player, units: updatedUnits }
+
+      // 成長レベルアップ時のカード固有効果発動
+      for (const unit of newState.players[pi].units) {
+        if (!unit.growthLevel || unit.isSealed) continue
+        // ユニット固有の成長効果をチェック
+        const growthEffects = unit.growthEffects || cardSpecificEffects[unit.cardId.split('@')[0]]?.growthEffects
+        if (!growthEffects) continue
+        const levelEffects = growthEffects[unit.growthLevel]
+        if (!levelEffects) continue
+        // 既に発動済みかチェック（同じレベルで複数回発動しないように）
+        // growthLevelが変わったタイミングでのみ発動する
+        const prevUnit = player.units.find((pu) => pu.id === unit.id)
+        if (prevUnit && prevUnit.growthLevel === unit.growthLevel) continue
+
+        for (const effectStr of levelEffects) {
+          const parts = effectStr.split(':')
+          const funcName = parts[0]
+          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+          const growthContext: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourceUnit: {
+              unit,
+              statusEffects: new Set(),
+              temporaryBuffs: { attack: 0, hp: 0 },
+              counters: {},
+              flags: {},
+            },
+            sourcePlayer: newState.players[pi],
+            events,
+          }
+          // 特殊な成長効果: grant_attack_effect → ユニットにattackEffectsを追加
+          if (funcName === 'grant_attack_effect') {
+            const effectName = parts.slice(1).join(':')
+            const uIdx = newState.players[pi].units.findIndex((uu) => uu.id === unit.id)
+            if (uIdx !== -1) {
+              const u = newState.players[pi].units[uIdx]
+              const existingEffects = u.attackEffects || []
+              const units = [...newState.players[pi].units]
+              units[uIdx] = { ...u, attackEffects: [...existingEffects, effectName] }
+              newState.players[pi] = { ...newState.players[pi], units }
+            }
+          } else {
+            const result = resolveEffectByFunctionName(funcName, funcValue, growthContext)
+            newState = result.state
+            events.push(...result.events)
+          }
+        }
+        // レベルアップカウントを増加
+        newState.players[pi] = {
+          ...newState.players[pi],
+          levelUpCount: (newState.players[pi].levelUpCount || 0) + 1,
+        }
+      }
+    }
+
+    // 枠封鎖タイマーの更新
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      if (player.laneLocks) {
+        const updatedLocks: Record<number, number> = {}
+        for (const [lane, timer] of Object.entries(player.laneLocks)) {
+          const newTimer = Math.max(0, timer - deltaTime)
+          if (newTimer > 0) updatedLocks[Number(lane)] = newTimer
+        }
+        newState.players[pi] = { ...player, laneLocks: Object.keys(updatedLocks).length > 0 ? updatedLocks : undefined }
+      }
+    }
+
+    // 攻撃力/HP閾値チェック
+    for (let pi = 0; pi < 2; pi++) {
+      for (const unit of newState.players[pi].units) {
+        if (unit.isSealed) continue
+        const config = cardSpecificEffects[unit.cardId.split('@')[0]]
+        if (!config) continue
+
+        // 攻撃力閾値
+        const atkThreshold = unit.attackThreshold || (config.attackThreshold ? { ...config.attackThreshold, triggered: false } : undefined)
+        if (atkThreshold && !atkThreshold.triggered && unit.attack >= atkThreshold.threshold) {
+          for (const effectStr of atkThreshold.effects) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const ctx: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+              sourcePlayer: newState.players[pi],
+              events,
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+            newState = result.state
+            events.push(...result.events)
+          }
+          // triggered フラグをセット
+          const uIdx = newState.players[pi].units.findIndex((u) => u.id === unit.id)
+          if (uIdx !== -1) {
+            const units = [...newState.players[pi].units]
+            units[uIdx] = { ...units[uIdx], attackThreshold: { ...atkThreshold, triggered: true } }
+            newState.players[pi] = { ...newState.players[pi], units }
+          }
+        }
+
+        // HP閾値
+        const hpThreshold = unit.hpThreshold || (config.hpThreshold ? { ...config.hpThreshold, triggered: false } : undefined)
+        if (hpThreshold && !hpThreshold.triggered && unit.hp >= hpThreshold.threshold) {
+          for (const effectStr of hpThreshold.effects) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const ctx: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+              sourcePlayer: newState.players[pi],
+              events,
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+            newState = result.state
+            events.push(...result.events)
+          }
+          const uIdx = newState.players[pi].units.findIndex((u) => u.id === unit.id)
+          if (uIdx !== -1) {
+            const units = [...newState.players[pi].units]
+            units[uIdx] = { ...units[uIdx], hpThreshold: { ...hpThreshold, triggered: true } }
+            newState.players[pi] = { ...newState.players[pi], units }
+          }
+        }
+
+        // HP条件付き効果（HP3以下の間:攻撃力+3等）
+        if (config.hpConditionEffects) {
+          for (const cond of config.hpConditionEffects) {
+            const [condType, condValue] = cond.condition.split(':')
+            const threshold = parseInt(condValue, 10) || 0
+            if (condType === 'hp_lte' && unit.hp <= threshold) {
+              // 条件を満たしている間のバフは一時的ではないため、攻撃力に直接反映
+              // ただし重複適用を防ぐためフラグチェックが必要（簡易実装）
+            }
+          }
+        }
+      }
+    }
+
+    // エナジーシステム: ポイント5以上で効果発動
+    for (let pi = 0; pi < 2; pi++) {
+      for (const unit of newState.players[pi].units) {
+        if (unit.isSealed) continue
+        if ((unit.energyPoints ?? 0) < 5) continue
+        const config = cardSpecificEffects[unit.cardId.split('@')[0]]
+        if (!config?.energy) continue
+
+        for (const effectStr of config.energy.effects) {
+          const parts = effectStr.split(':')
+          const funcName = parts[0]
+          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+          const ctx: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+            sourcePlayer: newState.players[pi],
+            events,
+          }
+          const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+          newState = result.state
+          events.push(...result.events)
+        }
+        // ポイントリセット
+        const uIdx = newState.players[pi].units.findIndex((u) => u.id === unit.id)
+        if (uIdx !== -1) {
+          const units = [...newState.players[pi].units]
+          units[uIdx] = { ...units[uIdx], energyPoints: (units[uIdx].energyPoints || 0) - 5 }
+          newState.players[pi] = { ...newState.players[pi], units }
+        }
+      }
     }
 
     // DoT（継続ダメージ）の処理
@@ -387,6 +562,18 @@ export function updateGameState(
             }
           }
 
+          // 攻撃時エナジーポイント増加
+          if (!unit.isSealed && unit.energyGainRules?.attack) {
+            const energyGain = unit.energyGainRules.attack
+            const pIdx = playerIndex
+            playerUpdates[pIdx] = {
+              ...playerUpdates[pIdx],
+              units: playerUpdates[pIdx].units.map((u) =>
+                u.id === unit.id ? { ...u, energyPoints: (u.energyPoints || 0) + energyGain } : u
+              ),
+            }
+          }
+
           // 一時バフの適用（攻撃力に加算）
           let attackingUnit = unit
           if (unit.tempBuffs?.attack) {
@@ -421,6 +608,67 @@ export function updateGameState(
             // 撃破時トリガー（攻撃で敵を倒した場合）
             const survivingIds = new Set(attackResult.opponentUpdate.units.map((u: Unit) => u.id))
             const targetWasDestroyed = targetUnit && !survivingIds.has(targetUnit.id)
+
+            // 停止敵死亡時トリガー
+            if (targetWasDestroyed && targetUnit && (targetUnit.haltTimer ?? 0) > 0) {
+              for (const friendlyUnit of playerUpdates[playerIndex].units) {
+                if (friendlyUnit.isSealed) continue
+                if (!friendlyUnit.haltedEnemyDeathEffects || friendlyUnit.haltedEnemyDeathEffects.length === 0) continue
+                for (const effectStr of friendlyUnit.haltedEnemyDeathEffects) {
+                  const parts = effectStr.split(':')
+                  const funcName = parts[0]
+                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                  const haltDeathCtx: EffectContext = {
+                    gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                    cardMap: cardDefinitions,
+                    sourceUnit: { unit: friendlyUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+                    sourcePlayer: playerUpdates[playerIndex],
+                    events: [],
+                  }
+                  const result = resolveEffectByFunctionName(funcName, funcValue, haltDeathCtx)
+                  playerUpdates[0] = result.state.players[0]
+                  playerUpdates[1] = result.state.players[1]
+                  events.push(...result.events)
+                }
+              }
+            }
+
+            // クエストシステム: 敵ユニット死亡でクエストレベルアップ
+            if (targetWasDestroyed) {
+              for (const friendlyUnit of playerUpdates[playerIndex].units) {
+                if (friendlyUnit.isSealed) continue
+                if (friendlyUnit.questCondition !== 'enemy_unit_death') continue
+                const newQuestLevel = (friendlyUnit.questLevel || 0) + 1
+                const pIdx = playerIndex
+                playerUpdates[pIdx] = {
+                  ...playerUpdates[pIdx],
+                  units: playerUpdates[pIdx].units.map((u) =>
+                    u.id === friendlyUnit.id ? { ...u, questLevel: newQuestLevel } : u
+                  ),
+                }
+                // クエストレベル効果発動
+                const questEffects = friendlyUnit.questEffects
+                if (questEffects && questEffects[newQuestLevel]) {
+                  for (const effectStr of questEffects[newQuestLevel]) {
+                    const parts = effectStr.split(':')
+                    const funcName = parts[0]
+                    const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                    const questCtx: EffectContext = {
+                      gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                      cardMap: cardDefinitions,
+                      sourceUnit: { unit: friendlyUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+                      sourcePlayer: playerUpdates[pIdx],
+                      events: [],
+                    }
+                    const result = resolveEffectByFunctionName(funcName, funcValue, questCtx)
+                    playerUpdates[0] = result.state.players[0]
+                    playerUpdates[1] = result.state.players[1]
+                    events.push(...result.events)
+                  }
+                }
+              }
+            }
+
             if (targetWasDestroyed && !unit.isSealed) {
               const attackerInUpdated = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
               if (attackerInUpdated?.decimateEffects) {
@@ -451,7 +699,7 @@ export function updateGameState(
 
             // 死亡時トリガー（撃破されたユニットのdeathEffects）
             if (targetWasDestroyed && targetUnit) {
-              const destroyedUnit = targetUnit
+              const destroyedUnit = { ...targetUnit, killerId: unit.id }
               if (!destroyedUnit.isSealed && destroyedUnit.deathEffects && destroyedUnit.deathEffects.length > 0) {
                 for (const effectStr of destroyedUnit.deathEffects) {
                   const parts = effectStr.split(':')
@@ -561,6 +809,44 @@ export function updateGameState(
     const result = processInput(newState, input, cardDefinitions)
     newState = result.state
     events.push(...result.events)
+  }
+
+  // 解放チェック
+  for (let pi = 0; pi < 2; pi++) {
+    const player = newState.players[pi]
+    for (const unit of player.units) {
+      if (unit.isSealed) continue
+      if ((unit.unleashThreshold ?? 0) <= 0) continue
+      if (player.hp > (unit.unleashThreshold || 0)) continue
+      // 既に解放済みかチェック
+      if ((unit.unleashPoints ?? -1) === -1) continue // -1 = 解放済み
+      // 解放効果発動
+      const unleashEffects = unit.unleashEffects || cardSpecificEffects[unit.cardId.split('@')[0]]?.unleashEffects
+      if (unleashEffects) {
+        for (const effectStr of unleashEffects) {
+          const parts = effectStr.split(':')
+          const funcName = parts[0]
+          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+          const ctx: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+            sourcePlayer: player,
+            events,
+          }
+          const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+          newState = result.state
+          events.push(...result.events)
+        }
+      }
+      // 解放済みマーク
+      const uIdx = newState.players[pi].units.findIndex((u) => u.id === unit.id)
+      if (uIdx !== -1) {
+        const units = [...newState.players[pi].units]
+        units[uIdx] = { ...units[uIdx], unleashPoints: -1 }
+        newState.players[pi] = { ...newState.players[pi], units }
+      }
+    }
   }
 
   newState.currentTick++
@@ -679,6 +965,11 @@ function processInput(
         reason: 'card_played',
         timestamp: input.timestamp,
       })
+      // アクションカード使用回数をカウント
+      newState.players[playerIndex] = {
+        ...newState.players[playerIndex],
+        actionCardUsedCount: (newState.players[playerIndex].actionCardUsedCount || 0) + 1,
+      }
     }
 
       // アクションカードの場合はActive Responseに入る
@@ -790,6 +1081,33 @@ function processInput(
               units: newState.players[pIdx].units.map((u) =>
                 u.id === unit.id ? { ...u, memoryCount: newMemoryCount } : u
               ),
+            }
+            // メモリー閾値到達時の効果発動
+            if (newMemoryCount >= (unit.memoryThreshold || 0)) {
+              const memoryEffects = unit.memoryEffects || cardSpecificEffects[unit.cardId.split('@')[0]]?.memoryEffects
+              if (memoryEffects) {
+                for (const effectStr of memoryEffects) {
+                  const parts = effectStr.split(':')
+                  const funcName = parts[0]
+                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                  const memoryContext: EffectContext = {
+                    gameState: newState,
+                    cardMap: cardDefinitions,
+                    sourceUnit: {
+                      unit: newState.players[pIdx].units.find((u) => u.id === unit.id) || unit,
+                      statusEffects: new Set(),
+                      temporaryBuffs: { attack: 0, hp: 0 },
+                      counters: {},
+                      flags: {},
+                    },
+                    sourcePlayer: newState.players[pIdx],
+                    events,
+                  }
+                  const result = resolveEffectByFunctionName(funcName, funcValue, memoryContext)
+                  newState = result.state
+                  events.push(...result.events)
+                }
+              }
             }
           }
         }
@@ -972,7 +1290,118 @@ function processInput(
         }
       }
 
+      // カード固有効果の設定
+      const cardConfig = cardSpecificEffects[input.cardId.split('@')[0]]
+      if (cardConfig) {
+        if (cardConfig.attackThreshold) {
+          newUnit.attackThreshold = { ...cardConfig.attackThreshold, triggered: false }
+        }
+        if (cardConfig.hpThreshold) {
+          newUnit.hpThreshold = { ...cardConfig.hpThreshold, triggered: false }
+        }
+        if (cardConfig.heroHitEffects) {
+          newUnit.heroHitEffects = cardConfig.heroHitEffects
+        }
+        if (cardConfig.haltedEnemyDeathEffects) {
+          newUnit.haltedEnemyDeathEffects = cardConfig.haltedEnemyDeathEffects
+        }
+        if (cardConfig.friendlyUnitEnterEffects) {
+          newUnit.friendlyUnitEnterEffects = cardConfig.friendlyUnitEnterEffects
+        }
+        if (cardConfig.whileOnFieldEffects) {
+          newUnit.whileOnFieldEffects = cardConfig.whileOnFieldEffects
+        }
+        if (cardConfig.quest) {
+          newUnit.questCondition = cardConfig.quest.condition
+          newUnit.questEffects = cardConfig.quest.levelEffects
+          newUnit.questLevel = 0
+        }
+        if (cardConfig.energy) {
+          newUnit.energyEffects = cardConfig.energy.effects
+          newUnit.energyGainRules = cardConfig.energy.gainRules
+          newUnit.energyPoints = 0
+        }
+        if (cardConfig.awakeningEffects) {
+          newUnit.awakeningEffects = cardConfig.awakeningEffects
+        }
+        if (cardConfig.memoryEffects) {
+          newUnit.memoryEffects = cardConfig.memoryEffects
+        }
+        if (cardConfig.unleashEffects) {
+          newUnit.unleashEffects = cardConfig.unleashEffects
+        }
+        if (cardConfig.growthEffects) {
+          newUnit.growthEffects = cardConfig.growthEffects
+        }
+        if (cardConfig.ignoreBlocker) {
+          newUnit.ignoreBlocker = true
+        }
+        if (cardConfig.selfDestructOnAttack) {
+          newUnit.selfDestructOnAttack = true
+        }
+        if (cardConfig.hpConditionEffects) {
+          newUnit.hpConditionEffects = cardConfig.hpConditionEffects
+        }
+        if (cardConfig.preserveOriginalStats) {
+          newUnit.originalAttack = newUnit.attack
+          newUnit.originalHp = newUnit.hp
+        }
+      }
+
+      // リベンジバフの適用（@revenge_buff_attack=N等）
+      const cardIdParts = input.cardId.split('@')
+      for (const part of cardIdParts) {
+        if (part.startsWith('revenge_buff_attack=')) {
+          const val = parseInt(part.split('=')[1], 10) || 0
+          newUnit.attack += val
+        }
+        if (part.startsWith('revenge_buff_hp=')) {
+          const val = parseInt(part.split('=')[1], 10) || 0
+          newUnit.hp += val
+          newUnit.maxHp += val
+        }
+        if (part === 'revenge_grant_agility=1') {
+          if (!newUnit.statusEffects) newUnit.statusEffects = []
+          if (!newUnit.statusEffects.includes('agility')) {
+            newUnit.statusEffects.push('agility')
+            newUnit.attackInterval = Math.max(500, Math.floor(newUnit.attackInterval / 2))
+          }
+        }
+      }
+
+      // 元のステータスを保持
+      newUnit.originalAttack = newUnit.attack
+      newUnit.originalHp = newUnit.hp
+
       newState.players[playerIndex].units.push(newUnit)
+
+      // 味方ユニット登場時トリガー（既存味方ユニットのfriendlyUnitEnterEffects発動）
+      for (const existingUnit of newState.players[playerIndex].units) {
+        if (existingUnit.id === newUnit.id) continue
+        if (existingUnit.isSealed) continue
+        if (!existingUnit.friendlyUnitEnterEffects || existingUnit.friendlyUnitEnterEffects.length === 0) continue
+        for (const effectStr of existingUnit.friendlyUnitEnterEffects) {
+          const parts = effectStr.split(':')
+          const funcName = parts[0]
+          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+          const enterContext: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourceUnit: {
+              unit: existingUnit,
+              statusEffects: new Set(),
+              temporaryBuffs: { attack: 0, hp: 0 },
+              counters: {},
+              flags: {},
+            },
+            sourcePlayer: newState.players[playerIndex],
+            events,
+          }
+          const result = resolveEffectByFunctionName(funcName, funcValue, enterContext)
+          newState = result.state
+          events.push(...result.events)
+        }
+      }
 
       // 効果関数ベースの効果を発動
       // 形式:
@@ -1027,6 +1456,31 @@ function processInput(
             )
             newState = result.state
             events.push(...result.events)
+          }
+        }
+      }
+
+      // メモリーチェック（場に出た時に既にメモリー条件を満たしている場合）
+      if (newUnit.memoryThreshold && newUnit.memoryThreshold > 0) {
+        const actionCount = newState.players[playerIndex].actionCardUsedCount || 0
+        if (actionCount >= newUnit.memoryThreshold) {
+          const memEffects = newUnit.memoryEffects || cardSpecificEffects[input.cardId.split('@')[0]]?.memoryEffects
+          if (memEffects) {
+            for (const effectStr of memEffects) {
+              const parts = effectStr.split(':')
+              const funcName = parts[0]
+              const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+              const ctx: EffectContext = {
+                gameState: newState,
+                cardMap: cardDefinitions,
+                sourceUnit: { unit: newUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+                sourcePlayer: newState.players[playerIndex],
+                events,
+              }
+              const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+              newState = result.state
+              events.push(...result.events)
+            }
           }
         }
       }
@@ -1526,7 +1980,16 @@ function executeUnitAttack(
         const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
         if (baseDef) {
           const halvedCost = Math.floor((baseDef.cost + 1) / 2)
-          const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
+          // リベンジ固有バフの適用
+          const config = cardSpecificEffects[meta.baseId]
+          const revBuffs = config?.revengeBuffs
+          let revengeModifiers = `@cost=${halvedCost}@no_revenge=1`
+          if (revBuffs) {
+            if (revBuffs.attack) revengeModifiers += `@revenge_buff_attack=${revBuffs.attack}`
+            if (revBuffs.hp) revengeModifiers += `@revenge_buff_hp=${revBuffs.hp}`
+            if (revBuffs.grantAgility) revengeModifiers += `@revenge_grant_agility=1`
+          }
+          const returnCardId = `${meta.baseId}${revengeModifiers}`
 
           const nextDeck = [...currentOpponent.deck]
           const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))
@@ -1591,7 +2054,9 @@ function executeUnitAttack(
 
   for (let hitIndex = 0; hitIndex < hitCount; hitIndex++) {
     const currentTargetUnit = updatedOpponent.units.find((u) => u.lane === unit.lane)
-    const shouldAttackHero = attackerHasFlight || !currentTargetUnit
+    // 空戦、対面なし、またはignoreBlocker(停止敵無視)の場合はヒーロー攻撃
+    const blockerIsHalted = currentTargetUnit && (currentTargetUnit.haltTimer ?? 0) > 0
+    const shouldAttackHero = attackerHasFlight || !currentTargetUnit || (unit.ignoreBlocker && blockerIsHalted)
 
     if (shouldAttackHero) {
       // ヒーロー攻撃
@@ -1619,6 +2084,28 @@ function executeUnitAttack(
         timestamp: Date.now(),
       })
       updatedOpponent = { ...updatedOpponent, hp: newHp, shieldCount: newShieldCount }
+
+      // 敵ヒーローにダメージを与えた時トリガー
+      if (actualDamage > 0 && !unit.isSealed) {
+        const config = cardSpecificEffects[unit.cardId.split('@')[0]]
+        if (config?.heroHitEffects) {
+          for (const effectStr of config.heroHitEffects) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const heroHitContext: EffectContext = {
+              gameState: { gameId: '', currentTick: 0, phase: 'playing', activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0 },
+              cardMap: cardDefinitions,
+              sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+              sourcePlayer: attackerPlayer,
+              events: [],
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, heroHitContext)
+            updatedOpponent = result.state.players[1]
+            events.push(...result.events)
+          }
+        }
+      }
 
       if (newHp <= 0) {
         return {
@@ -1719,7 +2206,15 @@ function executeUnitAttack(
           const baseDef = resolveCardDefinition(cardDefinitions, meta.baseId)
           if (baseDef) {
             const halvedCost = Math.floor((baseDef.cost + 1) / 2)
-            const returnCardId = `${meta.baseId}@cost=${halvedCost}@no_revenge=1`
+            const config = cardSpecificEffects[meta.baseId]
+            const revBuffs = config?.revengeBuffs
+            let revengeModifiers = `@cost=${halvedCost}@no_revenge=1`
+            if (revBuffs) {
+              if (revBuffs.attack) revengeModifiers += `@revenge_buff_attack=${revBuffs.attack}`
+              if (revBuffs.hp) revengeModifiers += `@revenge_buff_hp=${revBuffs.hp}`
+              if (revBuffs.grantAgility) revengeModifiers += `@revenge_grant_agility=1`
+            }
+            const returnCardId = `${meta.baseId}${revengeModifiers}`
 
             const nextDeck = [...updatedAttacker.deck]
             const insertIndex = Math.floor(Math.random() * (nextDeck.length + 1))

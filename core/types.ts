@@ -87,6 +87,39 @@ export interface Unit {
   decimateEffects?: string[] // 撃破時の効果関数
   resonateEffects?: string[] // 呼応時の効果関数
   dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ
+  // カード固有効果用
+  heroHitEffects?: string[] // 敵ヒーローにダメージを与えた時の効果
+  haltedEnemyDeathEffects?: string[] // 停止敵死亡時の効果
+  friendlyUnitEnterEffects?: string[] // 味方ユニット登場時の効果
+  whileOnFieldEffects?: WhileOnFieldEffect[] // 場にいる間の効果
+  attackThreshold?: { threshold: number; effects: string[]; triggered: boolean } // 攻撃力閾値
+  hpThreshold?: { threshold: number; effects: string[]; triggered: boolean } // HP閾値
+  questCondition?: string // クエスト条件
+  questEffects?: Record<number, string[]> // レベル毎の効果
+  energyEffects?: string[] // エナジー発動時の効果
+  energyGainRules?: Record<string, number> // エナジーポイント獲得条件
+  originalAttack?: number // 元の攻撃力
+  originalHp?: number // 元のHP
+  revengeBuffAttack?: number // リベンジ時の攻撃力バフ
+  revengeBuffHp?: number // リベンジ時のHPバフ
+  revengeGrantAgility?: boolean // リベンジ時に俊敏付与
+  laneLockTimer?: number // 枠封鎖タイマー
+  ignoreBlocker?: boolean // 停止中の敵を無視してヒーロー攻撃
+  selfDestructOnAttack?: boolean // 1回攻撃すると自壊
+  awakeningEffects?: string[] // 目覚め時の効果
+  memoryEffects?: string[] // メモリー発動時の効果
+  unleashEffects?: string[] // 解放発動時の効果
+  growthEffects?: Record<number, string[]> // 成長レベル毎の効果
+  hpConditionEffects?: { condition: string; effects: string[] }[] // HP条件付き効果
+  killerId?: string // このユニットを破壊したユニットのID（死亡時にセット）
+}
+
+// 場にいる間の効果定義
+export interface WhileOnFieldEffect {
+  target: 'friendly_units' | 'enemy_units' | 'self' | 'friendly_hero'
+  effect: string // 効果の説明（エンジンで解釈）
+  filter?: string // 対象フィルタ（例: 'red', 'machine'）
+  excludeSelf?: boolean
 }
 
 // ヒーロー定義
@@ -117,6 +150,8 @@ export interface PlayerState {
   actionCardUsedCount?: number // バトル中アクションカード使用回数
   levelUpCount?: number // 味方ユニットレベルアップ回数
   awakeningCount?: number // 目覚め回数
+  chainFireCount?: Record<string, number> // カードID毎の使用回数（連鎖する烈火等）
+  laneLocks?: Record<number, number> // レーン毎の封鎖タイマー（ms）
 }
 
 // Active Responseスタック
