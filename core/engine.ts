@@ -250,6 +250,86 @@ export function updateGameState(
       return { ...player, mp: newMp }
     }) as [PlayerState, PlayerState]
 
+    // 停止タイマーのカウントダウン
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      const updatedUnits = player.units.map((u) => {
+        if ((u.haltTimer ?? 0) > 0) {
+          const newTimer = Math.max(0, (u.haltTimer || 0) - deltaTime)
+          return { ...u, haltTimer: newTimer }
+        }
+        return u
+      })
+      newState.players[pi] = { ...player, units: updatedUnits }
+    }
+
+    // 成長タイマーの更新
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      const updatedUnits = player.units.map((u) => {
+        if ((u.growthInterval ?? 0) > 0 && !u.isSealed) {
+          const newTimer = (u.growthTimer || 0) + deltaTime
+          if (newTimer >= (u.growthInterval || 0)) {
+            const newLevel = (u.growthLevel || 1) + 1
+            return {
+              ...u,
+              growthTimer: 0,
+              growthLevel: newLevel,
+            }
+          }
+          return { ...u, growthTimer: newTimer }
+        }
+        return u
+      })
+      newState.players[pi] = { ...player, units: updatedUnits }
+    }
+
+    // DoT（継続ダメージ）の処理
+    for (let pi = 0; pi < 2; pi++) {
+      const unitIds = newState.players[pi].units
+        .filter((u) => u.dotEffects && u.dotEffects.length > 0)
+        .map((u) => u.id)
+      for (const uid of unitIds) {
+        const unit = newState.players[pi].units.find((u) => u.id === uid)
+        if (!unit || !unit.dotEffects) continue
+        const updatedDots: typeof unit.dotEffects = []
+        for (const dot of unit.dotEffects) {
+          const newTimer = dot.timer + deltaTime
+          if (newTimer >= dot.intervalMs) {
+            // ダメージ適用
+            const unitIdx = newState.players[pi].units.findIndex((u) => u.id === uid)
+            if (unitIdx !== -1) {
+              const target = newState.players[pi].units[unitIdx]
+              const newHp = Math.max(0, target.hp - dot.damage)
+              if (newHp <= 0) {
+                newState.players[pi] = {
+                  ...newState.players[pi],
+                  units: newState.players[pi].units.filter((u) => u.id !== uid),
+                  graveyard: [...newState.players[pi].graveyard, target.cardId],
+                }
+                events.push({ type: 'unit_destroyed', unitId: uid, timestamp: Date.now() })
+              } else {
+                const units = [...newState.players[pi].units]
+                units[unitIdx] = { ...target, hp: newHp }
+                newState.players[pi] = { ...newState.players[pi], units }
+                events.push({ type: 'unit_damage', unitId: uid, damage: dot.damage, timestamp: Date.now() })
+              }
+            }
+            updatedDots.push({ ...dot, timer: 0 })
+          } else {
+            updatedDots.push({ ...dot, timer: newTimer })
+          }
+        }
+        // DotEffectsの更新
+        const uIdx = newState.players[pi].units.findIndex((u) => u.id === uid)
+        if (uIdx !== -1) {
+          const units = [...newState.players[pi].units]
+          units[uIdx] = { ...units[uIdx], dotEffects: updatedDots }
+          newState.players[pi] = { ...newState.players[pi], units }
+        }
+      }
+    }
+
     // ユニットの攻撃ゲージ更新と自動攻撃
     const playerUpdates: PlayerState[] = [...newState.players]
 
@@ -269,6 +349,10 @@ export function updateGameState(
         const unit = currentPlayer.units.find(u => u.id === unitId)
         if (!unit) continue
 
+        // 停止中のユニットはゲージを進めない
+        if ((unit.haltTimer ?? 0) > 0) continue
+        // 封印中のユニットは効果発動しないが攻撃はできる
+
         const gaugeIncrease = deltaTime / unit.attackInterval
         const newGauge = Math.min(unit.attackGauge + gaugeIncrease, 1.0)
 
@@ -277,18 +361,122 @@ export function updateGameState(
           const targetUnit = opponent.units.find(
             (u: Unit) => u.lane === unit.lane
           )
+          // 攻撃時トリガー発動（封印されていなければ）
+          if (!unit.isSealed && unit.attackEffects && unit.attackEffects.length > 0) {
+            for (const effectStr of unit.attackEffects) {
+              const parts = effectStr.split(':')
+              const funcName = parts[0]
+              const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+              const attackContext: EffectContext = {
+                gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                cardMap: cardDefinitions,
+                sourceUnit: {
+                  unit,
+                  statusEffects: new Set(),
+                  temporaryBuffs: { attack: 0, hp: 0 },
+                  counters: {},
+                  flags: {},
+                },
+                sourcePlayer: currentPlayer,
+                events: [],
+              }
+              const effectResult = resolveEffectByFunctionName(funcName, funcValue, attackContext)
+              playerUpdates[0] = effectResult.state.players[0]
+              playerUpdates[1] = effectResult.state.players[1]
+              events.push(...effectResult.events)
+            }
+          }
+
+          // 一時バフの適用（攻撃力に加算）
+          let attackingUnit = unit
+          if (unit.tempBuffs?.attack) {
+            attackingUnit = { ...unit, attack: unit.attack + unit.tempBuffs.attack }
+          }
+
           const attackResult = executeUnitAttack(
-            unit,
+            attackingUnit,
             targetUnit,
-            opponent,
-            currentPlayer,
+            playerUpdates[opponentIndex],
+            playerUpdates[playerIndex],
             cardDefinitions
           )
           events.push(...attackResult.events)
 
+          // 一時バフの消費（攻撃後にクリア）
+          if (unit.tempBuffs) {
+            const pIdx = playerIndex
+            const player = playerUpdates[pIdx]
+            playerUpdates[pIdx] = {
+              ...player,
+              units: player.units.map((u) =>
+                u.id === unit.id ? { ...u, tempBuffs: undefined } : u
+              ),
+            }
+          }
+
           // 相手の状態を更新（防御側のダメージ）
           if (attackResult.opponentUpdate) {
             playerUpdates[opponentIndex] = attackResult.opponentUpdate
+
+            // 撃破時トリガー（攻撃で敵を倒した場合）
+            const survivingIds = new Set(attackResult.opponentUpdate.units.map((u: Unit) => u.id))
+            const targetWasDestroyed = targetUnit && !survivingIds.has(targetUnit.id)
+            if (targetWasDestroyed && !unit.isSealed) {
+              const attackerInUpdated = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
+              if (attackerInUpdated?.decimateEffects) {
+                for (const effectStr of attackerInUpdated.decimateEffects) {
+                  const parts = effectStr.split(':')
+                  const funcName = parts[0]
+                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                  const decimateContext: EffectContext = {
+                    gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                    cardMap: cardDefinitions,
+                    sourceUnit: {
+                      unit: attackerInUpdated,
+                      statusEffects: new Set(),
+                      temporaryBuffs: { attack: 0, hp: 0 },
+                      counters: {},
+                      flags: {},
+                    },
+                    sourcePlayer: playerUpdates[playerIndex],
+                    events: [],
+                  }
+                  const effectResult = resolveEffectByFunctionName(funcName, funcValue, decimateContext)
+                  playerUpdates[0] = effectResult.state.players[0]
+                  playerUpdates[1] = effectResult.state.players[1]
+                  events.push(...effectResult.events)
+                }
+              }
+            }
+
+            // 死亡時トリガー（撃破されたユニットのdeathEffects）
+            if (targetWasDestroyed && targetUnit) {
+              const destroyedUnit = targetUnit
+              if (!destroyedUnit.isSealed && destroyedUnit.deathEffects && destroyedUnit.deathEffects.length > 0) {
+                for (const effectStr of destroyedUnit.deathEffects) {
+                  const parts = effectStr.split(':')
+                  const funcName = parts[0]
+                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                  const deathContext: EffectContext = {
+                    gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                    cardMap: cardDefinitions,
+                    sourceUnit: {
+                      unit: destroyedUnit,
+                      statusEffects: new Set(),
+                      temporaryBuffs: { attack: 0, hp: 0 },
+                      counters: {},
+                      flags: {},
+                    },
+                    sourcePlayer: playerUpdates[opponentIndex],
+                    events: [],
+                  }
+                  const effectResult = resolveEffectByFunctionName(funcName, funcValue, deathContext)
+                  playerUpdates[0] = effectResult.state.players[0]
+                  playerUpdates[1] = effectResult.state.players[1]
+                  events.push(...effectResult.events)
+                }
+              }
+            }
 
             // ゲーム終了チェック
             if (attackResult.gameEnded) {
@@ -306,6 +494,33 @@ export function updateGameState(
           // 自分の状態を更新（攻撃側のダメージ + 攻撃ゲージリセット）
           if (attackResult.attackerUpdate) {
             playerUpdates[playerIndex] = attackResult.attackerUpdate
+
+            // 攻撃側ユニットが死亡した場合のdeathEffects
+            const attackerSurvived = attackResult.attackerUpdate.units.some((u: Unit) => u.id === unit.id)
+            if (!attackerSurvived && !unit.isSealed && unit.deathEffects && unit.deathEffects.length > 0) {
+              for (const effectStr of unit.deathEffects) {
+                const parts = effectStr.split(':')
+                const funcName = parts[0]
+                const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                const deathContext: EffectContext = {
+                  gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                  cardMap: cardDefinitions,
+                  sourceUnit: {
+                    unit,
+                    statusEffects: new Set(),
+                    temporaryBuffs: { attack: 0, hp: 0 },
+                    counters: {},
+                    flags: {},
+                  },
+                  sourcePlayer: playerUpdates[playerIndex],
+                  events: [],
+                }
+                const effectResult = resolveEffectByFunctionName(funcName, funcValue, deathContext)
+                playerUpdates[0] = effectResult.state.players[0]
+                playerUpdates[1] = effectResult.state.players[1]
+                events.push(...effectResult.events)
+              }
+            }
           }
         } else {
           // 攻撃ゲージのみ更新
@@ -536,6 +751,50 @@ function processInput(
         blueMp: opponent.blueMp + blueMpGain,
       }
 
+      // 味方ユニットの呼応（resonate）トリガー発動
+      const resonatePlayerIndex = newState.players.findIndex(
+        (p) => p.playerId === input.playerId
+      )
+      if (resonatePlayerIndex !== -1) {
+        const resonatePlayer = newState.players[resonatePlayerIndex]
+        for (const unit of resonatePlayer.units) {
+          if (unit.isSealed) continue
+          if (!unit.resonateEffects || unit.resonateEffects.length === 0) continue
+          for (const effectStr of unit.resonateEffects) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const resonateContext: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourceUnit: {
+                unit,
+                statusEffects: new Set(),
+                temporaryBuffs: { attack: 0, hp: 0 },
+                counters: {},
+                flags: {},
+              },
+              sourcePlayer: resonatePlayer,
+              events,
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, resonateContext)
+            newState = result.state
+            events.push(...result.events)
+          }
+          // メモリーカウンター増加
+          if ((unit.memoryThreshold ?? 0) > 0) {
+            const newMemoryCount = (unit.memoryCount || 0) + 1
+            const pIdx = newState.players.findIndex((p) => p.playerId === resonatePlayer.playerId)
+            newState.players[pIdx] = {
+              ...newState.players[pIdx],
+              units: newState.players[pIdx].units.map((u) =>
+                u.id === unit.id ? { ...u, memoryCount: newMemoryCount } : u
+              ),
+            }
+          }
+        }
+      }
+
       // 既にAR中ならスタックに追加、そうでなければAR開始
       if (!newState.activeResponse.isActive) {
         newState.activeResponse = {
@@ -678,6 +937,39 @@ function processInput(
       }
       if (shieldCount > 0) {
         newUnit.shieldCount = shieldCount
+      }
+
+      // トリガー効果をユニットに設定（attack/death/decimate/resonate/growth/memory等）
+      if (cardDef.effectFunctions) {
+        const triggeredTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
+        for (const token of triggeredTokens) {
+          if (token.trigger === 'attack') {
+            if (!newUnit.attackEffects) newUnit.attackEffects = []
+            newUnit.attackEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'death') {
+            if (!newUnit.deathEffects) newUnit.deathEffects = []
+            newUnit.deathEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'decimate') {
+            if (!newUnit.decimateEffects) newUnit.decimateEffects = []
+            newUnit.decimateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'resonate') {
+            if (!newUnit.resonateEffects) newUnit.resonateEffects = []
+            newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.name === 'growth') {
+            // growth:N → N秒ごとに成長
+            newUnit.growthInterval = (token.value ?? 10) * 1000
+            newUnit.growthTimer = 0
+            newUnit.growthLevel = 0
+          } else if (token.name === 'memory') {
+            // memory:N → アクションカードN回で発動
+            newUnit.memoryCount = 0
+            newUnit.memoryThreshold = token.value ?? 3
+          } else if (token.name === 'unleash') {
+            // unleash:N → N回で解放
+            newUnit.unleashPoints = 0
+            newUnit.unleashThreshold = token.value ?? 3
+          }
+        }
       }
 
       newState.players[playerIndex].units.push(newUnit)
@@ -1569,6 +1861,7 @@ export function createInitialGameState(
         deck: shuffledDeck1.slice(GAME_CONFIG.INITIAL_HAND_SIZE),
         units: [],
         graveyard: [],
+        exPocket: [],
       },
       {
         playerId: player2Id,
@@ -1583,6 +1876,7 @@ export function createInitialGameState(
         deck: shuffledDeck2.slice(GAME_CONFIG.INITIAL_HAND_SIZE),
         units: [],
         graveyard: [],
+        exPocket: [],
       },
     ],
     randomSeed: Math.random() * 1000000,

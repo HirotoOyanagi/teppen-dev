@@ -4,6 +4,7 @@
  */
 
 import type { CardDefinition, CardAttribute, CardTribe } from './types'
+export type { CardDefinition }
 import { loadCardsFromCsv } from './csvLoader'
 
 // CSVファイルのパス（publicディレクトリからの相対パス）

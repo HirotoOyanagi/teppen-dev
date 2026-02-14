@@ -28,6 +28,7 @@ function createTestGameState(): GameState {
     deck: ['card_1', 'card_2', 'card_3'],
     graveyard: [],
     units: [],
+    exPocket: [],
   }
 
   const player2: PlayerState = {
@@ -43,6 +44,7 @@ function createTestGameState(): GameState {
     deck: [],
     graveyard: [],
     units: [],
+    exPocket: [],
   }
 
   return {

@@ -65,6 +65,28 @@ export interface Unit {
   lane: number
   statusEffects?: string[] // 状態異常（後で拡張）
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
+  // 複雑メカニクス用
+  growthTimer?: number // 成長タイマー（経過ms）
+  growthLevel?: number // 成長レベル
+  growthInterval?: number // 成長間隔（ms）
+  memoryCount?: number // メモリーカウンター
+  memoryThreshold?: number // メモリー発動閾値
+  energyPoints?: number // エナジーポイント
+  questLevel?: number // クエストレベル
+  unleashPoints?: number // 解放ポイント
+  unleashThreshold?: number // 解放閾値
+  isAwakened?: boolean // 目覚め状態
+  isSealed?: boolean // 封印状態
+  haltTimer?: number // 停止残り時間（ms）
+  tempBuffs?: { // 一時バフ（1回攻撃するまで）
+    attack?: number
+    statusEffects?: string[]
+  }
+  deathEffects?: string[] // 死亡時の効果関数
+  attackEffects?: string[] // 攻撃時の効果関数
+  decimateEffects?: string[] // 撃破時の効果関数
+  resonateEffects?: string[] // 呼応時の効果関数
+  dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ
 }
 
 // ヒーロー定義
@@ -91,6 +113,10 @@ export interface PlayerState {
   heroArtGauge?: number // ヒーローアーツ用（後で拡張）
   graveyard: string[] // 墓地のカードID
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
+  exPocket: string[] // EXポケット
+  actionCardUsedCount?: number // バトル中アクションカード使用回数
+  levelUpCount?: number // 味方ユニットレベルアップ回数
+  awakeningCount?: number // 目覚め回数
 }
 
 // Active Responseスタック
