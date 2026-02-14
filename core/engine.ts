@@ -172,6 +172,42 @@ function removeOneCardFromHand(hand: string[], cardId: string): string[] {
   return [...hand.slice(0, index), ...hand.slice(index + 1)]
 }
 
+/**
+ * CSVの効果関数から成長レベル効果をパース
+ * growth_level_2:buff_self_hp:3 → { 1: ['buff_self_hp:3'] } (growthLevelは0から始まるため、Lv2は1)
+ * growth_level_3:buff_self_attack:2 → { 2: ['buff_self_attack:2'] } (Lv3は2)
+ */
+function parseGrowthLevelEffects(effectFunctions: string | undefined): Record<number, string[]> {
+  const growthEffects: Record<number, string[]> = {}
+  if (!effectFunctions) {
+    return growthEffects
+  }
+
+  const parts = effectFunctions
+    .split(';')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+  for (const part of parts) {
+    // growth_level_2:buff_self_hp:3 の形式をパース
+    if (part.startsWith('growth_level_')) {
+      const levelMatch = part.match(/^growth_level_(\d+):(.+)$/)
+      if (levelMatch) {
+        const csvLevel = parseInt(levelMatch[1], 10) // CSVのレベル（2, 3など）
+        const effectStr = levelMatch[2]
+        // growthLevelは0から始まるため、Lv2は1、Lv3は2に変換
+        const growthLevel = csvLevel - 1
+        if (!growthEffects[growthLevel]) {
+          growthEffects[growthLevel] = []
+        }
+        growthEffects[growthLevel].push(effectStr)
+      }
+    }
+  }
+
+  return growthEffects
+}
+
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
   TICK_INTERVAL: 50, // 50ms
@@ -264,80 +300,8 @@ export function updateGameState(
       newState.players[pi] = { ...player, units: updatedUnits }
     }
 
-    // 成長タイマーの更新
-    for (let pi = 0; pi < 2; pi++) {
-      const player = newState.players[pi]
-      const updatedUnits = player.units.map((u) => {
-        if ((u.growthInterval ?? 0) > 0 && !u.isSealed) {
-          const newTimer = (u.growthTimer || 0) + deltaTime
-          if (newTimer >= (u.growthInterval || 0)) {
-            const newLevel = (u.growthLevel || 1) + 1
-            return {
-              ...u,
-              growthTimer: 0,
-              growthLevel: newLevel,
-            }
-          }
-          return { ...u, growthTimer: newTimer }
-        }
-        return u
-      })
-      newState.players[pi] = { ...player, units: updatedUnits }
-
-      // 成長レベルアップ時のカード固有効果発動
-      for (const unit of newState.players[pi].units) {
-        if (!unit.growthLevel || unit.isSealed) continue
-        // ユニット固有の成長効果をチェック
-        const growthEffects = unit.growthEffects || cardSpecificEffects[unit.cardId.split('@')[0]]?.growthEffects
-        if (!growthEffects) continue
-        const levelEffects = growthEffects[unit.growthLevel]
-        if (!levelEffects) continue
-        // 既に発動済みかチェック（同じレベルで複数回発動しないように）
-        // growthLevelが変わったタイミングでのみ発動する
-        const prevUnit = player.units.find((pu) => pu.id === unit.id)
-        if (prevUnit && prevUnit.growthLevel === unit.growthLevel) continue
-
-        for (const effectStr of levelEffects) {
-          const parts = effectStr.split(':')
-          const funcName = parts[0]
-          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-          const growthContext: EffectContext = {
-            gameState: newState,
-            cardMap: cardDefinitions,
-            sourceUnit: {
-              unit,
-              statusEffects: new Set(),
-              temporaryBuffs: { attack: 0, hp: 0 },
-              counters: {},
-              flags: {},
-            },
-            sourcePlayer: newState.players[pi],
-            events,
-          }
-          // 特殊な成長効果: grant_attack_effect → ユニットにattackEffectsを追加
-          if (funcName === 'grant_attack_effect') {
-            const effectName = parts.slice(1).join(':')
-            const uIdx = newState.players[pi].units.findIndex((uu) => uu.id === unit.id)
-            if (uIdx !== -1) {
-              const u = newState.players[pi].units[uIdx]
-              const existingEffects = u.attackEffects || []
-              const units = [...newState.players[pi].units]
-              units[uIdx] = { ...u, attackEffects: [...existingEffects, effectName] }
-              newState.players[pi] = { ...newState.players[pi], units }
-            }
-          } else {
-            const result = resolveEffectByFunctionName(funcName, funcValue, growthContext)
-            newState = result.state
-            events.push(...result.events)
-          }
-        }
-        // レベルアップカウントを増加
-        newState.players[pi] = {
-          ...newState.players[pi],
-          levelUpCount: (newState.players[pi].levelUpCount || 0) + 1,
-        }
-      }
-    }
+    // 成長システムはMPベースのため、タイマー処理は不要
+    // ユニットプレイ時にグローポイントを加算する処理で実装
 
     // 枠封鎖タイマーの更新
     for (let pi = 0; pi < 2; pi++) {
@@ -1274,10 +1238,15 @@ function processInput(
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
             newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
           } else if (token.name === 'growth') {
-            // growth:N → N秒ごとに成長
-            newUnit.growthInterval = (token.value ?? 10) * 1000
-            newUnit.growthTimer = 0
+            // growth:N → N MP分のグローポイントでレベルアップ
+            newUnit.growthThreshold = token.value ?? 3
+            newUnit.growthPoints = 0
             newUnit.growthLevel = 0
+            // CSVのgrowth_level_N:をパースしてgrowthEffectsに設定
+            const growthLevelEffects = parseGrowthLevelEffects(cardDef.effectFunctions)
+            if (Object.keys(growthLevelEffects).length > 0) {
+              newUnit.growthEffects = growthLevelEffects
+            }
           } else if (token.name === 'memory') {
             // memory:N → アクションカードN回で発動
             newUnit.memoryCount = 0
@@ -1374,6 +1343,84 @@ function processInput(
       newUnit.originalHp = newUnit.hp
 
       newState.players[playerIndex].units.push(newUnit)
+
+      // 成長システム: ユニットをプレイした時に、そのユニットのMP分のグローポイントを加算
+      // 全ての成長を持つ味方ユニット（新しく追加したユニット自身を除く）にグローポイントを加算
+      const playedUnitMp = cardDef.cost
+      for (const unit of newState.players[playerIndex].units) {
+        if (unit.id === newUnit.id) continue // 新しく追加したユニット自身は除外
+        if (unit.isSealed) continue
+        if (unit.growthThreshold === undefined) continue
+        
+        const newGrowthPoints = (unit.growthPoints || 0) + playedUnitMp
+        const prevLevel = unit.growthLevel || 0
+        
+        // グローポイントが閾値に達したらレベルアップ
+        let newLevel = prevLevel
+        const threshold = unit.growthThreshold
+        while (newGrowthPoints >= threshold * (newLevel + 1)) {
+          newLevel++
+        }
+        
+        // レベルが上がった場合、効果を発動
+        if (newLevel > prevLevel) {
+          const growthEffects = unit.growthEffects
+          if (growthEffects) {
+            // レベルアップした全てのレベル（prevLevel+1からnewLevelまで）の効果を発動
+            for (let level = prevLevel + 1; level <= newLevel; level++) {
+              const levelEffects = growthEffects[level]
+              if (levelEffects) {
+                for (const effectStr of levelEffects) {
+                  const parts = effectStr.split(':')
+                  const funcName = parts[0]
+                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                  const growthContext: EffectContext = {
+                    gameState: newState,
+                    cardMap: cardDefinitions,
+                    sourceUnit: {
+                      unit,
+                      statusEffects: new Set(),
+                      temporaryBuffs: { attack: 0, hp: 0 },
+                      counters: {},
+                      flags: {},
+                    },
+                    sourcePlayer: newState.players[playerIndex],
+                    events,
+                  }
+                  // 特殊な成長効果: grant_attack_effect → ユニットにattackEffectsを追加
+                  if (funcName === 'grant_attack_effect') {
+                    const effectName = parts.slice(1).join(':')
+                    const uIdx = newState.players[playerIndex].units.findIndex((uu) => uu.id === unit.id)
+                    if (uIdx !== -1) {
+                      const u = newState.players[playerIndex].units[uIdx]
+                      const existingEffects = u.attackEffects || []
+                      const units = [...newState.players[playerIndex].units]
+                      units[uIdx] = { ...u, attackEffects: [...existingEffects, effectName] }
+                      newState.players[playerIndex] = { ...newState.players[playerIndex], units }
+                    }
+                  } else {
+                    const result = resolveEffectByFunctionName(funcName, funcValue, growthContext)
+                    newState = result.state
+                    events.push(...result.events)
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // グローポイントとレベルを更新
+        const uIdx = newState.players[playerIndex].units.findIndex((u) => u.id === unit.id)
+        if (uIdx !== -1) {
+          const units = [...newState.players[playerIndex].units]
+          units[uIdx] = {
+            ...units[uIdx],
+            growthPoints: newGrowthPoints,
+            growthLevel: newLevel,
+          }
+          newState.players[playerIndex] = { ...newState.players[playerIndex], units }
+        }
+      }
 
       // 味方ユニット登場時トリガー（既存味方ユニットのfriendlyUnitEnterEffects発動）
       for (const existingUnit of newState.players[playerIndex].units) {

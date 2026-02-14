@@ -1,22 +1,22 @@
 ID,カードパック,カード名,属性,カード種別,レアリティ,コスト,攻撃力,HP,効果,効果関数
 1,COR,ショーン,Red,Unit Card,Common,3,2,6,,
 2,COR,ガイ,Red,Unit Card,Common,3,2,5,＜臨戦＞,rush
-3,COR,アクセル,Red,Unit Card,Common,3,2,4,プレイ時：正面のユニットに1ダメージ＜成長＞：3Lv.2：HP+3Lv.3：「攻撃時：正面のユニットに自身の攻撃力分のダメージ」を得る,play:damage_front_unit:1;growth:3
+3,COR,アクセル,Red,Unit Card,Common,3,2,4,プレイ時：正面のユニットに1ダメージ＜成長＞：3Lv.2：HP+3Lv.3：「攻撃時：正面のユニットに自身の攻撃力分のダメージ」を得る,play:damage_front_unit:1;growth:3;growth_level_2:buff_self_hp:3;growth_level_3:grant_attack_effect:damage_front_unit_by_attack
 4,COR,トビカガチ,Red,Unit Card,Common,3,2,3,プレイ時：自身を除くランダムな味方ユニット1体の攻撃力+1,play:buff_random_friendly_attack:1
-5,COR,ドスランポス,Red,Unit Card,Common,5,3,6,＜臨戦＞＜メモリー＞：4+1/+1、＜シールド＞を得る［メモリー数：0］,rush;memory:4
+5,COR,ドスランポス,Red,Unit Card,Common,5,3,6,＜臨戦＞＜メモリー＞：4+1/+1、＜シールド＞を得る［メモリー数：0］,rush;memory:4;memory_effect:buff_self_attack_hp:1;memory_effect:grant_shield_self:1
 6,COR,ラングロトラ,Red,Unit Card,Common,3,2,5,撃破：ランダムな敵ユニット1体に2ダメージ,decimate:damage_random_enemy:2
 7,COR,リオレイア,Red,Unit Card,Common,7,2,10,＜空戦＞,flight
 8,COR,フォレスト・スパイヤー,Red,Unit Card,Common,3,2,4,死亡時：全てのユニットとヒーローに1ダメージ,death:damage_all_units_and_heroes:1
 9,COR,ソニック・オストリーグ,Red,Unit Card,Common,4,2,7,＜臨戦＞,rush
 10,COR,フレイム・スタッガー,Red,Unit Card,Common,7,2,16,＜重貫通＞初めて攻撃力が5以上になった時：ランダムな敵ユニット1体に10ダメージ＜エナジー＞：攻撃力+1、MP+1・攻撃時：エナジーポイント+2・味方ヒーローアーツ使用時：エナジーポイント+3,heavy_pierce
-11,COR,ガンボルト,Red,Unit Card,Common,3,2,5,死亡時：最もHPの低いランダムな敵ユニット1体に1ダメージ＜目覚め＞：敵ユニットに4ダメージを振り分ける,death:damage_lowest_hp_enemy:1
+11,COR,ガンボルト,Red,Unit Card,Common,3,2,5,死亡時：最もHPの低いランダムな敵ユニット1体に1ダメージ＜目覚め＞：敵ユニットに4ダメージを振り分ける,death:damage_lowest_hp_enemy:1;awakening:split_damage_all_enemy_units:4
 12,COR,キュービィ,Red,Unit Card,Common,5,2,7,＜空戦＞,flight
 13,COR,さくら,Red,Unit Card,Rare,5,3,6,プレイ時：正面のユニットに2ダメージ、＜アーツチャージ2＞初めて攻撃力が5以上になった時：全ての味方ユニットに＜圧倒＞（1回攻撃するまで）付与,play:damage_front_unit:2;art_charge:2
 14,COR,フェイロン,Red,Unit Card,Rare,4,3,5,プレイ時：激昂を探索攻撃時：敵ヒーローに1ダメージ,attack:damage_enemy_hero:1
 15,COR,ラギアクルス,Red,Unit Card,Rare,4,2,5,プレイ時：敵ユニットに5ダメージを振り分ける,play:split_damage_all_enemy_units:5
 16,COR,ジンオウガ,Red,Unit Card,Rare,5,2,8,プレイ時：全てのユニットに1ダメージ,play:damage_all_units:1
 17,COR,ストーム・イーグリード,Red,Unit Card,Rare,6,1,11,＜空戦＞プレイ時：攻撃力+2（1回攻撃するまで）,flight;play:buff_self_attack_temp:2
-18,COR,シャイニング・タイガード,Red,Unit Card,Rare,3,1,10,敵ヒーローにダメージを与えた時：全ての敵ユニットに1ダメージ,play:buff_self_attack_temp:2
+18,COR,シャイニング・タイガード,Red,Unit Card,Rare,3,1,10,敵ヒーローにダメージを与えた時：全ての敵ユニットに1ダメージ,hero_hit:damage_all_enemy_units_each:1
 19,COR,エンリコ・マリーニ,Red,Unit Card,Rare,5,3,5,＜臨戦＞場に出た時：敵ユニットがいない場合、+1/+2、MP+2死亡時：正面のユニットに3ダメージ,rush;death:damage_front_unit:3
 20,COR,ドノヴァン・バイン,Red,Unit Card,Rare,5,2,8,場に出た時：自身を除くランダムな味方ユニット1体の攻撃力+2、自分の手札かEXポケットにあるランダムなユニットカード1枚のMP-1＜連撃＞：1攻撃力+1,enter_field:buff_random_friendly_attack:2
 21,COR,レオン・S・ケネディ,Red,Unit Card,Epic,3,2,4,プレイ時：ハンドガンを探索場にいる間：自分のアクションカードとユニットカードのダメージを与える効果+1,
@@ -24,7 +24,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 23,COR,バレッタ,Red,Unit Card,Epic,4,2,6,＜臨戦＞場に出た時：敵ユニットに4ダメージを振り分ける,rush;enter_field:split_damage_all_enemy_units:4
 24,COR,レディ,Red,Unit Card,Epic,6,2,7,＜対空＞プレイ時：敵ユニットに7ダメージを振り分ける、相手の墓地にあるランダムなユニットを3体まで除外攻撃で破壊時：攻撃力+1、＜連撃＞（1回攻撃するまで）を得る,play:split_damage_all_enemy_units:7
 25,COR,宿命に抗う者 リュウ,Red,Unit Card,Legendary,6,3,6,＜臨戦＞＜俊敏＞攻撃時：正面のユニットにこのバトル中に使用したアクションカード枚数分のダメージ［使用回数：0］,agility;rush;attack:damage_front_unit_by_action_count:0
-26,COR,怒れる竜王 リオレウス,Red,Unit Card,Legendary,7,3,7,＜空戦＞＜臨戦＞敵ヒーローにダメージを与えた時：ランダムな敵ユニット1体に6ダメージ,flight;rush
+26,COR,怒れる竜王 リオレウス,Red,Unit Card,Legendary,7,3,7,＜空戦＞＜臨戦＞敵ヒーローにダメージを与えた時：ランダムな敵ユニット1体に6ダメージ,flight;rush;hero_hit:damage_random_enemy:6
 27,COR,衝撃波,Red,Action Card,Common,3,,,＜アーツチャージ1＞敵ユニット1体に3ダメージ,damage_target:3;art_charge:1
 28,COR,タル爆弾,Red,Action Card,Common,5,,,全ての敵ユニットに1ダメージ敵ヒーローに3ダメージ,damage_all_enemy_units_each:1;damage_enemy_hero:3
 29,COR,捨て身の突撃,Red,Action Card,Common,1,,,味方ユニット1体に+2/-2,buff_target_attack:2;damage_self:2
@@ -44,7 +44,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 43,COR,連鎖する烈火,Red,Action Card,Epic,3,,,敵ユニット1体に、このバトル中の連鎖する烈火の使用回数+4ダメージこのダメージでユニットを破壊した場合、死亡時能力は発動せず、ゲームから除外する（使用回数：0）,damage_target:4
 44,COR,竜王の審判,Red,Action Card,Legendary,5,,,敵ユニットに12ダメージを振り分ける,action_effect;split_damage_all_enemy_units:12
 45,COR,双龍の波動,Red,Action Card,Legendary,2,,,敵ユニット1体に、場の味方ユニット数+3ダメージ,damage_by_friendly_count:3
-46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,shield:1
+46,COR,メットールC-15,Green,Unit Card,Common,3,2,3,＜シールド＞＜目覚め＞：HP+2、応援を探索,shield:1;awakening:buff_self_hp:2;awakening:explore_card:応援
 47,COR,まこと,Green,Unit Card,Common,3,2,5,撃破：+1/+1,decimate:buff_self_attack_hp:1
 48,COR,アベル,Green,Unit Card,Common,4,2,6,プレイ時：味方ヒーローのライフ+4,play:heal_hero:4
 49,COR,ヒューゴー,Green,Unit Card,Common,5,3,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+2,play:buff_random_friendly_hp:2
@@ -56,15 +56,15 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 55,COR,バブリー・クラブロス,Green,Unit Card,Common,3,2,3,プレイ時：自身を除く味方ユニットにHP3を振り分ける,play:split_heal_friendly:3
 56,COR,アーマー・アルマージ,Green,Unit Card,Common,3,1,6,プレイ時：自身を除く全ての味方緑ユニットのHP+2攻撃時：味方緑ユニットにHP3を振り分ける,play:buff_all_friendly_hp:2;attack:split_heal_friendly:3
 57,COR,シェリー・バーキン,Green,Unit Card,Common,3,2,5,プレイ時：味方ヒーローのライフ+2,play:heal_hero:2
-58,COR,神月かりん,Green,Unit Card,Rare,5,3,6,撃破：HP+2初めてHPが6以上になった時：攻撃力+2,decimate:buff_self_hp:2
-59,COR,ザンギエフ,Green,Unit Card,Rare,5,3,5,＜シールド＞＜成長＞：5Lv.2：全ての味方ユニットのHP+3Lv.3：ランダムな敵ユニット1体に自身のHP分のダメージ,shield:1;growth:5
+58,COR,神月かりん,Green,Unit Card,Rare,5,3,6,撃破：HP+2初めてHPが6以上になった時：攻撃力+2,decimate:buff_self_hp:2;hp_threshold:6:buff_self_attack:2
+59,COR,ザンギエフ,Green,Unit Card,Rare,5,3,5,＜シールド＞＜成長＞：5Lv.2：全ての味方ユニットのHP+3Lv.3：ランダムな敵ユニット1体に自身のHP分のダメージ,shield:1;growth:5;growth_level_2:buff_all_friendly_hp:3;growth_level_3:damage_random_enemy_by_self_hp
 60,COR,ツィツィヤック,Green,Unit Card,Rare,4,2,5,プレイ時：正面の敵ユニットを封印味方ユニットが場に出た時：自身の正面を除くランダムな敵ユニット1体を封印,play:seal_front_unit
-61,COR,クレッセント・グリズリー,Green,Unit Card,Rare,8,4,10,＜重貫通＞撃破：MP+2初めてHPが12以上になった時：MP+2,heavy_pierce;decimate:mp_gain:2
+61,COR,クレッセント・グリズリー,Green,Unit Card,Rare,8,4,10,＜重貫通＞撃破：MP+2初めてHPが12以上になった時：MP+2,heavy_pierce;decimate:mp_gain:2;hp_threshold:12:mp_gain:2
 62,COR,エレナ,Green,Unit Card,Rare,3,1,5,プレイ時：自身を除くランダムな味方ユニット1体のHP+3,play:buff_random_friendly_hp:3
 63,COR,リチャード・エイゲン,Green,Unit Card,Rare,4,2,7,プレイ時：デッキ内のユニットカード1枚をEXポケットに加え、そのカードに＜シールド＞付与死亡時：自身を除くランダムな味方ユニット1体に＜シールド＞付与,play:draw_to_ex
 64,COR,レベッカ・チェンバース,Green,Unit Card,Epic,4,1,13,攻撃時：自身のHP-2、自身を除くランダムな味方ユニット1体のHP+2＜数攻＞＞20自分の手札とEXポケットにある全ての人間ユニットカードの攻撃力+1,attack:buff_random_friendly_hp:2
 65,COR,クレド,Green,Unit Card,Rare,4,2,4,プレイ時：自身を除くランダムな味方ユニット1体のHP+3,play:buff_random_friendly_hp:3
-66,COR,ラージャン,Green,Unit Card,Rare,6,2,9,＜連撃＞＜エナジー＞：+1/+1攻撃時：エナジーポイント+2戦闘ダメージを受けずに生き残った時：エナジーポイント+3,combo
+66,COR,ラージャン,Green,Unit Card,Rare,6,2,9,＜連撃＞＜エナジー＞：+1/+1攻撃時：エナジーポイント+2戦闘ダメージを受けずに生き残った時：エナジーポイント+3,combo;energy_effect:buff_self_attack_hp:1;energy_gain:attack:2;energy_gain:survive_combat:3
 67,COR,アイリス,Green,Unit Card,Epic,5,1,4,＜シールド＞＜MPブースト：50＞,shield:1;mp_boost:50
 68,COR,クリス・レッドフィールド,Green,Unit Card,Epic,5,2,9,撃破：HP+3場にいる間：自身を除く味方緑ユニットに「撃破：+2/+2」付与,decimate:buff_self_hp:3
 69,COR,フェリシア,Green,Unit Card,Epic,6,2,5,プレイ時：全ての自分の枠にフェリシアを出す,play:summon_token:3
@@ -92,7 +92,7 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 91,COR,レミー,Purple,Unit Card,Common,4,2,8,場に出た時：デッキ内のMP4の紫ユニットカード1枚をEXポケットに加えるMP4の味方ユニットが場に出た時：自身の攻撃力+1,enter_field:draw_to_ex
 92,COR,ディー,Purple,Unit Card,Common,3,2,5,＜ヴェール＞,veil
 93,COR,ドスバギィ,Purple,Unit Card,Common,5,3,6,プレイ時：ランダムな敵ユニット1体を5秒間停止,play:halt_random_enemy:5
-94,COR,ゲリョス,Purple,Unit Card,Common,4,2,6,プレイ時：ランダムな敵ユニット1体の攻撃力-1（1回攻撃するまで）＜成長＞：4Lv.2：攻撃力2以下のランダムな敵ユニット1体をEXポケットに戻す,play:debuff_random_enemy_attack:1;growth:4
+94,COR,ゲリョス,Purple,Unit Card,Common,4,2,6,プレイ時：ランダムな敵ユニット1体の攻撃力-1（1回攻撃するまで）＜成長＞：4Lv.2：攻撃力2以下のランダムな敵ユニット1体をEXポケットに戻す,play:debuff_random_enemy_attack:1;growth:4;growth_level_2:return_low_attack_enemy_to_ex:2
 95,COR,ラダーヤダー,Purple,Unit Card,Common,3,1,3,＜空戦＞を持つ敵ユニットに与える攻撃ダメージ+6,anti_air
 96,COR,プラズマ,Purple,Unit Card,Common,3,2,5,呼応：＜空戦＞を得る,resonate:grant_flight_self
 97,COR,ヘル＝ラスト,Purple,Unit Card,Common,3,1,5,呼応：攻撃力+1,resonate:buff_self_attack:1
@@ -102,15 +102,15 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 101,COR,アナカリス,Purple,Unit Card,Common,3,2,3,プレイ時：正面のユニットを13秒間停止,play:halt_front_unit:13
 102,COR,レイレイ,Purple,Unit Card,Common,7,3,4,呼応：+2/+2,resonate:buff_self_attack_hp:2
 103,COR,ローズ,Purple,Unit Card,Rare,5,3,6,プレイ時：EXポケットに1枚ドローする。敵ユニットがいない場合、代わりにデッキ内のMP4以上のカード1枚をEXポケットに加え、そのカードのMP-1、味方ヒーローのMP+2攻撃時：ランダムな敵ユニット1体の攻撃力-2（1回攻撃するまで）,play:draw_to_ex;attack:debuff_random_enemy_attack:2
-104,COR,ネルスキュラ,Purple,Unit Card,Rare,5,2,6,プレイ時：停止状態の全ての敵ユニットに6ダメージ停止状態の敵ユニットが死亡：+1/+2,play:damage_halted_enemies:6
-105,COR,ブーメル・クワンガー,Purple,Unit Card,Rare,3,2,4,プレイ時：ランダムな敵ユニット1体の攻撃力-2（1回攻撃するまで）＜目覚め＞：+1/+1、全ての敵ユニットの攻撃力-2（1回攻撃するまで）,play:debuff_random_enemy_attack:2
-106,COR,ウェブ・スパイダス,Purple,Unit Card,Rare,5,2,8,＜俊敏＞プレイ時：正面のユニットに3ダメージ停止状態の敵ユニットが死亡：ランダムな敵ユニット1体を13秒間停止、そのユニットに「5秒ごとに1ダメージ」を付与死亡時：自身を破壊した敵ユニットを13秒間停止,agility;play:damage_front_unit:3;death:halt_random_enemy:13
+104,COR,ネルスキュラ,Purple,Unit Card,Rare,5,2,6,プレイ時：停止状態の全ての敵ユニットに6ダメージ停止状態の敵ユニットが死亡：+1/+2,play:damage_halted_enemies:6;halted_enemy_death:buff_self_attack:1;halted_enemy_death:buff_self_hp:2
+105,COR,ブーメル・クワンガー,Purple,Unit Card,Rare,3,2,4,プレイ時：ランダムな敵ユニット1体の攻撃力-2（1回攻撃するまで）＜目覚め＞：+1/+1、全ての敵ユニットの攻撃力-2（1回攻撃するまで）,play:debuff_random_enemy_attack:2;awakening:buff_self_attack_hp:1;awakening:debuff_all_enemy_attack_temp:2
+106,COR,ウェブ・スパイダス,Purple,Unit Card,Rare,5,2,8,＜俊敏＞プレイ時：正面のユニットに3ダメージ停止状態の敵ユニットが死亡：ランダムな敵ユニット1体を13秒間停止、そのユニットに「5秒ごとに1ダメージ」を付与死亡時：自身を破壊した敵ユニットを13秒間停止,agility;play:damage_front_unit:3;death:halt_random_enemy:13;halted_enemy_death:halt_random_enemy:13;halted_enemy_death:dot_random_enemy:1:5000
 107,COR,メフィスト,Purple,Unit Card,Rare,7,2,10,＜空戦＞,flight
 108,COR,ヘル＝グリード,Purple,Unit Card,Rare,6,2,6,呼応：色欲を抱きしめる傲慢か脅威の者のどちらか1体を場に出す,resonate:summon_token:1
 109,COR,リリス,Purple,Unit Card,Rare,4,2,6,＜俊敏＞停止状態の敵ユニットを無視してヒーローに攻撃する,agility
-110,COR,コーリン,Purple,Unit Card,Rare,5,2,7,呼応：自身を除くランダムな味方ユニット1体に+1/+1＜メモリー＞：4「場にいる間：全ての敵ユニットが受ける効果ダメージ+1」を得る【メモリー数：0】,resonate:buff_random_friendly_attack:1;memory:4
+110,COR,コーリン,Purple,Unit Card,Rare,5,2,7,呼応：自身を除くランダムな味方ユニット1体に+1/+1＜メモリー＞：4「場にいる間：全ての敵ユニットが受ける効果ダメージ+1」を得る【メモリー数：0】,resonate:buff_random_friendly_attack:1;memory:4;memory_effect:grant_while_on_field:enemy_damage_boost:1
 111,COR,ゼノ・ジーヴァ,Purple,Unit Card,Epic,8,2,12,＜空戦＞＜ヴェール＞,flight;veil
-112,COR,いぶき,Purple,Unit Card,Epic,6,3,6,＜俊敏＞呼応：HP+2＜メモリー＞：4敵ユニットに5ダメージを振り分ける【メモリー数：0】,agility;resonate:buff_self_hp:2;memory:4
+112,COR,いぶき,Purple,Unit Card,Epic,6,3,6,＜俊敏＞呼応：HP+2＜メモリー＞：4敵ユニットに5ダメージを振り分ける【メモリー数：0】,agility;resonate:buff_self_hp:2;memory:4;memory_effect:split_damage_all_enemy_units:5
 113,COR,エイダ・ウォン,Purple,Unit Card,Epic,3,1,1,プレイ時：停止状態の全ての敵ユニットに6ダメージ,play:damage_halted_enemies:6
 114,COR,ジェスター,Purple,Unit Card,Epic,7,2,8,呼応：血染めの石像1体を場に出す,resonate:summon_token:1
 115,COR,闇を彷徨うリビドー モリガン,Purple,Unit Card,Legendary,4,4,5,停止状態の敵ユニットを無視してヒーローに攻撃する呼応：正面のユニットを5秒間停止,resonate:halt_front_unit:5
@@ -136,29 +136,29 @@ ID,カードパック,カード名,属性,カード種別,レアリティ,コス
 135,COR,支配された頭脳,Purple,Action Card,Legendary,7,,,敵ユニット1体のコントロールを奪う,control_enemy
 136,COR,ソドム,Black,Unit Card,Common,5,2,7,＜リベンジ＞：+1/+5,revenge
 137,COR,ドスギルオス,Black,Unit Card,Common,4,3,7,プレイ時：3ライフ犠牲＜クエスト＞：敵ユニットが死亡するLv 2：+1/+1Lv 3：＜波及＞を得るLv 4：味方ヒーローのライフ+3,play:life_sacrifice:3
-138,COR,ラドバルキン,Black,Unit Card,Common,5,3,6,撃破：+1/+3＜成長＞：3Lv 2：相手の手札とEXポケットにある全てのユニットカードに「プレイ時：1ライフ犠牲」を付与,decimate:buff_self_attack:1;decimate:buff_self_hp:3;growth:3
+138,COR,ラドバルキン,Black,Unit Card,Common,5,3,6,撃破：+1/+3＜成長＞：3Lv 2：相手の手札とEXポケットにある全てのユニットカードに「プレイ時：1ライフ犠牲」を付与,decimate:buff_self_attack:1;decimate:buff_self_hp:3;growth:3;growth_level_2:curse_enemy_hand_units:life_sacrifice:1
 139,COR,ホイール・アリゲイツ,Black,Unit Card,Common,4,2,10,場にいる間：自分のEXポケットを使用できない,
-140,COR,レイダーキラー,Black,Unit Card,Common,3,2,6,プレイ時：味方ユニットが3回以上レベルアップしていた場合、攻撃力+1＜成長＞：3Lv 2：HP+2Lv 3：＜シールド＞を得る［レベルが上がった回数：0］,growth:3
-141,COR,ゾンビ,Black,Unit Card,Common,3,3,2,死亡時：MP+1＜リベンジ＞：攻撃力+2,death:mp_gain:1;revenge
-142,COR,ケルベロス,Black,Unit Card,Common,3,2,4,＜リベンジ＞：+1/+3、＜俊敏＞を得る,revenge
+140,COR,レイダーキラー,Black,Unit Card,Common,3,2,6,プレイ時：味方ユニットが3回以上レベルアップしていた場合、攻撃力+1＜成長＞：3Lv 2：HP+2Lv 3：＜シールド＞を得る［レベルが上がった回数：0］,growth:3;growth_level_2:buff_self_hp:2;growth_level_3:grant_shield_self:1
+141,COR,ゾンビ,Black,Unit Card,Common,3,3,2,死亡時：MP+1＜リベンジ＞：攻撃力+2,death:mp_gain:1;revenge;revenge_buff:attack:2
+142,COR,ケルベロス,Black,Unit Card,Common,3,2,4,＜リベンジ＞：+1/+3、＜俊敏＞を得る,revenge;revenge_buff:attack:1;revenge_buff:hp:3;revenge_buff:grant_agility
 143,COR,ダイナモ,Black,Unit Card,Common,4,4,9,味方ユニットが場に出た時：自身を破壊,
 144,COR,クロウ,Black,Unit Card,Rare,3,2,5,＜空戦＞,flight
 145,COR,アーカム,Black,Unit Card,Common,4,2,5,死亡時：デッキ内の＜リベンジ＞が発動しているユニット1体をEXポケットに加える,death:draw_to_ex
 146,COR,ファントム,Black,Unit Card,Common,4,3,7,プレイ時：デッキ内のMP4以下のユニットカード2枚を墓地に送る死亡時：デッキ内のユニットカード1枚をEXポケットに加える,play:send_to_graveyard:2;death:draw_to_ex
 147,COR,ビシャモン,Black,Unit Card,Common,4,3,8,攻撃時：自身に1ダメージ死亡時：ランダムな敵ユニット1体のHP-2,attack:damage_self:1;death:damage_random_enemy:2
-148,COR,セス,Black,Unit Card,Rare,5,3,6,＜リベンジ＞：+2/+3＜目覚め＞：+1/+2、MP+1,revenge
+148,COR,セス,Black,Unit Card,Rare,5,3,6,＜リベンジ＞：+2/+3＜目覚め＞：+1/+2、MP+1,revenge;revenge_buff:attack:2;revenge_buff:hp:3;awakening:buff_self_attack:1;awakening:buff_self_hp:2;awakening:mp_gain:1
 149,COR,ロレント,Black,Unit Card,Rare,5,3,6,プレイ時：味方ヒーローのライフが15以下の場合、＜空戦＞を得る＜目覚め＞：ランダムな敵ユニット1体に味方ユニットが＜目覚め＞状態となった回数分の貫通ダメージ（最大7ダメージまで）［目覚め回数：0］,
 150,COR,イビルジョー,Black,Unit Card,Rare,8,6,8,＜臨戦＞撃破：+1/+2,rush;decimate:buff_self_attack:1;decimate:buff_self_hp:2
 151,COR,ハンター,Black,Unit Card,Rare,5,4,7,プレイ時：3ライフ犠牲,play:life_sacrifice:3
 152,COR,ウィリアム・バーキン,Black,Unit Card,Rare,3,3,3,プレイ時：3ライフ犠牲、自身以外の全ての味方ユニットの攻撃力+1,play:life_sacrifice:3;play:buff_all_friendly_attack:1
-153,COR,プロトタイラント,Black,Unit Card,Rare,5,3,7,場に出た時：敵ユニットがいない場合、＜圧倒＞を得る、MP+2＜解放＞：10+2/+2,unleash:10
+153,COR,プロトタイラント,Black,Unit Card,Rare,5,3,7,場に出た時：敵ユニットがいない場合、＜圧倒＞を得る、MP+2＜解放＞：10+2/+2,unleash:10;unleash_effect:buff_self_attack_hp:2
 154,COR,グリフォン,Black,Unit Card,Common,6,3,6,＜空戦＞,flight
 155,COR,ザベル・ザロック,Black,Unit Card,Rare,4,2,5,HPが3以下の間：攻撃力+3,
 156,COR,ベガ,Black,Unit Card,Epic,10,6,7,死亡時：自分の墓地からMP5以下の黒ユニット1体を+2/+2してEXポケットに戻し、そのカードのMP-5、MP6以下のランダムな敵ユニット1体を破壊,
-157,COR,VAVA,Black,Unit Card,Epic,4,3,7,場にいる間：自分のMP最大値-2＜成長＞：3Lv 2：+1/+1Lv 3：全ての敵ユニットに3ダメージ,growth:3
-158,COR,T-002 タイラント,Black,Unit Card,Epic,4,4,1,死亡時：攻撃力1以下の全てのユニットを破壊＜リベンジ＞：HP+8,death:destroy_low_attack:1;revenge
-159,COR,ジェダ・ドーマ,Black,Unit Card,Epic,5,3,4,＜リベンジ＞：+2/+5,revenge
-160,COR,野望の継承者 ウェスカー,Black,Unit Card,Legendary,6,17,17,場に出た時：攻撃力とHPを味方ヒーローのライフ分マイナスする＜解放＞：10MP5以下のランダムな敵ユニット1体を破壊,unleash:10
+157,COR,VAVA,Black,Unit Card,Epic,4,3,7,場にいる間：自分のMP最大値-2＜成長＞：3Lv 2：+1/+1Lv 3：全ての敵ユニットに3ダメージ,growth:3;while_on_field:reduce_max_mp:2;growth_level_2:buff_self_attack_hp:1;growth_level_3:damage_all_enemy_units_each:3
+158,COR,T-002 タイラント,Black,Unit Card,Epic,4,4,1,死亡時：攻撃力1以下の全てのユニットを破壊＜リベンジ＞：HP+8,death:destroy_low_attack:1;revenge;revenge_buff:hp:8
+159,COR,ジェダ・ドーマ,Black,Unit Card,Epic,5,3,4,＜リベンジ＞：+2/+5,revenge;revenge_buff:attack:2;revenge_buff:hp:5
+160,COR,野望の継承者 ウェスカー,Black,Unit Card,Legendary,6,17,17,場に出た時：攻撃力とHPを味方ヒーローのライフ分マイナスする＜解放＞：10MP5以下のランダムな敵ユニット1体を破壊,unleash:10;unleash_effect:destroy_random_enemy:5
 161,COR,伝説喰らいの古龍 ネルギガンテ,Black,Unit Card,Legendary,6,0,1,＜ヴェール＞プレイ時：自分のデッキからカードを5枚まで墓地に送り、+4/+10敵ユニットが死亡：自分の墓地からMP4以下のランダムなユニット1体をEXポケットに戻す,veil;play:send_to_graveyard:5;play:buff_self_attack:4;play:buff_self_hp:10
 162,COR,強化蘇生,Black,Action Card,Common,5,,,自分の墓地からランダムなユニット1体を+1/+1して場に出す,revive_from_graveyard
 163,COR,屍肉漁り,Black,Action Card,Common,3,,,自分の墓地からランダムなMP5以上のユニット1体を+1/+1して、EXポケットに戻す,revive_from_graveyard

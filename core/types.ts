@@ -66,9 +66,9 @@ export interface Unit {
   statusEffects?: string[] // 状態異常（後で拡張）
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
   // 複雑メカニクス用
-  growthTimer?: number // 成長タイマー（経過ms）
-  growthLevel?: number // 成長レベル
-  growthInterval?: number // 成長間隔（ms）
+  growthPoints?: number // グローポイント（MPベース）
+  growthLevel?: number // 成長レベル（0から開始、1がLv2、2がLv3）
+  growthThreshold?: number // 成長閾値（MP、growth:NのN）
   memoryCount?: number // メモリーカウンター
   memoryThreshold?: number // メモリー発動閾値
   energyPoints?: number // エナジーポイント
