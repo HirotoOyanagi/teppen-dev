@@ -508,59 +508,6 @@ export default function GameBoard() {
   const opponent = gameState.players[1]
 
   // マリガンフェーズのUI
-  if (gameState.phase === 'mulligan') {
-    return (
-      <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
-        <div className="relative z-10 w-full flex justify-center pt-4">
-          <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
-            <span className="text-2xl text-yellow-400 font-bold tracking-widest">マリガン</span>
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <h2 className="text-3xl text-white mb-8">初期手札を確認してください</h2>
-          <div className="mb-8">
-            <h3 className="text-xl text-white mb-4">あなたの手札</h3>
-            <div className="flex gap-4 flex-wrap justify-center">
-              {player.hand.map((cardId, idx) => {
-                const cardDef = resolveCardDefinition(cardMap, cardId)
-                if (!cardDef) return null
-
-                return (
-                  <GameCard
-                    key={`${cardId}_${idx}`}
-                    cardDef={cardDef}
-                    size="md"
-                    onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
-                  />
-                )
-              })}
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => handleMulligan(true)}
-              className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded"
-            >
-              全て交換
-            </button>
-            <button
-              onClick={() => handleMulligan(false)}
-              className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded"
-            >
-              このまま
-            </button>
-          </div>
-          <p className="text-gray-400 text-sm mt-4">※カードをタップで詳細を確認</p>
-        </div>
-
-        {detailCard && (
-          <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
-        )}
-      </div>
-    )
-  }
-
   // ゲーム終了チェック
   const gameOver = gameState.phase === 'ended'
   const winner = gameOver
@@ -777,6 +724,58 @@ export default function GameBoard() {
         </div>
         <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} />
       </div>
+
+      {/* マリガンオーバーレイ */}
+      {gameState.phase === 'mulligan' && (
+        <div className="absolute inset-0 z-40 bg-black/80 flex flex-col font-orbitron">
+          <div className="relative z-10 w-full flex justify-center pt-4">
+            <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
+              <span className="text-2xl text-yellow-400 font-bold tracking-widest">マリガン</span>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <h2 className="text-3xl text-white mb-8">初期手札を確認してください</h2>
+            <div className="mb-8">
+              <h3 className="text-xl text-white mb-4">あなたの手札</h3>
+              <div className="flex gap-4 flex-wrap justify-center">
+                {player.hand.map((cardId, idx) => {
+                  const cardDef = resolveCardDefinition(cardMap, cardId)
+                  if (!cardDef) return null
+
+                  return (
+                    <GameCard
+                      key={`${cardId}_${idx}`}
+                      cardDef={cardDef}
+                      size="md"
+                      onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => handleMulligan(true)}
+                className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded"
+              >
+                全て交換
+              </button>
+              <button
+                onClick={() => handleMulligan(false)}
+                className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded"
+              >
+                このまま
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm mt-4">※カードをタップで詳細を確認</p>
+          </div>
+
+          {detailCard && (
+            <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+          )}
+        </div>
+      )}
 
       {/* Game Over Overlay */}
       {gameOver && winner && (
