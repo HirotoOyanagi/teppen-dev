@@ -270,7 +270,7 @@ export type GameEvent =
       type: 'card_sent_to_graveyard'
       playerId: string
       cardId: string
-      reason: 'card_played' | 'unit_destroyed'
+      reason: 'card_played' | 'unit_destroyed' | 'awakening_overlay'
       timestamp: number
     }
   | {

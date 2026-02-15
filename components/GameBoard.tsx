@@ -258,7 +258,11 @@ export default function GameBoard() {
         // 同じレーンに既にユニットがいるかチェック
         const existingUnitInLane = player.units.find((u) => u.lane === lane)
         if (existingUnitInLane) {
-          return
+          // 目覚めを持つカードは味方ユニットに重ねてプレイ可能（破壊不能は除く）
+          const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
+          if (!hasAwakening || existingUnitInLane.statusEffects?.includes('indestructible')) {
+            return
+          }
         }
       }
 
@@ -453,7 +457,8 @@ export default function GameBoard() {
     else if (hoveredLane !== null) {
       const player = gameState.players[0]
       const existingUnit = player.units.find((u) => u.lane === hoveredLane)
-      if (!existingUnit) {
+      const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
+      if (!existingUnit || (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))) {
         handlePlayCard('player1', cardId, hoveredLane)
       }
     }

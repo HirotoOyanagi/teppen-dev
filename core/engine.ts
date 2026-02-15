@@ -36,6 +36,7 @@ type EffectFunctionTrigger =
   | 'death' // 死亡時（破壊された時）
   | 'resonate' // 呼応（アクションカードを使用した時）
   | 'decimate' // 撃破（一方的に相手ユニットを倒した時）
+  | 'awakening' // 目覚め時（味方ユニットに重ねてプレイした時）
   | 'explore' // 探索時（味方が探索した時）
   | 'damage' // ダメージ時（ダメージを受けた時）
   | 'effect_damage_destroy' // 効果ダメージで破壊時
@@ -98,6 +99,7 @@ function parseTriggeredEffectFunctionTokens(
     resonate: 'resonate',
     decimate: 'decimate',
     explore: 'explore',
+    awakening: 'awakening',
     damage: 'damage',
     effect_damage_destroy: 'effect_damage_destroy',
     enter_field: 'enter_field',
@@ -1111,8 +1113,36 @@ function processInput(
       const existingUnitInLane = newState.players[playerIndex].units.find(
         (u) => u.lane === lane
       )
+
+      // 目覚めチェック: effectFunctionsに"awakening:"を含むカードは味方ユニットに重ねてプレイできる
+      const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
+
       if (existingUnitInLane) {
-        return { state: newState, events }
+        // 目覚めを持つカードの場合、既存ユニットに重ねてプレイ可能
+        // ただし＜破壊不能＞を持つユニットには重ねられない
+        if (!hasAwakening || existingUnitInLane.statusEffects?.includes('indestructible')) {
+          return { state: newState, events }
+        }
+
+        // 既存ユニットを破壊して墓地に送る（死亡時効果は発動しない）
+        newState.players[playerIndex] = {
+          ...newState.players[playerIndex],
+          units: newState.players[playerIndex].units.filter((u) => u.id !== existingUnitInLane.id),
+          graveyard: [...newState.players[playerIndex].graveyard, existingUnitInLane.cardId],
+        }
+
+        events.push({
+          type: 'unit_destroyed',
+          unitId: existingUnitInLane.id,
+          timestamp: input.timestamp,
+        })
+        events.push({
+          type: 'card_sent_to_graveyard',
+          playerId: input.playerId,
+          cardId: existingUnitInLane.cardId,
+          reason: 'awakening_overlay',
+          timestamp: input.timestamp,
+        })
       }
 
       // ユニットカードは場に出した時点では墓地には行かない
@@ -1340,7 +1370,76 @@ function processInput(
       newUnit.originalAttack = newUnit.attack
       newUnit.originalHp = newUnit.hp
 
+      // 目覚め: 味方ユニットに重ねてプレイした場合、目覚め状態にして効果を発動
+      if (hasAwakening && existingUnitInLane) {
+        newUnit.isAwakened = true
+
+        // 目覚め回数をカウント
+        newState.players[playerIndex] = {
+          ...newState.players[playerIndex],
+          awakeningCount: (newState.players[playerIndex].awakeningCount || 0) + 1,
+        }
+      }
+
       newState.players[playerIndex].units.push(newUnit)
+
+      // 目覚め効果の発動
+      if (newUnit.isAwakened) {
+        // effectFunctionsから目覚めトリガーの効果を取得して発動
+        const awakeningTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
+          .filter((t) => t.trigger === 'awakening')
+        for (const token of awakeningTokens) {
+          const awakeningContext: EffectContext = {
+            gameState: newState,
+            cardMap: cardDefinitions,
+            sourceUnit: {
+              unit: newUnit,
+              statusEffects: new Set(),
+              temporaryBuffs: { attack: 0, hp: 0 },
+              counters: {},
+              flags: {},
+            },
+            sourcePlayer: newState.players[playerIndex],
+            events,
+          }
+          const result = resolveEffectByFunctionName(token.name, token.value, awakeningContext)
+          newState = result.state
+          events.push(...result.events)
+          // sourceUnitの最新状態を反映
+          const updatedUnit = newState.players[playerIndex]?.units.find((u) => u.id === newUnit.id)
+          if (updatedUnit) {
+            newUnit.attack = updatedUnit.attack
+            newUnit.hp = updatedUnit.hp
+            newUnit.maxHp = updatedUnit.maxHp
+          }
+        }
+
+        // cardSpecificEffectsの目覚め効果も発動
+        const cardConfig = cardSpecificEffects[input.cardId.split('@')[0]]
+        if (cardConfig?.awakeningEffects) {
+          for (const effectStr of cardConfig.awakeningEffects) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const awakeningContext: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourceUnit: {
+                unit: newState.players[playerIndex].units.find((u) => u.id === newUnit.id) || newUnit,
+                statusEffects: new Set(),
+                temporaryBuffs: { attack: 0, hp: 0 },
+                counters: {},
+                flags: {},
+              },
+              sourcePlayer: newState.players[playerIndex],
+              events,
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, awakeningContext)
+            newState = result.state
+            events.push(...result.events)
+          }
+        }
+      }
 
       // 成長システム: ユニットをプレイした時に、そのユニットのMP分のグローポイントを加算
       // 全ての成長を持つ味方ユニット（新しく追加したユニット自身を除く）にグローポイントを加算
