@@ -2,33 +2,60 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import GameBoard from '@/components/GameBoard'
+import OnlineGameBoard from '@/components/OnlineGameBoard'
 import { getDeck } from '@/utils/deckStorage'
+import type { Hero } from '@/core/types'
+
+const SAMPLE_HEROES: Hero[] = [
+  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
+  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
+  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
+  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
+]
 
 export default function BattlePage() {
   const router = useRouter()
   const [hasDeck, setHasDeck] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isOnline, setIsOnline] = useState(false)
+  const [onlineProps, setOnlineProps] = useState<{
+    playerId: string
+    heroId: string
+    deckCardIds: string[]
+  } | null>(null)
 
   useEffect(() => {
+    // モード判定
+    const mode = router.query.mode as string | undefined
+
     // 選択されたデッキを確認
     const selectedDeckId = localStorage.getItem('teppen_selectedDeckId')
     if (!selectedDeckId) {
-      // デッキが選択されていない場合はデッキ選択画面に遷移
       router.push('/deck-select')
       return
     }
 
     const deck = getDeck(selectedDeckId)
     if (!deck || deck.cardIds.length !== 30) {
-      // デッキが存在しないか、30枚でない場合はデッキ選択画面に遷移
       alert('有効なデッキが選択されていません')
       router.push('/deck-select')
       return
     }
 
+    if (mode === 'online') {
+      setIsOnline(true)
+      // オンライン対戦用のプレイヤーIDを生成
+      const playerId = `player_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+      setOnlineProps({
+        playerId,
+        heroId: deck.heroId,
+        deckCardIds: deck.cardIds,
+      })
+    }
+
     setHasDeck(true)
     setLoading(false)
-  }, [router])
+  }, [router, router.query.mode])
 
   if (loading) {
     return (
@@ -45,13 +72,20 @@ export default function BattlePage() {
   return (
     <>
       <Head>
-        <title>TEPPEN - バトル</title>
+        <title>TEPPEN - {isOnline ? 'オンラインバトル' : 'バトル'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div className="fixed inset-0 overflow-hidden">
-        <GameBoard />
+        {isOnline && onlineProps ? (
+          <OnlineGameBoard
+            playerId={onlineProps.playerId}
+            heroId={onlineProps.heroId}
+            deckCardIds={onlineProps.deckCardIds}
+          />
+        ) : (
+          <GameBoard />
+        )}
       </div>
     </>
   )
 }
-

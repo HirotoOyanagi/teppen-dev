@@ -52,9 +52,9 @@ export default function DeckSelectPage() {
 
     // 選択したデッキをローカルストレージに保存
     localStorage.setItem('teppen_selectedDeckId', selectedDeck.id)
-    
-    // メインゲーム画面に遷移
-    router.push('/battle')
+
+    // バトルモード選択画面に遷移
+    router.push('/matchmaking')
   }
 
   const attributeColors: Record<string, string> = {
