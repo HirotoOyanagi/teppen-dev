@@ -638,16 +638,13 @@ export function updateGameState(
 
           // ── 撃破（decimate）トリガー ──
           // 交戦で相手ユニットが死亡し、攻撃者が生存している場合に発動
-          console.log(`[Decimate DEBUG] targetWasDestroyed=${targetWasDestroyed}, attackerSurvived=${attackerSurvived}, isSealed=${unit.isSealed}, unitCard=${unit.cardId}`)
           if (targetWasDestroyed && attackerSurvived && !unit.isSealed) {
             const attackerUnit = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
-            console.log(`[Decimate DEBUG] attackerUnit found=${!!attackerUnit}, decimateEffects=${JSON.stringify(attackerUnit?.decimateEffects)}`)
             if (attackerUnit && attackerUnit.decimateEffects && attackerUnit.decimateEffects.length > 0) {
               for (const effectStr of attackerUnit.decimateEffects) {
                 const parts = effectStr.split(':')
                 const funcName = parts[0]
                 const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                console.log(`[Decimate DEBUG] 撃破効果発動: funcName=${funcName}, funcValue=${funcValue}`)
                 const decimateCtx: EffectContext = {
                   gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
                   cardMap: cardDefinitions,
@@ -1235,7 +1232,6 @@ function processInput(
             if (!newUnit.decimateEffects) newUnit.decimateEffects = []
             const effectEntry = token.value !== undefined ? `${token.name}:${token.value}` : token.name
             newUnit.decimateEffects.push(effectEntry)
-            console.log(`[Decimate SETUP] ${newUnit.cardId} に撃破効果を設定: ${effectEntry}`)
           } else if (token.trigger === 'resonate') {
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
             newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
