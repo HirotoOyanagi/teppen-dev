@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: teppen-game-server
+    env: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: ALLOWED_ORIGINS
+        sync: false
+    healthCheckPath: /health
+
