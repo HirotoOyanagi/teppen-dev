@@ -17,7 +17,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
 
 // CSVからカードデータを読み込み
 function loadCardDefinitions() {
-  const csvPath = resolve(__dirname, '../public/Teppen本番 - COR.csv')
+  const csvPath = resolve(process.cwd(), '../public/Teppen本番 - COR.csv')
   const csvText = readFileSync(csvPath, 'utf-8')
   const cards = loadCardsFromCsv(csvText)
   return createCardMap(cards)
