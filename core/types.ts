@@ -178,6 +178,7 @@ export interface GameState {
   phase: 'mulligan' | 'playing' | 'ended' // ゲームフェーズ
   activeResponse: ActiveResponseState
   players: [PlayerState, PlayerState]
+  mulliganDone: [boolean, boolean]
   randomSeed: number // リプレイ用の乱数シード
   gameStartTime: number
   lastUpdateTime: number

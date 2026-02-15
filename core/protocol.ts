@@ -50,6 +50,7 @@ export interface SanitizedGameState {
   gameId: string
   currentTick: number
   phase: 'mulligan' | 'playing' | 'ended'
+  mulliganDone: [boolean, boolean]
   activeResponse: GameState['activeResponse']
   players: [SanitizedPlayerState, SanitizedPlayerState]
   gameStartTime: number
@@ -72,6 +73,7 @@ export function sanitizeGameState(
     gameId: state.gameId,
     currentTick: state.currentTick,
     phase: state.phase,
+    mulliganDone: [state.mulliganDone[viewerPlayerIndex], state.mulliganDone[opponentIndex]],
     activeResponse: state.activeResponse,
     players: [
       sanitizePlayer(state.players[viewerPlayerIndex], true),

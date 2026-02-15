@@ -41,8 +41,8 @@ export default function MatchmakingPage() {
 
   const handleStartOnline = () => {
     if (!deck) return
-    // オンラインバトルページに遷移
-    router.push('/battle?mode=online')
+    // オンラインバトルページに遷移（デッキIDをクエリに含める）
+    router.push(`/battle?mode=online&deckId=${deck.id}`)
   }
 
   const handleStartOffline = () => {

@@ -604,15 +604,18 @@ export default function OnlineGameBoard({ playerId, heroId, deckCardIds }: Onlin
                 })}
               </div>
             </div>
-            <div className="flex gap-4">
-              <button onClick={() => handleMulligan(true)} className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded">
-                全て交換
-              </button>
-              <button onClick={() => handleMulligan(false)} className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded">
-                このまま
-              </button>
-            </div>
-            <p className="text-gray-400 text-sm mt-4">※相手のマリガン完了を待っています...</p>
+            {!gameState.mulliganDone[0] ? (
+              <div className="flex gap-4">
+                <button onClick={() => handleMulligan(true)} className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded">
+                  全て交換
+                </button>
+                <button onClick={() => handleMulligan(false)} className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded">
+                  このまま
+                </button>
+              </div>
+            ) : (
+              <p className="text-yellow-400 text-lg mt-4 animate-pulse">相手のマリガン完了を待っています...</p>
+            )}
           </div>
           {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
         </div>

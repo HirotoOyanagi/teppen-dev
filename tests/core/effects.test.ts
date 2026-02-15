@@ -54,6 +54,7 @@ function createTestGameState(): GameState {
     lastUpdateTime: Date.now(),
     gameStartTime: Date.now(),
     randomSeed: 12345,
+    mulliganDone: [true, true],
     players: [player1, player2],
     activeResponse: {
       isActive: false,

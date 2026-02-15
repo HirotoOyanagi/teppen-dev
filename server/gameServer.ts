@@ -122,8 +122,10 @@ export class GameServer {
     }
 
     // 入力を適用
+    console.log('[DEBUG] handleGameInput:', input.type, 'from', input.playerId, 'phase before:', room.gameState.phase, 'mulliganDone before:', room.gameState.mulliganDone)
     const result = updateGameState(room.gameState, input, 0, this.cardMap)
     room.gameState = result.state
+    console.log('[DEBUG] phase after:', room.gameState.phase, 'mulliganDone after:', room.gameState.mulliganDone)
 
     // イベントがあれば両クライアントに送信
     if (result.events.length > 0) {

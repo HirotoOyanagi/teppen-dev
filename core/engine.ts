@@ -1843,6 +1843,9 @@ function processMulligan(
   )
   if (playerIndex === -1) return { state: newState, events }
 
+  // 既にマリガン完了済みのプレイヤーからの送信は無視
+  if (newState.mulliganDone[playerIndex]) return { state: newState, events }
+
   const player = newState.players[playerIndex]
 
   // キープするカード以外をシャッフルしてデッキに戻し、新しい手札を引く
@@ -1876,11 +1879,15 @@ function processMulligan(
     deck: remainingDeck,
   }
 
-  // マリガン完了後は、phaseを'playing'に変更
-  // マリガンが実行された場合は、フェーズを進める
-  // 注: 両方のプレイヤーがマリガンを完了したことを検出するには、追加の状態管理が必要
-  // ここでは簡易実装として、マリガンが呼ばれたら自動でplayingに移行する
-  // （実際のゲームでは、両方のプレイヤーのマリガン完了を待つ必要がある）
+  // マリガン完了を記録
+  const newMulliganDone: [boolean, boolean] = [...newState.mulliganDone]
+  newMulliganDone[playerIndex] = true
+  newState.mulliganDone = newMulliganDone
+
+  // 両プレイヤーのマリガンが完了したらplayingフェーズへ遷移
+  if (newMulliganDone[0] && newMulliganDone[1]) {
+    newState.phase = 'playing'
+  }
 
   return { state: newState, events }
 }
@@ -2238,7 +2245,7 @@ function executeUnitAttack(
             const funcName = parts[0]
             const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
             const heroHitContext: EffectContext = {
-              gameState: { gameId: '', currentTick: 0, phase: 'playing', activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0 },
+              gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0 },
               cardMap: cardDefinitions,
               sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
               sourcePlayer: attackerPlayer,
@@ -2518,6 +2525,7 @@ export function createInitialGameState(
         exPocket: [],
       },
     ],
+    mulliganDone: [false, false],
     randomSeed: Math.random() * 1000000,
     gameStartTime: Date.now(),
     lastUpdateTime: Date.now(),
