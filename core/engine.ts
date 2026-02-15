@@ -565,160 +565,94 @@ export function updateGameState(
             }
           }
 
-          // 相手の状態を更新（防御側のダメージ）
+          // ── 攻撃結果を両プレイヤーに反映（先にすべて反映してからトリガー処理） ──
           if (attackResult.opponentUpdate) {
             playerUpdates[opponentIndex] = attackResult.opponentUpdate
+          }
+          if (attackResult.attackerUpdate) {
+            playerUpdates[playerIndex] = attackResult.attackerUpdate
+          }
 
-            // 撃破時トリガー（攻撃で敵を倒した場合）
-            const survivingIds = new Set(attackResult.opponentUpdate.units.map((u: Unit) => u.id))
-            const targetWasDestroyed = targetUnit && !survivingIds.has(targetUnit.id)
+          // ── 撃破判定（反映済みの最新状態で判定する） ──
+          const survivingOpponentIds = new Set(playerUpdates[opponentIndex].units.map((u: Unit) => u.id))
+          const targetWasDestroyed = targetUnit != null && !survivingOpponentIds.has(targetUnit.id)
+          const attackerSurvived = playerUpdates[playerIndex].units.some((u: Unit) => u.id === unit.id)
 
-            // 停止敵死亡時トリガー
-            if (targetWasDestroyed && targetUnit && (targetUnit.haltTimer ?? 0) > 0) {
-              for (const friendlyUnit of playerUpdates[playerIndex].units) {
-                if (friendlyUnit.isSealed) continue
-                if (!friendlyUnit.haltedEnemyDeathEffects || friendlyUnit.haltedEnemyDeathEffects.length === 0) continue
-                for (const effectStr of friendlyUnit.haltedEnemyDeathEffects) {
+          // 停止敵死亡時トリガー
+          if (targetWasDestroyed && targetUnit && (targetUnit.haltTimer ?? 0) > 0) {
+            for (const friendlyUnit of playerUpdates[playerIndex].units) {
+              if (friendlyUnit.isSealed) continue
+              if (!friendlyUnit.haltedEnemyDeathEffects || friendlyUnit.haltedEnemyDeathEffects.length === 0) continue
+              for (const effectStr of friendlyUnit.haltedEnemyDeathEffects) {
+                const parts = effectStr.split(':')
+                const funcName = parts[0]
+                const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                const haltDeathCtx: EffectContext = {
+                  gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                  cardMap: cardDefinitions,
+                  sourceUnit: { unit: friendlyUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+                  sourcePlayer: playerUpdates[playerIndex],
+                  events: [],
+                }
+                const result = resolveEffectByFunctionName(funcName, funcValue, haltDeathCtx)
+                playerUpdates[0] = result.state.players[0]
+                playerUpdates[1] = result.state.players[1]
+                events.push(...result.events)
+              }
+            }
+          }
+
+          // クエストシステム: 敵ユニット死亡でクエストレベルアップ
+          if (targetWasDestroyed) {
+            for (const friendlyUnit of playerUpdates[playerIndex].units) {
+              if (friendlyUnit.isSealed) continue
+              if (friendlyUnit.questCondition !== 'enemy_unit_death') continue
+              const newQuestLevel = (friendlyUnit.questLevel || 0) + 1
+              playerUpdates[playerIndex] = {
+                ...playerUpdates[playerIndex],
+                units: playerUpdates[playerIndex].units.map((u) =>
+                  u.id === friendlyUnit.id ? { ...u, questLevel: newQuestLevel } : u
+                ),
+              }
+              const questEffects = friendlyUnit.questEffects
+              if (questEffects && questEffects[newQuestLevel]) {
+                for (const effectStr of questEffects[newQuestLevel]) {
                   const parts = effectStr.split(':')
                   const funcName = parts[0]
                   const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                  const haltDeathCtx: EffectContext = {
+                  const questCtx: EffectContext = {
                     gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
                     cardMap: cardDefinitions,
                     sourceUnit: { unit: friendlyUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
                     sourcePlayer: playerUpdates[playerIndex],
                     events: [],
                   }
-                  const result = resolveEffectByFunctionName(funcName, funcValue, haltDeathCtx)
+                  const result = resolveEffectByFunctionName(funcName, funcValue, questCtx)
                   playerUpdates[0] = result.state.players[0]
                   playerUpdates[1] = result.state.players[1]
                   events.push(...result.events)
                 }
               }
             }
-
-            // クエストシステム: 敵ユニット死亡でクエストレベルアップ
-            if (targetWasDestroyed) {
-              for (const friendlyUnit of playerUpdates[playerIndex].units) {
-                if (friendlyUnit.isSealed) continue
-                if (friendlyUnit.questCondition !== 'enemy_unit_death') continue
-                const newQuestLevel = (friendlyUnit.questLevel || 0) + 1
-                const pIdx = playerIndex
-                playerUpdates[pIdx] = {
-                  ...playerUpdates[pIdx],
-                  units: playerUpdates[pIdx].units.map((u) =>
-                    u.id === friendlyUnit.id ? { ...u, questLevel: newQuestLevel } : u
-                  ),
-                }
-                // クエストレベル効果発動
-                const questEffects = friendlyUnit.questEffects
-                if (questEffects && questEffects[newQuestLevel]) {
-                  for (const effectStr of questEffects[newQuestLevel]) {
-                    const parts = effectStr.split(':')
-                    const funcName = parts[0]
-                    const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                    const questCtx: EffectContext = {
-                      gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
-                      cardMap: cardDefinitions,
-                      sourceUnit: { unit: friendlyUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
-                      sourcePlayer: playerUpdates[pIdx],
-                      events: [],
-                    }
-                    const result = resolveEffectByFunctionName(funcName, funcValue, questCtx)
-                    playerUpdates[0] = result.state.players[0]
-                    playerUpdates[1] = result.state.players[1]
-                    events.push(...result.events)
-                  }
-                }
-              }
-            }
-
-            if (targetWasDestroyed && !unit.isSealed) {
-              const attackerInUpdated = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
-              if (attackerInUpdated?.decimateEffects) {
-                for (const effectStr of attackerInUpdated.decimateEffects) {
-                  const parts = effectStr.split(':')
-                  const funcName = parts[0]
-                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                  const decimateContext: EffectContext = {
-                    gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
-                    cardMap: cardDefinitions,
-                    sourceUnit: {
-                      unit: attackerInUpdated,
-                      statusEffects: new Set(),
-                      temporaryBuffs: { attack: 0, hp: 0 },
-                      counters: {},
-                      flags: {},
-                    },
-                    sourcePlayer: playerUpdates[playerIndex],
-                    events: [],
-                  }
-                  const effectResult = resolveEffectByFunctionName(funcName, funcValue, decimateContext)
-                  playerUpdates[0] = effectResult.state.players[0]
-                  playerUpdates[1] = effectResult.state.players[1]
-                  events.push(...effectResult.events)
-                }
-              }
-            }
-
-            // 死亡時トリガー（撃破されたユニットのdeathEffects）
-            if (targetWasDestroyed && targetUnit) {
-              const destroyedUnit = { ...targetUnit, killerId: unit.id }
-              if (!destroyedUnit.isSealed && destroyedUnit.deathEffects && destroyedUnit.deathEffects.length > 0) {
-                for (const effectStr of destroyedUnit.deathEffects) {
-                  const parts = effectStr.split(':')
-                  const funcName = parts[0]
-                  const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                  const deathContext: EffectContext = {
-                    gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
-                    cardMap: cardDefinitions,
-                    sourceUnit: {
-                      unit: destroyedUnit,
-                      statusEffects: new Set(),
-                      temporaryBuffs: { attack: 0, hp: 0 },
-                      counters: {},
-                      flags: {},
-                    },
-                    sourcePlayer: playerUpdates[opponentIndex],
-                    events: [],
-                  }
-                  const effectResult = resolveEffectByFunctionName(funcName, funcValue, deathContext)
-                  playerUpdates[0] = effectResult.state.players[0]
-                  playerUpdates[1] = effectResult.state.players[1]
-                  events.push(...effectResult.events)
-                }
-              }
-            }
-
-            // ゲーム終了チェック
-            if (attackResult.gameEnded) {
-              const winnerIndex = playerIndex
-              events.push({
-                type: 'game_ended',
-                winner: playerUpdates[winnerIndex].playerId,
-                reason: attackResult.gameEnded.reason,
-                timestamp: Date.now(),
-              })
-              newState.phase = 'ended'
-            }
           }
 
-          // 自分の状態を更新（攻撃側のダメージ + 攻撃ゲージリセット）
-          if (attackResult.attackerUpdate) {
-            playerUpdates[playerIndex] = attackResult.attackerUpdate
-
-            // 攻撃側ユニットが死亡した場合のdeathEffects
-            const attackerSurvived = attackResult.attackerUpdate.units.some((u: Unit) => u.id === unit.id)
-            if (!attackerSurvived && !unit.isSealed && unit.deathEffects && unit.deathEffects.length > 0) {
-              for (const effectStr of unit.deathEffects) {
+          // ── 撃破（decimate）トリガー ──
+          // 交戦で相手ユニットが死亡し、攻撃者が生存している場合に発動
+          console.log(`[Decimate DEBUG] targetWasDestroyed=${targetWasDestroyed}, attackerSurvived=${attackerSurvived}, isSealed=${unit.isSealed}, unitCard=${unit.cardId}`)
+          if (targetWasDestroyed && attackerSurvived && !unit.isSealed) {
+            const attackerUnit = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
+            console.log(`[Decimate DEBUG] attackerUnit found=${!!attackerUnit}, decimateEffects=${JSON.stringify(attackerUnit?.decimateEffects)}`)
+            if (attackerUnit && attackerUnit.decimateEffects && attackerUnit.decimateEffects.length > 0) {
+              for (const effectStr of attackerUnit.decimateEffects) {
                 const parts = effectStr.split(':')
                 const funcName = parts[0]
                 const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
-                const deathContext: EffectContext = {
+                console.log(`[Decimate DEBUG] 撃破効果発動: funcName=${funcName}, funcValue=${funcValue}`)
+                const decimateCtx: EffectContext = {
                   gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
                   cardMap: cardDefinitions,
                   sourceUnit: {
-                    unit,
+                    unit: attackerUnit,
                     statusEffects: new Set(),
                     temporaryBuffs: { attack: 0, hp: 0 },
                     counters: {},
@@ -727,12 +661,78 @@ export function updateGameState(
                   sourcePlayer: playerUpdates[playerIndex],
                   events: [],
                 }
+                const effectResult = resolveEffectByFunctionName(funcName, funcValue, decimateCtx)
+                playerUpdates[0] = effectResult.state.players[0]
+                playerUpdates[1] = effectResult.state.players[1]
+                events.push(...effectResult.events)
+              }
+            }
+          }
+
+          // 死亡時トリガー（破壊されたユニットのdeathEffects）
+          if (targetWasDestroyed && targetUnit) {
+            const destroyedUnit = { ...targetUnit, killerId: unit.id }
+            if (!destroyedUnit.isSealed && destroyedUnit.deathEffects && destroyedUnit.deathEffects.length > 0) {
+              for (const effectStr of destroyedUnit.deathEffects) {
+                const parts = effectStr.split(':')
+                const funcName = parts[0]
+                const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                const deathContext: EffectContext = {
+                  gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                  cardMap: cardDefinitions,
+                  sourceUnit: {
+                    unit: destroyedUnit,
+                    statusEffects: new Set(),
+                    temporaryBuffs: { attack: 0, hp: 0 },
+                    counters: {},
+                    flags: {},
+                  },
+                  sourcePlayer: playerUpdates[opponentIndex],
+                  events: [],
+                }
                 const effectResult = resolveEffectByFunctionName(funcName, funcValue, deathContext)
                 playerUpdates[0] = effectResult.state.players[0]
                 playerUpdates[1] = effectResult.state.players[1]
                 events.push(...effectResult.events)
               }
             }
+          }
+
+          // 攻撃側ユニットが死亡した場合のdeathEffects
+          if (!attackerSurvived && !unit.isSealed && unit.deathEffects && unit.deathEffects.length > 0) {
+            for (const effectStr of unit.deathEffects) {
+              const parts = effectStr.split(':')
+              const funcName = parts[0]
+              const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+              const deathContext: EffectContext = {
+                gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                cardMap: cardDefinitions,
+                sourceUnit: {
+                  unit,
+                  statusEffects: new Set(),
+                  temporaryBuffs: { attack: 0, hp: 0 },
+                  counters: {},
+                  flags: {},
+                },
+                sourcePlayer: playerUpdates[playerIndex],
+                events: [],
+              }
+              const effectResult = resolveEffectByFunctionName(funcName, funcValue, deathContext)
+              playerUpdates[0] = effectResult.state.players[0]
+              playerUpdates[1] = effectResult.state.players[1]
+              events.push(...effectResult.events)
+            }
+          }
+
+          // ゲーム終了チェック
+          if (attackResult.gameEnded) {
+            events.push({
+              type: 'game_ended',
+              winner: playerUpdates[playerIndex].playerId,
+              reason: attackResult.gameEnded.reason,
+              timestamp: Date.now(),
+            })
+            newState.phase = 'ended'
           }
         } else {
           // 攻撃ゲージのみ更新
@@ -1221,7 +1221,7 @@ function processInput(
         newUnit.shieldCount = shieldCount
       }
 
-      // トリガー効果をユニットに設定（attack/death/decimate/resonate/growth/memory等）
+      // トリガー効果をユニットに設定（attack/death/resonate/growth/memory等）
       if (cardDef.effectFunctions) {
         const triggeredTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
         for (const token of triggeredTokens) {
@@ -1233,7 +1233,9 @@ function processInput(
             newUnit.deathEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
           } else if (token.trigger === 'decimate') {
             if (!newUnit.decimateEffects) newUnit.decimateEffects = []
-            newUnit.decimateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            const effectEntry = token.value !== undefined ? `${token.name}:${token.value}` : token.name
+            newUnit.decimateEffects.push(effectEntry)
+            console.log(`[Decimate SETUP] ${newUnit.cardId} に撃破効果を設定: ${effectEntry}`)
           } else if (token.trigger === 'resonate') {
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
             newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)

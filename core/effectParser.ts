@@ -57,12 +57,6 @@ export function parseEffectText(effectText: string): Effect[] {
       const parsed = parseEffectDescription(effectText, 'while_on_field')
       effects.push(...parsed)
     }
-    // Decimate: 効果
-    else if (trimmed.startsWith('Decimate:')) {
-      const effectText = trimmed.replace(/^Decimate:\s*/, '')
-      const parsed = parseEffectDescription(effectText, 'decimate')
-      effects.push(...parsed)
-    }
     // <Status> タグ（Rush、Flight、Shieldなど）
     else if (trimmed.startsWith('&lt;') || trimmed.startsWith('<')) {
       const statusEffect = parseStatusTag(trimmed)

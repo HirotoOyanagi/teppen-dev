@@ -27,7 +27,6 @@ export type EffectTrigger =
   | 'after_attack' // 攻撃後
   | 'death' // 破壊時
   | 'while_on_field' // フィールド上で
-  | 'decimate' // 撃破時
   | 'resonate' // 共鳴時
   | 'revenge' // 復讐時
   | 'ascended' // 昇華時
