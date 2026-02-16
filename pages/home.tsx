@@ -3,19 +3,13 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import type { Hero } from '@/core/types'
+import { HEROES } from '@/core/heroes'
 import styles from './home.module.css'
-
-const SAMPLE_HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
 
 export default function HomePage() {
   const router = useRouter()
   const [userName, setUserName] = useState('プレイヤー')
-  const [currentHero, setCurrentHero] = useState<Hero>(SAMPLE_HEROES[0])
+  const [currentHero, setCurrentHero] = useState<Hero>(HEROES[0])
   const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -28,7 +22,7 @@ export default function HomePage() {
     // 保存されたヒーローを読み込み
     const savedHeroId = localStorage.getItem('teppen_currentHeroId')
     if (savedHeroId) {
-      const hero = SAMPLE_HEROES.find((h) => h.id === savedHeroId)
+      const hero = HEROES.find((h) => h.id === savedHeroId)
       if (hero) {
         setCurrentHero(hero)
       }

@@ -4,15 +4,8 @@ import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import { getDecks, type SavedDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
-import type { Hero } from '@/core/types'
+import { HEROES } from '@/core/heroes'
 import styles from './deck-select.module.css'
-
-const SAMPLE_HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
 
 export default function DeckSelectPage() {
   const router = useRouter()
@@ -31,8 +24,8 @@ export default function DeckSelectPage() {
   }, [])
 
   const selectedHero = selectedDeck
-    ? SAMPLE_HEROES.find((h) => h.id === selectedDeck.heroId) || SAMPLE_HEROES[0]
-    : SAMPLE_HEROES[0]
+    ? HEROES.find((h) => h.id === selectedDeck.heroId) || HEROES[0]
+    : HEROES[0]
 
   const handleDeckSelect = (deck: SavedDeck) => {
     setSelectedDeck(deck)

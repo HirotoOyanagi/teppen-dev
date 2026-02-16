@@ -3,19 +3,14 @@
  */
 
 import type { WebSocket } from 'ws'
-import type { GameState, GameInput, CardDefinition, Hero } from '../core/types'
+import type { GameState, GameInput, CardDefinition } from '../core/types'
 import type { ServerMessage, ClientMessage } from '../core/protocol'
 import { sanitizeGameState } from '../core/protocol'
 import { updateGameState, createInitialGameState } from '../core/engine'
+import { HEROES } from '../core/heroes'
 import { Matchmaking, type WaitingPlayer } from './matchmaking'
 
 const TICK_INTERVAL = 50 // 50msごとにゲーム更新
-const HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
 
 interface GameRoom {
   gameId: string

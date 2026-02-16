@@ -172,6 +172,11 @@ function applyDamageToUnit(
     newShieldCount = newShieldCount - 1
   }
 
+  // ダメージ軽減処理（ミラおとも）
+  if (unit.damageReduction && unit.damageReduction > 0 && actualDamage > 0) {
+    actualDamage = Math.max(0, actualDamage - unit.damageReduction)
+  }
+
   const newHp = Math.max(0, unit.hp - actualDamage)
   const newState = { ...state }
 
@@ -2133,7 +2138,7 @@ function resolveArtCharge(
   if (playerIndex === -1) return { state: newState, events }
 
   const player = newState.players[playerIndex]
-  newState.players[playerIndex] = { ...player, ap: Math.min(10, player.ap + apGain) }
+  newState.players[playerIndex] = { ...player, ap: player.ap + apGain }
   return { state: newState, events }
 }
 
@@ -2439,6 +2444,6 @@ function resolveApGainEffect(
   if (playerIndex === -1) return { state: newState, events }
 
   const player = newState.players[playerIndex]
-  newState.players[playerIndex] = { ...player, ap: Math.min(10, player.ap + apGain) }
+  newState.players[playerIndex] = { ...player, ap: player.ap + apGain }
   return { state: newState, events }
 }

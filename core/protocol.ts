@@ -44,6 +44,7 @@ export interface SanitizedPlayerState {
   levelUpCount?: number
   awakeningCount?: number
   laneLocks?: Record<number, number>
+  deckCostReduction?: number
 }
 
 export interface SanitizedGameState {
@@ -104,5 +105,6 @@ function sanitizePlayer(player: PlayerState, isSelf: boolean): SanitizedPlayerSt
     levelUpCount: player.levelUpCount,
     awakeningCount: player.awakeningCount,
     laneLocks: player.laneLocks,
+    deckCostReduction: player.deckCostReduction,
   }
 }

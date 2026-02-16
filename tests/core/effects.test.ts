@@ -541,8 +541,8 @@ describe('カード効果システム - 実装済み効果テスト', () => {
       expect(result.state.players[0].ap).toBe(5)
     })
 
-    it('APは最大値10を超えない', () => {
-      gameState.players[0].ap = 8
+    it('APは無限に蓄積可能', () => {
+      gameState.players[0].ap = 100
 
       const effect: Effect = {
         type: 'ap_gain',
@@ -559,8 +559,8 @@ describe('カード効果システム - 実装済み効果テスト', () => {
 
       const result = resolveEffect(effect, context)
 
-      // APは最大の10を超えない
-      expect(result.state.players[0].ap).toBe(10)
+      // APは上限なしで蓄積可能
+      expect(result.state.players[0].ap).toBe(105)
     })
   })
 

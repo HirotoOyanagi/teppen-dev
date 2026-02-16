@@ -16,6 +16,7 @@ import { calculateMaxMp } from './cards'
 import { parseCardId, resolveCardDefinition } from './cardId'
 import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
 import { cardSpecificEffects } from './cardSpecificEffects'
+import { resolveHeroArtEffect, resolveCompanionEffect } from './heroAbilities'
 
 /**
  * 数値をパース（空文字や無効値は0）
@@ -218,7 +219,7 @@ const GAME_CONFIG = {
   INITIAL_HP: 30,
   INITIAL_HAND_SIZE: 5,
   AP_PER_MP: 1, // MP1消費でAP1獲得
-  MAX_AP: 10, // 最大AP
+  MAX_AP: Infinity, // AP上限なし（無限蓄積）
 } as const
 
 /**
@@ -845,9 +846,12 @@ function processInput(
       return { state: newState, events }
     }
 
+    // デッキコスト軽減を適用
+    const effectiveCost = Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+
     // MPチェック（通常MP + 青MP）
     const availableMp = player.mp + player.blueMp
-    if (availableMp < cardDef.cost) return { state: newState, events }
+    if (availableMp < effectiveCost) return { state: newState, events }
 
     // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
     const newHand = removeOneCardFromHand(player.hand, input.cardId)
@@ -859,7 +863,7 @@ function processInput(
       drawnCardId = newDeck[0]
       newDeck.shift() // デッキから削除
       newHand.push(drawnCardId) // 手札に追加
-      
+
       // カードドローイベント
       events.push({
         type: 'card_drawn',
@@ -871,7 +875,7 @@ function processInput(
 
     // MP消費とAP獲得
     // 青MPを先に消費し、残りを通常MPから消費
-    let remainingCost = cardDef.cost
+    let remainingCost = effectiveCost
     let newBlueMp = player.blueMp
     let newMp = player.mp
     
@@ -885,7 +889,7 @@ function processInput(
     newMp -= remainingCost
     
     const newAp = Math.min(
-      player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
+      player.ap + effectiveCost * GAME_CONFIG.AP_PER_MP,
       GAME_CONFIG.MAX_AP
     )
 
@@ -1703,9 +1707,12 @@ function processInput(
       const cardDef = cardDefinitions.get(input.cardId)
       if (!cardDef || cardDef.type !== 'action') return { state: newState, events }
 
+      // デッキコスト軽減を適用
+      const effectiveCost = Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+
       // MPチェック（通常MP + 青MP）
       const availableMp = player.mp + player.blueMp
-      if (availableMp < cardDef.cost) return { state: newState, events }
+      if (availableMp < effectiveCost) return { state: newState, events }
 
       // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
       const newHand = removeOneCardFromHand(player.hand, input.cardId)
@@ -1717,7 +1724,7 @@ function processInput(
         drawnCardId = newDeck[0]
         newDeck.shift() // デッキから削除
         newHand.push(drawnCardId) // 手札に追加
-        
+
         // カードドローイベント
         events.push({
           type: 'card_drawn',
@@ -1729,10 +1736,10 @@ function processInput(
 
       // MP消費とAP獲得
       // 青MPを先に消費し、残りを通常MPから消費
-      let remainingCost = cardDef.cost
+      let remainingCost = effectiveCost
       let newBlueMp = player.blueMp
       let newMp = player.mp
-      
+
       if (newBlueMp >= remainingCost) {
         newBlueMp -= remainingCost
         remainingCost = 0
@@ -1741,9 +1748,9 @@ function processInput(
         newBlueMp = 0
       }
       newMp -= remainingCost
-      
+
       const newAp = Math.min(
-        player.ap + cardDef.cost * GAME_CONFIG.AP_PER_MP,
+        player.ap + effectiveCost * GAME_CONFIG.AP_PER_MP,
         GAME_CONFIG.MAX_AP
       )
 
@@ -1808,20 +1815,67 @@ function processInput(
   }
 
   if (input.type === 'hero_art') {
-    // 必殺技（AP消費）
+    // 必殺技（AP消費）— ヒーロー個別コストで判定
     const player = newState.players.find((p) => p.playerId === input.playerId)
-    if (!player || player.ap < GAME_CONFIG.MAX_AP) return { state: newState, events }
+    if (!player) return { state: newState, events }
+
+    const heroArt = player.hero.heroArt
+    if (!heroArt) return { state: newState, events } // 必殺技なしヒーロー
+
+    if (player.ap < heroArt.cost) return { state: newState, events }
 
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === input.playerId
     )
 
-    // APを消費して必殺技を発動
+    // APを差し引き
     newState.players[playerIndex] = {
       ...player,
-      ap: 0,
+      ap: player.ap - heroArt.cost,
     }
 
+    // 効果発動
+    const result = resolveHeroArtEffect(
+      newState,
+      events,
+      playerIndex,
+      player.hero.id,
+      input.target,
+      cardDefinitions
+    )
+    newState = result.state
+  }
+
+  if (input.type === 'companion') {
+    // おとも（AP消費）
+    const player = newState.players.find((p) => p.playerId === input.playerId)
+    if (!player) return { state: newState, events }
+
+    const companion = player.hero.companion
+    if (!companion) return { state: newState, events }
+
+    if (player.ap < companion.cost) return { state: newState, events }
+
+    const playerIndex = newState.players.findIndex(
+      (p) => p.playerId === input.playerId
+    )
+
+    // APを差し引き
+    newState.players[playerIndex] = {
+      ...player,
+      ap: player.ap - companion.cost,
+    }
+
+    // 効果発動
+    const result = resolveCompanionEffect(
+      newState,
+      events,
+      playerIndex,
+      player.hero.id,
+      input.target,
+      cardDefinitions
+    )
+    newState = result.state
   }
 
   return { state: newState, events }
@@ -2111,6 +2165,11 @@ function executeUnitAttack(
     if (newShieldCount > 0 && damage > 0) {
       actualDamage = 0
       newShieldCount = newShieldCount - 1
+    }
+
+    // ダメージ軽減処理（ミラおとも）
+    if (victim.damageReduction && victim.damageReduction > 0 && actualDamage > 0) {
+      actualDamage = Math.max(0, actualDamage - victim.damageReduction)
     }
 
     const damageDealt = Math.min(victim.hp, actualDamage)

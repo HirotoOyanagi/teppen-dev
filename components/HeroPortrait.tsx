@@ -59,15 +59,47 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
         </div>
 
         <div className="mt-8 relative flex items-center justify-center">
-          <div className="absolute w-16 h-14 bg-black/80 hex-clip border border-white/20" />
+          <div className={`absolute w-16 h-14 bg-black/80 hex-clip border ${
+            player.hero.heroArt && player.ap >= player.hero.heroArt.cost
+              ? 'border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
+              : player.hero.companion && player.ap >= player.hero.companion.cost
+                ? 'border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                : 'border-white/20'
+          }`} />
           <div className="relative z-10 text-center">
             <div className="text-[10px] font-bold opacity-60 uppercase">AP</div>
-            <div className="text-xl font-orbitron font-bold text-white">{player.ap}</div>
+            <div className={`text-xl font-orbitron font-bold ${
+              player.hero.heroArt && player.ap >= player.hero.heroArt.cost
+                ? 'text-yellow-400'
+                : player.hero.companion && player.ap >= player.hero.companion.cost
+                  ? 'text-cyan-400'
+                  : 'text-white'
+            }`}>{player.ap}</div>
           </div>
         </div>
 
+        {/* AP閾値マーカー */}
+        {(player.hero.companion || player.hero.heroArt) && (
+          <div className="mt-1 flex gap-1 justify-center">
+            {player.hero.companion && (
+              <span className={`text-[8px] font-bold ${
+                player.ap >= player.hero.companion.cost ? 'text-cyan-400' : 'text-gray-600'
+              }`}>
+                {player.hero.companion.cost}
+              </span>
+            )}
+            {player.hero.heroArt && (
+              <span className={`text-[8px] font-bold ${
+                player.ap >= player.hero.heroArt.cost ? 'text-yellow-400' : 'text-gray-600'
+              }`}>
+                /{player.hero.heroArt.cost}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* ヒーロー名 */}
-        <div className="mt-4 text-center">
+        <div className="mt-2 text-center">
           <div className={`text-sm font-orbitron font-bold ${attributeColor}`}>{player.hero.name}</div>
         </div>
 

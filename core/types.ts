@@ -112,6 +112,7 @@ export interface Unit {
   growthEffects?: Record<number, string[]> // 成長レベル毎の効果
   hpConditionEffects?: { condition: string; effects: string[] }[] // HP条件付き効果
   killerId?: string // このユニットを破壊したユニットのID（死亡時にセット）
+  damageReduction?: number // ダメージ軽減値（ミラおとも用）
 }
 
 // 場にいる間の効果定義
@@ -122,12 +123,30 @@ export interface WhileOnFieldEffect {
   excludeSelf?: boolean
 }
 
+// ヒーロー能力定義
+export interface HeroAbility {
+  name: string
+  cost: number
+  description: string
+  requiresTarget?: boolean
+}
+
+// おとも能力定義
+export interface CompanionAbility {
+  name: string
+  cost: number
+  description: string
+  requiresTarget?: boolean
+}
+
 // ヒーロー定義
 export interface Hero {
   id: string
   name: string
   attribute: CardAttribute
   description?: string
+  heroArt?: HeroAbility
+  companion?: CompanionAbility
 }
 
 // プレイヤーの状態
@@ -152,6 +171,7 @@ export interface PlayerState {
   awakeningCount?: number // 目覚め回数
   chainFireCount?: Record<string, number> // カードID毎の使用回数（連鎖する烈火等）
   laneLocks?: Record<number, number> // レーン毎の封鎖タイマー（ms）
+  deckCostReduction?: number // デッキカードコスト軽減値（オルカ必殺技用）
 }
 
 // Active Responseスタック
@@ -202,6 +222,13 @@ export type GameInput =
   | {
       type: 'hero_art'
       playerId: string
+      target?: string
+      timestamp: number
+    }
+  | {
+      type: 'companion'
+      playerId: string
+      target?: string
       timestamp: number
     }
   | {

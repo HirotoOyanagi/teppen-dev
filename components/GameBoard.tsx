@@ -4,6 +4,7 @@ import {
   updateGameState,
   createInitialGameState,
 } from '@/core/engine'
+import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { resolveCardDefinition } from '@/core/cardId'
@@ -89,14 +90,6 @@ function DraggingCard({ card, position }: { card: CardDefinition; position: { x:
 
 const TICK_INTERVAL = 50 // 50ms
 
-// サンプルヒーロー
-const SAMPLE_HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
-
 // 相手用のサンプルヒーロー（固定）
 const OPPONENT_HERO: Hero = {
   id: 'hero_red_2',
@@ -119,6 +112,10 @@ export default function GameBoard(props: GameBoardProps) {
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
   const [hoveredHeroId, setHoveredHeroId] = useState<string | null>(null)
+  const [abilityTargetMode, setAbilityTargetMode] = useState<{
+    type: 'hero_art' | 'companion'
+    targetSide: 'friendly' | 'enemy'
+  } | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -142,7 +139,7 @@ export default function GameBoard(props: GameBoardProps) {
     }
 
     // プレイヤーのヒーローを取得
-    const playerHero = SAMPLE_HEROES.find((h) => h.id === savedDeck.heroId) || SAMPLE_HEROES[0]
+    const playerHero = HEROES.find((h) => h.id === savedDeck.heroId) || HEROES[0]
 
     // 相手のデッキはランダムに生成（実際の実装では対戦相手のデッキを使用）
     const allCards = Array.from(cardMap.values())
@@ -289,6 +286,73 @@ export default function GameBoard(props: GameBoardProps) {
       setGameState(result.state)
     },
     [gameState, cardMap, requiresTarget]
+  )
+
+  // 必殺技発動
+  const handleHeroArt = useCallback(
+    (target?: string) => {
+      if (!gameState) return
+      const player = gameState.players[0]
+      const heroArt = player.hero.heroArt
+      if (!heroArt || player.ap < heroArt.cost) return
+
+      // ターゲットが必要な場合はターゲット選択モードに入る
+      if (heroArt.requiresTarget && !target) {
+        setAbilityTargetMode({ type: 'hero_art', targetSide: 'enemy' })
+        return
+      }
+
+      const input: GameInput = {
+        type: 'hero_art',
+        playerId: 'player1',
+        target,
+        timestamp: Date.now(),
+      }
+      const result = updateGameState(gameState, input, 0, cardMap)
+      setGameState(result.state)
+      setAbilityTargetMode(null)
+    },
+    [gameState, cardMap]
+  )
+
+  // おとも発動
+  const handleCompanion = useCallback(
+    (target?: string) => {
+      if (!gameState) return
+      const player = gameState.players[0]
+      const companion = player.hero.companion
+      if (!companion || player.ap < companion.cost) return
+
+      // ターゲットが必要な場合はターゲット選択モードに入る
+      if (companion.requiresTarget && !target) {
+        setAbilityTargetMode({ type: 'companion', targetSide: 'friendly' })
+        return
+      }
+
+      const input: GameInput = {
+        type: 'companion',
+        playerId: 'player1',
+        target,
+        timestamp: Date.now(),
+      }
+      const result = updateGameState(gameState, input, 0, cardMap)
+      setGameState(result.state)
+      setAbilityTargetMode(null)
+    },
+    [gameState, cardMap]
+  )
+
+  // ターゲット選択モードでのユニットクリック
+  const handleAbilityTargetSelect = useCallback(
+    (unitId: string) => {
+      if (!abilityTargetMode) return
+      if (abilityTargetMode.type === 'hero_art') {
+        handleHeroArt(unitId)
+      } else {
+        handleCompanion(unitId)
+      }
+    },
+    [abilityTargetMode, handleHeroArt, handleCompanion]
   )
 
   // AR終了
@@ -582,6 +646,51 @@ export default function GameBoard(props: GameBoardProps) {
           >
             <HeroPortrait player={player} side="left" />
           </div>
+          {/* 必殺技・おともボタン */}
+          {player.hero.heroArt && (
+            <div className="mt-2 flex flex-col gap-1 px-2">
+              <button
+                onClick={() => handleHeroArt()}
+                disabled={player.ap < player.hero.heroArt.cost}
+                className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+                title={player.hero.heroArt.description}
+              >
+                {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
+              </button>
+              {player.hero.companion && (
+                <button
+                  onClick={() => handleCompanion()}
+                  disabled={player.ap < player.hero.companion.cost}
+                  className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                    player.ap >= player.hero.companion.cost
+                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={player.hero.companion.description}
+                >
+                  {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                </button>
+              )}
+            </div>
+          )}
+          {/* ターゲット選択モード表示 */}
+          {abilityTargetMode && (
+            <div className="mt-1 px-2">
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded px-2 py-1 text-[10px] text-yellow-300 text-center">
+                対象を選択
+                <button
+                  onClick={() => setAbilityTargetMode(null)}
+                  className="ml-2 text-red-400 hover:text-red-300"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Battle Slots */}
@@ -673,14 +782,22 @@ export default function GameBoard(props: GameBoardProps) {
                       className={`transition-all ${
                         dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
                           ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
-                          : ''
+                          : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
+                            ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
+                            : ''
                       }`}
                     >
                       <GameCard
                         cardDef={leftCardDef}
                         unit={leftUnit}
                         isField
-                        onClick={() => onCardTap(leftCardDef, 'left')}
+                        onClick={() => {
+                          if (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') {
+                            handleAbilityTargetSelect(leftUnit.id)
+                          } else {
+                            onCardTap(leftCardDef, 'left')
+                          }
+                        }}
                       />
                     </div>
                   ) : (
@@ -689,13 +806,23 @@ export default function GameBoard(props: GameBoardProps) {
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className="relative z-20 w-28 h-40 flex items-center justify-center">
+                <div className={`relative z-20 w-28 h-40 flex items-center justify-center ${
+                  abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
+                    ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
+                    : ''
+                }`}>
                   {rightUnit && rightCardDef ? (
                     <GameCard
                       cardDef={rightCardDef}
                       unit={rightUnit}
                       isField
-                      onClick={() => onCardTap(rightCardDef, 'right')}
+                      onClick={() => {
+                        if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
+                          handleAbilityTargetSelect(rightUnit.id)
+                        } else {
+                          onCardTap(rightCardDef, 'right')
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />

@@ -4,14 +4,6 @@ import Head from 'next/head'
 import GameBoard from '@/components/GameBoard'
 import OnlineGameBoard from '@/components/OnlineGameBoard'
 import { getDeck } from '@/utils/deckStorage'
-import type { Hero } from '@/core/types'
-
-const SAMPLE_HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
 
 export default function BattlePage() {
   const router = useRouter()

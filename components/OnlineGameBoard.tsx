@@ -104,6 +104,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
   const [hoveredHeroId, setHoveredHeroId] = useState<string | null>(null)
+  const [abilityTargetMode, setAbilityTargetMode] = useState<{
+    type: 'hero_art' | 'companion'
+    targetSide: 'friendly' | 'enemy'
+  } | null>(null)
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -207,6 +211,67 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       timestamp: Date.now(),
     })
   }, [gameState, playerId, sendGameInput])
+
+  // 必殺技発動
+  const handleHeroArt = useCallback(
+    (target?: string) => {
+      if (!gameState) return
+      const player = gameState.players[0]
+      const heroArt = player.hero.heroArt
+      if (!heroArt || player.ap < heroArt.cost) return
+
+      if (heroArt.requiresTarget && !target) {
+        setAbilityTargetMode({ type: 'hero_art', targetSide: 'enemy' })
+        return
+      }
+
+      sendGameInput({
+        type: 'hero_art',
+        playerId,
+        target,
+        timestamp: Date.now(),
+      })
+      setAbilityTargetMode(null)
+    },
+    [gameState, playerId, sendGameInput]
+  )
+
+  // おとも発動
+  const handleCompanion = useCallback(
+    (target?: string) => {
+      if (!gameState) return
+      const player = gameState.players[0]
+      const companion = player.hero.companion
+      if (!companion || player.ap < companion.cost) return
+
+      if (companion.requiresTarget && !target) {
+        setAbilityTargetMode({ type: 'companion', targetSide: 'friendly' })
+        return
+      }
+
+      sendGameInput({
+        type: 'companion',
+        playerId,
+        target,
+        timestamp: Date.now(),
+      })
+      setAbilityTargetMode(null)
+    },
+    [gameState, playerId, sendGameInput]
+  )
+
+  // ターゲット選択モードでのユニットクリック
+  const handleAbilityTargetSelect = useCallback(
+    (unitId: string) => {
+      if (!abilityTargetMode) return
+      if (abilityTargetMode.type === 'hero_art') {
+        handleHeroArt(unitId)
+      } else {
+        handleCompanion(unitId)
+      }
+    },
+    [abilityTargetMode, handleHeroArt, handleCompanion]
+  )
 
   // マリガン処理
   const handleMulligan = useCallback(
@@ -454,6 +519,50 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           >
             <HeroPortrait player={toPlayerState(player)} side="left" />
           </div>
+          {/* 必殺技・おともボタン */}
+          {player.hero.heroArt && (
+            <div className="mt-2 flex flex-col gap-1 px-2">
+              <button
+                onClick={() => handleHeroArt()}
+                disabled={player.ap < player.hero.heroArt.cost}
+                className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+                title={player.hero.heroArt.description}
+              >
+                {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
+              </button>
+              {player.hero.companion && (
+                <button
+                  onClick={() => handleCompanion()}
+                  disabled={player.ap < player.hero.companion.cost}
+                  className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                    player.ap >= player.hero.companion.cost
+                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={player.hero.companion.description}
+                >
+                  {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                </button>
+              )}
+            </div>
+          )}
+          {abilityTargetMode && (
+            <div className="mt-1 px-2">
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded px-2 py-1 text-[10px] text-yellow-300 text-center">
+                対象を選択
+                <button
+                  onClick={() => setAbilityTargetMode(null)}
+                  className="ml-2 text-red-400 hover:text-red-300"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Battle Slots */}
@@ -518,10 +627,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       className={`transition-all ${
                         dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
                           ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
-                          : ''
+                          : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
+                            ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
+                            : ''
                       }`}
                     >
-                      <GameCard cardDef={leftCardDef} unit={leftUnit} isField onClick={() => setDetailCard({ card: leftCardDef!, side: 'left' })} />
+                      <GameCard cardDef={leftCardDef} unit={leftUnit} isField onClick={() => {
+                        if (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') {
+                          handleAbilityTargetSelect(leftUnit.id)
+                        } else {
+                          setDetailCard({ card: leftCardDef!, side: 'left' })
+                        }
+                      }} />
                     </div>
                   ) : (
                     <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
@@ -529,9 +646,19 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className="relative z-20 w-28 h-40 flex items-center justify-center">
+                <div className={`relative z-20 w-28 h-40 flex items-center justify-center ${
+                  abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
+                    ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
+                    : ''
+                }`}>
                   {rightUnit && rightCardDef ? (
-                    <GameCard cardDef={rightCardDef} unit={rightUnit} isField onClick={() => setDetailCard({ card: rightCardDef!, side: 'right' })} />
+                    <GameCard cardDef={rightCardDef} unit={rightUnit} isField onClick={() => {
+                      if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
+                        handleAbilityTargetSelect(rightUnit.id)
+                      } else {
+                        setDetailCard({ card: rightCardDef!, side: 'right' })
+                      }
+                    }} />
                   ) : (
                     <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}

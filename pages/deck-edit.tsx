@@ -7,20 +7,14 @@ import { getDeck, saveDeck, updateDeck, type SavedDeck } from '@/utils/deckStora
 import { validateDeck, calculateMaxMp } from '@/core/cards'
 import { useCards } from '@/utils/useCards'
 import type { CardDefinition, Hero, CardAttribute } from '@/core/types'
+import { HEROES } from '@/core/heroes'
 import styles from './deck-edit.module.css'
-
-const SAMPLE_HEROES: Hero[] = [
-  { id: 'hero_red_1', name: 'リュウ', attribute: 'red', description: '格闘家' },
-  { id: 'hero_green_1', name: '春麗', attribute: 'green', description: '格闘家' },
-  { id: 'hero_purple_1', name: 'ダルシム', attribute: 'purple', description: 'ヨガマスター' },
-  { id: 'hero_black_1', name: '豪鬼', attribute: 'black', description: '最強の格闘家' },
-]
 
 export default function DeckEditPage() {
   const router = useRouter()
   const { id } = router.query
   const [deckName, setDeckName] = useState('新しいデッキ')
-  const [selectedHeroId, setSelectedHeroId] = useState(SAMPLE_HEROES[0].id)
+  const [selectedHeroId, setSelectedHeroId] = useState(HEROES[0].id)
   const [deckCardIds, setDeckCardIds] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAttribute, setSelectedAttribute] = useState<CardAttribute | 'all'>('all')
@@ -52,7 +46,7 @@ export default function DeckEditPage() {
     }
   }, [id])
 
-  const selectedHero = SAMPLE_HEROES.find((h) => h.id === selectedHeroId) || SAMPLE_HEROES[0]
+  const selectedHero = HEROES.find((h) => h.id === selectedHeroId) || HEROES[0]
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
@@ -178,7 +172,7 @@ export default function DeckEditPage() {
               onChange={(e) => setSelectedHeroId(e.target.value)}
               className={styles.heroSelect}
             >
-              {SAMPLE_HEROES.map((hero) => (
+              {HEROES.map((hero) => (
                 <option key={hero.id} value={hero.id}>
                   {hero.name} ({hero.attribute})
                 </option>
