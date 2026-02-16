@@ -179,6 +179,14 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
     // 効果関数を読み込む（形式: "関数名:数値" または "関数名1;関数名2:数値"）
     const effectFunctions = row.効果関数?.trim() || undefined
 
+    const packCodeRaw = typeof row.カードパック === 'string' ? row.カードパック : ''
+    const packCode =
+      packCodeRaw.length > 0
+        ? packCodeRaw[0].toUpperCase() + packCodeRaw.slice(1).toLowerCase()
+        : 'Cor'
+    const paddedId = String(row.ID).padStart(3, '0')
+    const imageFileName = `${packCode}${paddedId}.png`
+
     const card: CardDefinition = {
       id,
       name,
@@ -188,7 +196,8 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
       rarity,
       tribe: 'other', // CSVには種族情報がないのでデフォルト
       description,
-      imageUrl: `/images/cards/${id}.jpg`, // IDから画像パスを自動生成
+      // Next.js の public 配下のパスなので、実際の img の src は "/images/cards/Cor001.png" のような形式になる
+      imageUrl: `/images/cards/${imageFileName}`, // IDから画像パスを自動生成（例: /images/cards/Cor001.png）
       effectFunctions,
     }
 
