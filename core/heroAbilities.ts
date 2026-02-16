@@ -2,7 +2,7 @@
  * ヒーロー必殺技・おとも効果の実装
  */
 
-import type { GameState, GameEvent, CardDefinition, Unit } from './types'
+import type { GameState, GameEvent, CardDefinition, Unit, ExPocketCard } from './types'
 import { resolveCardDefinition } from './cardId'
 
 // ─── ヘルパー ───
@@ -187,13 +187,13 @@ export function resolveHeroArtEffect(
         ...player,
         deckCostReduction: (player.deckCostReduction || 0) + 1,
       }
-      // デッキから1枚EXポケットへ
-      if (player.deck.length > 0) {
+      // デッキから1枚EXポケットへ（上限2枚）
+      if (player.deck.length > 0 && newState.players[playerIndex].exPocket.length < 2) {
         const cardToEx = player.deck[0]
         newState.players[playerIndex] = {
           ...newState.players[playerIndex],
           deck: newState.players[playerIndex].deck.slice(1),
-          exPocket: [...newState.players[playerIndex].exPocket, cardToEx],
+          exPocket: [...newState.players[playerIndex].exPocket, { cardId: cardToEx }],
         }
       }
       break
@@ -281,10 +281,8 @@ export function resolveHeroArtEffect(
         for (const [uid, dmg] of Object.entries(damageMap)) {
           newState = applyDamageToUnit(newState, events, opponentIndex, uid, dmg)
         }
-      } else {
-        // ユニットがいない場合はヒーローに20ダメージ
-        newState = applyDamageToHero(newState, events, opponentIndex, 20)
       }
+      // 敵ユニット0体の場合、20ダメージは消失
       break
     }
   }
@@ -354,7 +352,13 @@ export function resolveCompanionEffect(
         ...player,
         units: player.units.map((u) =>
           u.id === target
-            ? { ...u, statusEffects: [...(u.statusEffects || []), 'agility'] }
+            ? {
+                ...u,
+                statusEffects: [...(u.statusEffects || []), 'agility'],
+                attackInterval: u.statusEffects?.includes('agility')
+                  ? u.attackInterval
+                  : Math.max(500, Math.floor(u.attackInterval / 2)),
+              }
             : u
         ),
       }
@@ -379,6 +383,7 @@ export function resolveCompanionEffect(
     // ── オルカ: デッキ内アクションカード1枚をMP-2でEXへ ──
     case 'hero_purple_orca': {
       const player = newState.players[playerIndex]
+      if (player.exPocket.length >= 2) break // 上限2枚
       // デッキからアクションカードを探す
       const actionIdx = player.deck.findIndex((cardId) => {
         const def = resolveCardDefinition(cardDefinitions, cardId)
@@ -388,13 +393,10 @@ export function resolveCompanionEffect(
       const cardToEx = player.deck[actionIdx]
       const newDeck = [...player.deck]
       newDeck.splice(actionIdx, 1)
-      // MP-2でEXポケットに（コスト軽減はexPocketから出す時に適用するため、ここではdeckCostReduction+2）
-      // 実際にはEXポケットのカードのコストを個別に管理するのが理想だが、
-      // 簡易実装としてdeckCostReduction全体に加算はしない。EXポケットに入れるだけ。
       newState.players[playerIndex] = {
         ...player,
         deck: newDeck,
-        exPocket: [...player.exPocket, cardToEx],
+        exPocket: [...player.exPocket, { cardId: cardToEx, costModifier: -2 }],
       }
       break
     }
@@ -402,6 +404,7 @@ export function resolveCompanionEffect(
     // ── セラフ: 墓地からユニット1体を+1/+1でEXへ ──
     case 'hero_black_seraph': {
       const player = newState.players[playerIndex]
+      if (player.exPocket.length >= 2) break // 上限2枚
       // 墓地からユニットカードを探す
       const unitGraveyardCards = player.graveyard.filter((cardId) => {
         const def = resolveCardDefinition(cardDefinitions, cardId)
@@ -409,17 +412,15 @@ export function resolveCompanionEffect(
       })
       if (unitGraveyardCards.length === 0) break
       const chosenCardId = unitGraveyardCards[Math.floor(Math.random() * unitGraveyardCards.length)]
-      // 墓地から除去してEXポケットに追加
+      // 墓地から除去してEXポケットに追加（+1/+1バフ付き）
       const newGraveyard = [...player.graveyard]
       const idx = newGraveyard.indexOf(chosenCardId)
       if (idx !== -1) newGraveyard.splice(idx, 1)
       newState.players[playerIndex] = {
         ...player,
         graveyard: newGraveyard,
-        exPocket: [...player.exPocket, chosenCardId],
+        exPocket: [...player.exPocket, { cardId: chosenCardId, buffAttack: 1, buffHp: 1 }],
       }
-      // +1/+1のバフは、EXからプレイ時に適用するのが理想だが、
-      // 簡易実装のため、ここではEXに移すのみ
       break
     }
 

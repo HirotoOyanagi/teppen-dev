@@ -622,52 +622,68 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           >
             <HeroPortrait player={toPlayerState(player)} side="left" />
           </div>
-          {/* 必殺技・おともボタン（ドラッグ or タップで発動） */}
+          {/* 必殺技・おともボタン（ドラッグ or タップで発動、ホバーで効果表示） */}
           {player.hero.heroArt && (
             <div className="mt-2 flex flex-col gap-1 px-2">
-              <button
-                onMouseDown={(e) => {
-                  if (player.ap >= player.hero.heroArt!.cost) {
-                    onAbilityDragStart('hero_art', e.clientX, e.clientY)
-                  }
-                }}
-                onTouchStart={(e) => {
-                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
-                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
-                  }
-                }}
-                disabled={player.ap < player.hero.heroArt.cost}
-                className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                  player.ap >= player.hero.heroArt.cost
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-                title={player.hero.heroArt.description}
-              >
-                {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
-              </button>
-              {player.hero.companion && (
+              <div className="group relative">
                 <button
                   onMouseDown={(e) => {
-                    if (player.ap >= player.hero.companion!.cost) {
-                      onAbilityDragStart('companion', e.clientX, e.clientY)
+                    if (player.ap >= player.hero.heroArt!.cost) {
+                      onAbilityDragStart('hero_art', e.clientX, e.clientY)
                     }
                   }}
                   onTouchStart={(e) => {
-                    if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
-                      onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                    if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
+                      onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
                     }
                   }}
-                  disabled={player.ap < player.hero.companion.cost}
-                  className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                    player.ap >= player.hero.companion.cost
-                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
+                  disabled={player.ap < player.hero.heroArt.cost}
+                  className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                    player.ap >= player.hero.heroArt.cost
+                      ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
                       : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                   }`}
-                  title={player.hero.companion.description}
                 >
-                  {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                  {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
                 </button>
+                <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                  <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
+                  <div className="text-gray-300">{player.hero.heroArt.description}</div>
+                  {player.hero.heroArt.requiresTarget && (
+                    <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
+                  )}
+                </div>
+              </div>
+              {player.hero.companion && (
+                <div className="group relative">
+                  <button
+                    onMouseDown={(e) => {
+                      if (player.ap >= player.hero.companion!.cost) {
+                        onAbilityDragStart('companion', e.clientX, e.clientY)
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
+                        onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                      }
+                    }}
+                    disabled={player.ap < player.hero.companion.cost}
+                    className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                      player.ap >= player.hero.companion.cost
+                        ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                  </button>
+                  <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                    <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
+                    <div className="text-gray-300">{player.hero.companion.description}</div>
+                    {player.hero.companion.requiresTarget && (
+                      <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}

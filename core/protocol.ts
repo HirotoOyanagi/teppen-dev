@@ -3,7 +3,7 @@
  * クライアント↔サーバー間のメッセージ型
  */
 
-import type { GameState, GameInput, GameEvent, Hero, PlayerState, Unit } from './types'
+import type { GameState, GameInput, GameEvent, Hero, PlayerState, Unit, ExPocketCard } from './types'
 
 // === クライアント → サーバー ===
 
@@ -38,7 +38,7 @@ export interface SanitizedPlayerState {
   deck: number // デッキ残り枚数のみ
   units: Unit[]
   graveyard: string[]
-  exPocket: string[]
+  exPocket: ExPocketCard[]
   shieldCount?: number
   actionCardUsedCount?: number
   levelUpCount?: number

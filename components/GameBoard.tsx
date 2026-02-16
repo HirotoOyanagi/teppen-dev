@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GameState, GameInput, Hero, CardDefinition } from '@/core/types'
+import type { GameState, GameInput, Hero, CardDefinition, ExPocketCard } from '@/core/types'
 import {
   updateGameState,
   createInitialGameState,
@@ -125,7 +125,7 @@ export default function GameBoard(props: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
   const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
-  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number } | null>(null)
+  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
@@ -178,6 +178,11 @@ export default function GameBoard(props: GameBoardProps) {
       cardMap
     )
 
+    // テスト用: AP100開始 & MP無限
+    initialState.players[0].ap = 100
+    initialState.players[0].mp = 10
+    initialState.players[0].maxMp = 10
+
     // 検証用: 相手のフィールドに「ガイ」（cor_12）を3体配置
     const guyCardId = 'cor_10'
     const guyCardDef = cardMap.get(guyCardId)
@@ -224,7 +229,16 @@ export default function GameBoard(props: GameBoardProps) {
           cardMapRef.current
         )
 
-        return result.state
+        // テスト用: MP減らない（毎フレーム最大値に補充）
+        const s = result.state
+        const p = s.players[0]
+        if (p.mp < p.maxMp) {
+          return {
+            ...s,
+            players: [{ ...p, mp: p.maxMp }, s.players[1]],
+          }
+        }
+        return s
       })
 
       animIdRef.current = requestAnimationFrame(gameLoop)
@@ -268,24 +282,34 @@ export default function GameBoard(props: GameBoardProps) {
 
   // カードプレイ
   const handlePlayCard = useCallback(
-    (playerId: string, cardId: string, lane?: number, target?: string) => {
+    (playerId: string, cardId: string, lane?: number, target?: string, fromExPocket?: boolean) => {
       if (!gameState) return
 
       const player = gameState.players.find((p) => p.playerId === playerId)
       if (!player) return
 
       const cardDef = resolveCardDefinition(cardMap, cardId)
+      if (!cardDef) return
 
-      if (!cardDef || !player.hand.includes(cardId)) return
-      
+      // EXポケットから or 手札から
+      if (fromExPocket) {
+        if (!player.exPocket.some((e) => e.cardId === cardId)) return
+      } else {
+        if (!player.hand.includes(cardId)) return
+      }
+
       // アクティブレスポンス中はユニットカードをプレイできない
       if (gameState.activeResponse.isActive && cardDef.type === 'unit') {
         return
       }
-      
-      // MPチェック（通常MP + 青MP）
+
+      // MPチェック（通常MP + 青MP）- EXポケットからの場合はcostModifierも考慮
       const availableMp = player.mp + player.blueMp
-      if (availableMp < cardDef.cost) return
+      const exCard = fromExPocket ? player.exPocket.find((e) => e.cardId === cardId) : undefined
+      const effectiveCost = fromExPocket && exCard
+        ? Math.max(0, cardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
+        : Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+      if (availableMp < effectiveCost) return
 
       // ユニットカードの場合はレーン選択が必要
       if (cardDef.type === 'unit') {
@@ -314,12 +338,16 @@ export default function GameBoard(props: GameBoardProps) {
         cardId,
         lane,
         target,
+        fromExPocket,
         timestamp: Date.now(),
       }
 
       setGameState((prevState) => {
         if (!prevState) return prevState
-        return updateGameState(prevState, input, 0, cardMap).state
+        const s = updateGameState(prevState, input, 0, cardMap).state
+        // テスト用: MP減らない
+        const p = s.players[0]
+        return { ...s, players: [{ ...p, mp: p.maxMp }, s.players[1]] }
       })
     },
     [gameState, cardMap, requiresTarget]
@@ -534,15 +562,22 @@ export default function GameBoard(props: GameBoardProps) {
   }
 
   // ドラッグ開始（長押し後）
-  const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number) => {
+  const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number, fromExPocket?: boolean) => {
     if (!gameState) return
     const player = gameState.players[0]
     const availableMp = player.mp + player.blueMp
     const isActiveResponse = gameState.activeResponse.isActive
-    const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
+
+    // EXポケットからの場合はcostModifierを考慮
+    let effectiveCost = cardDef.cost
+    if (fromExPocket) {
+      const exCard = player.exPocket.find((e) => e.cardId === cardId)
+      effectiveCost = Math.max(0, cardDef.cost + (exCard?.costModifier || 0) - (player.deckCostReduction || 0))
+    }
+    const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isActiveResponse)
     if (!canPlay) return
 
-    setDragging({ cardId, cardDef, idx })
+    setDragging({ cardId, cardDef, idx, fromExPocket })
     setDragPos({ x, y })
     setDetailCard(null)
   }
@@ -620,21 +655,21 @@ export default function GameBoard(props: GameBoardProps) {
       return
     }
 
-    const { cardId, cardDef } = dragging
+    const { cardId, cardDef, fromExPocket } = dragging
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
     const targetType = getTargetType(cardDef)
 
     // アクションカードで対象が必要な場合
     if (needsTarget) {
       if (targetType === 'friendly_unit' && hoveredUnitId) {
-        handlePlayCard('player1', cardId, undefined, hoveredUnitId)
+        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket)
       } else if (targetType === 'friendly_hero' && hoveredHeroId) {
-        handlePlayCard('player1', cardId, undefined, hoveredHeroId)
+        handlePlayCard('player1', cardId, undefined, hoveredHeroId, fromExPocket)
       }
     }
     // 対象不要のアクションカードはドロップ位置に関係なくプレイ
     else if (cardDef.type === 'action') {
-      handlePlayCard('player1', cardId)
+      handlePlayCard('player1', cardId, undefined, undefined, fromExPocket)
     }
     // ユニットカードはレーン上にドロップした場合のみプレイ
     else if (hoveredLane !== null) {
@@ -642,7 +677,7 @@ export default function GameBoard(props: GameBoardProps) {
       const existingUnit = player.units.find((u) => u.lane === hoveredLane)
       const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
       if (!existingUnit || (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))) {
-        handlePlayCard('player1', cardId, hoveredLane)
+        handlePlayCard('player1', cardId, hoveredLane, undefined, fromExPocket)
       }
     }
 
@@ -765,52 +800,68 @@ export default function GameBoard(props: GameBoardProps) {
           >
             <HeroPortrait player={player} side="left" />
           </div>
-          {/* 必殺技・おともボタン（ドラッグ or タップで発動） */}
+          {/* 必殺技・おともボタン（ドラッグ or タップで発動、ホバーで効果表示） */}
           {player.hero.heroArt && (
             <div className="mt-2 flex flex-col gap-1 px-2">
-              <button
-                onMouseDown={(e) => {
-                  if (player.ap >= player.hero.heroArt!.cost) {
-                    onAbilityDragStart('hero_art', e.clientX, e.clientY)
-                  }
-                }}
-                onTouchStart={(e) => {
-                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
-                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
-                  }
-                }}
-                disabled={player.ap < player.hero.heroArt.cost}
-                className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                  player.ap >= player.hero.heroArt.cost
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-                title={player.hero.heroArt.description}
-              >
-                {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
-              </button>
-              {player.hero.companion && (
+              <div className="group relative">
                 <button
                   onMouseDown={(e) => {
-                    if (player.ap >= player.hero.companion!.cost) {
-                      onAbilityDragStart('companion', e.clientX, e.clientY)
+                    if (player.ap >= player.hero.heroArt!.cost) {
+                      onAbilityDragStart('hero_art', e.clientX, e.clientY)
                     }
                   }}
                   onTouchStart={(e) => {
-                    if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
-                      onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                    if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
+                      onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
                     }
                   }}
-                  disabled={player.ap < player.hero.companion.cost}
-                  className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                    player.ap >= player.hero.companion.cost
-                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
+                  disabled={player.ap < player.hero.heroArt.cost}
+                  className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                    player.ap >= player.hero.heroArt.cost
+                      ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
                       : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                   }`}
-                  title={player.hero.companion.description}
                 >
-                  {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                  {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
                 </button>
+                <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                  <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
+                  <div className="text-gray-300">{player.hero.heroArt.description}</div>
+                  {player.hero.heroArt.requiresTarget && (
+                    <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
+                  )}
+                </div>
+              </div>
+              {player.hero.companion && (
+                <div className="group relative">
+                  <button
+                    onMouseDown={(e) => {
+                      if (player.ap >= player.hero.companion!.cost) {
+                        onAbilityDragStart('companion', e.clientX, e.clientY)
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
+                        onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                      }
+                    }}
+                    disabled={player.ap < player.hero.companion.cost}
+                    className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
+                      player.ap >= player.hero.companion.cost
+                        ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {player.hero.companion.name} ({player.hero.companion.cost}AP)
+                  </button>
+                  <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                    <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
+                    <div className="text-gray-300">{player.hero.companion.description}</div>
+                    {player.hero.companion.requiresTarget && (
+                      <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -828,6 +879,25 @@ export default function GameBoard(props: GameBoardProps) {
               </div>
             </div>
           )}
+          {/* 墓地カウンター */}
+          <div className="mt-2 px-2 group relative">
+            <div className="bg-gray-800/80 border border-gray-600/50 rounded px-2 py-1 text-[10px] text-gray-300 text-center">
+              墓地: {player.graveyard.length}枚
+            </div>
+            {player.graveyard.length > 0 && (
+              <div className="absolute left-full top-0 ml-2 w-36 max-h-40 overflow-y-auto p-2 rounded border border-gray-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                <div className="font-bold text-gray-400 mb-1">墓地の内容</div>
+                {player.graveyard.map((cardId, i) => {
+                  const def = resolveCardDefinition(cardMap, cardId)
+                  return (
+                    <div key={`grave_${i}`} className="text-gray-300 truncate">
+                      {def?.name || cardId}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Battle Slots */}
@@ -996,6 +1066,66 @@ export default function GameBoard(props: GameBoardProps) {
       {/* Footer Area */}
       <div className="relative z-20 h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
         <div className="flex gap-4 items-end mb-6">
+          {/* EXポケット */}
+          <div className="flex gap-1 items-end mr-2">
+            {[0, 1].map((slotIdx) => {
+              const exCard = player.exPocket[slotIdx]
+              if (!exCard) {
+                return (
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                    <span className="text-purple-500/40 text-[8px]">EX</span>
+                  </div>
+                )
+              }
+              const exCardDef = resolveCardDefinition(cardMap, exCard.cardId)
+              if (!exCardDef) {
+                return (
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                    <span className="text-purple-500/40 text-[8px]">EX</span>
+                  </div>
+                )
+              }
+              const availableMp = player.mp + player.blueMp
+              const effectiveCost = Math.max(0, exCardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
+              const isActiveResponse = gameState.activeResponse.isActive
+              const canPlay = availableMp >= effectiveCost && (exCardDef.type === 'action' || !isActiveResponse)
+              const isDragging = dragging?.fromExPocket && dragging?.idx === slotIdx
+
+              return (
+                <div key={`ex_slot_${slotIdx}`} className="relative">
+                  <div className={`border-2 border-purple-500 rounded shadow-[0_0_8px_rgba(168,85,247,0.4)] ${isDragging ? 'opacity-30' : ''}`}>
+                    <GameCard
+                      cardDef={exCardDef}
+                      size="sm"
+                      onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
+                      onDragStart={(x, y) => onDragStart(exCard.cardId, exCardDef, slotIdx, x, y, true)}
+                      canPlay={canPlay}
+                      isDragging={isDragging}
+                    />
+                  </div>
+                  {/* コスト修正表示 */}
+                  {(exCard.costModifier || exCard.buffAttack || exCard.buffHp) && (
+                    <div className="absolute -top-2 -right-2 z-10 flex flex-col gap-0.5">
+                      {exCard.costModifier && (
+                        <span className="bg-purple-600 text-white text-[8px] font-bold px-1 rounded">
+                          MP{exCard.costModifier}
+                        </span>
+                      )}
+                      {(exCard.buffAttack || exCard.buffHp) && (
+                        <span className="bg-green-600 text-white text-[8px] font-bold px-1 rounded">
+                          +{exCard.buffAttack || 0}/+{exCard.buffHp || 0}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 left-0 right-0 text-center">
+                    <span className="bg-purple-700/80 text-purple-200 text-[7px] px-1 rounded">EX</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {/* 手札 */}
           {player.hand.map((cardId, i) => {
             const cardDef = resolveCardDefinition(cardMap, cardId)
             if (!cardDef) return null
@@ -1003,7 +1133,7 @@ export default function GameBoard(props: GameBoardProps) {
             const availableMp = player.mp + player.blueMp
             const isActiveResponse = gameState.activeResponse.isActive
             const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
-            const isDragging = dragging?.idx === i
+            const isDragging = !dragging?.fromExPocket && dragging?.idx === i
 
             return (
               <GameCard

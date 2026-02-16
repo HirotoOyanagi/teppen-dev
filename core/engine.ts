@@ -846,20 +846,40 @@ function processInput(
       return { state: newState, events }
     }
 
-    // デッキコスト軽減を適用
-    const effectiveCost = Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+    // EXポケットからプレイする場合
+    const isFromExPocket = input.fromExPocket === true
+    let exCard: import('./types').ExPocketCard | undefined
+    if (isFromExPocket) {
+      const exIdx = player.exPocket.findIndex((e) => e.cardId === input.cardId)
+      if (exIdx === -1) return { state: newState, events }
+      exCard = player.exPocket[exIdx]
+    }
+
+    // コスト計算: EXポケットからの場合はcostModifierも考慮
+    const effectiveCost = isFromExPocket && exCard
+      ? Math.max(0, cardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
+      : Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
 
     // MPチェック（通常MP + 青MP）
     const availableMp = player.mp + player.blueMp
     if (availableMp < effectiveCost) return { state: newState, events }
 
-    // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
-    const newHand = removeOneCardFromHand(player.hand, input.cardId)
+    // カード元を更新（手札 or EXポケット）
+    let newHand: string[]
+    let newExPocket = [...player.exPocket]
+    if (isFromExPocket) {
+      newHand = [...player.hand]
+      const exIdx = newExPocket.findIndex((e) => e.cardId === input.cardId)
+      if (exIdx !== -1) newExPocket.splice(exIdx, 1)
+    } else {
+      newHand = removeOneCardFromHand(player.hand, input.cardId)
+      newExPocket = player.exPocket
+    }
 
-    // カードをプレイしたらデッキから1枚引く
+    // カードをプレイしたらデッキから1枚引く（EXポケットからの場合はドローなし）
     const newDeck = [...player.deck]
     let drawnCardId: string | null = null
-    if (newDeck.length > 0) {
+    if (!isFromExPocket && newDeck.length > 0) {
       drawnCardId = newDeck[0]
       newDeck.shift() // デッキから削除
       newHand.push(drawnCardId) // 手札に追加
@@ -878,7 +898,7 @@ function processInput(
     let remainingCost = effectiveCost
     let newBlueMp = player.blueMp
     let newMp = player.mp
-    
+
     if (newBlueMp >= remainingCost) {
       newBlueMp -= remainingCost
       remainingCost = 0
@@ -887,7 +907,7 @@ function processInput(
       newBlueMp = 0
     }
     newMp -= remainingCost
-    
+
     const newAp = Math.min(
       player.ap + effectiveCost * GAME_CONFIG.AP_PER_MP,
       GAME_CONFIG.MAX_AP
@@ -897,7 +917,7 @@ function processInput(
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === input.playerId
     )
-    
+
     // アクションカードは使用時に墓地に送る、ユニットカードは場に出した時点では墓地には行かない
     const updatedGraveyardMap: Record<string, string[]> = {
       true: [...player.graveyard, input.cardId],
@@ -905,7 +925,7 @@ function processInput(
     }
     const isActionKey = String(cardDef.type === 'action')
     const updatedGraveyard = updatedGraveyardMap[isActionKey]
-    
+
     newState.players[playerIndex] = {
       ...player,
       hand: newHand,
@@ -914,6 +934,7 @@ function processInput(
       blueMp: newBlueMp,
       ap: newAp,
       graveyard: updatedGraveyard,
+      exPocket: newExPocket,
     }
 
     events.push({
@@ -1238,9 +1259,9 @@ function processInput(
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
         cardId: input.cardId,
-        hp: cardDef.unitStats.hp,
-        maxHp: cardDef.unitStats.hp,
-        attack: cardDef.unitStats.attack,
+        hp: cardDef.unitStats.hp + (isFromExPocket && exCard?.buffHp ? exCard.buffHp : 0),
+        maxHp: cardDef.unitStats.hp + (isFromExPocket && exCard?.buffHp ? exCard.buffHp : 0),
+        attack: cardDef.unitStats.attack + (isFromExPocket && exCard?.buffAttack ? exCard.buffAttack : 0),
         attackGauge: initialAttackGauge,
         attackInterval: adjustedAttackInterval,
         lane: lane,
