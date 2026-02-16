@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import GameBoard from '@/components/GameBoard'
@@ -23,6 +23,7 @@ export default function BattlePage() {
     heroId: string
     deckCardIds: string[]
   } | null>(null)
+  const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     // モード判定
@@ -57,6 +58,29 @@ export default function BattlePage() {
     setLoading(false)
   }, [router, router.query.mode])
 
+  useEffect(() => {
+    const audio = new Audio('/muzic/決戦テーブルの上で.mp3')
+    audio.loop = true
+    audio.volume = 0.6
+    setBgm(audio)
+
+    return () => {
+      audio.pause()
+    }
+  }, [])
+
+  const handleMulliganComplete = useCallback(() => {
+    if (!bgm) {
+      return
+    }
+
+    bgm
+      .play()
+      .catch(() => {
+        // 自動再生がブロックされた場合は何もしない
+      })
+  }, [bgm])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white">
@@ -81,9 +105,10 @@ export default function BattlePage() {
             playerId={onlineProps.playerId}
             heroId={onlineProps.heroId}
             deckCardIds={onlineProps.deckCardIds}
+            onMulliganComplete={handleMulliganComplete}
           />
         ) : (
-          <GameBoard />
+          <GameBoard onMulliganComplete={handleMulliganComplete} />
         )}
       </div>
     </>

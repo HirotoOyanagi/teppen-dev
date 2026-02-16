@@ -105,7 +105,12 @@ const OPPONENT_HERO: Hero = {
   description: '格闘家',
 }
 
-export default function GameBoard() {
+interface GameBoardProps {
+  onMulliganComplete?: () => void
+}
+
+export default function GameBoard(props: GameBoardProps) {
+  const { onMulliganComplete } = props
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
   const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
@@ -341,8 +346,12 @@ export default function GameBoard() {
       }
 
       setGameState(newState)
+
+      if (onMulliganComplete) {
+        onMulliganComplete()
+      }
     },
-    [gameState, cardMap]
+    [gameState, cardMap, onMulliganComplete]
   )
 
   // カードタップ → 効果表示

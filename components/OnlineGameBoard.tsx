@@ -81,9 +81,11 @@ interface OnlineGameBoardProps {
   playerId: string
   heroId: string
   deckCardIds: string[]
+  onMulliganComplete?: () => void
 }
 
-export default function OnlineGameBoard({ playerId, heroId, deckCardIds }: OnlineGameBoardProps) {
+export default function OnlineGameBoard(props: OnlineGameBoardProps) {
+  const { playerId, heroId, deckCardIds, onMulliganComplete } = props
   const { cardMap, isLoading: cardsLoading } = useCards()
   const {
     connectionStatus,
@@ -217,8 +219,12 @@ export default function OnlineGameBoard({ playerId, heroId, deckCardIds }: Onlin
         keepCards: keepAll ? [] : player.hand,
         timestamp: Date.now(),
       })
+
+      if (onMulliganComplete) {
+        onMulliganComplete()
+      }
     },
-    [gameState, playerId, sendGameInput]
+    [gameState, playerId, sendGameInput, onMulliganComplete]
   )
 
   // ドラッグ系ハンドラ
