@@ -77,6 +77,26 @@ function DraggingCard({ card, position }: { card: CardDefinition; position: { x:
   )
 }
 
+// ドラッグ中のアビリティ表示
+function DraggingAbility({ name, type, position }: { name: string; type: 'hero_art' | 'companion'; position: { x: number; y: number } }) {
+  const isHeroArt = type === 'hero_art'
+  return (
+    <div
+      className="fixed z-[200] pointer-events-none"
+      style={{ left: position.x - 40, top: position.y - 40 }}
+    >
+      <div className={`w-20 h-20 rounded-full flex items-center justify-center text-center
+        ${isHeroArt
+          ? 'bg-yellow-500/90 border-2 border-yellow-300 shadow-[0_0_30px_rgba(234,179,8,0.8)]'
+          : 'bg-cyan-500/90 border-2 border-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.8)]'
+        }`}
+      >
+        <span className="text-black font-bold text-[9px] leading-tight px-1">{name}</span>
+      </div>
+    </div>
+  )
+}
+
 interface OnlineGameBoardProps {
   playerId: string
   heroId: string
@@ -107,6 +127,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const [abilityTargetMode, setAbilityTargetMode] = useState<{
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy'
+  } | null>(null)
+  const [abilityDragging, setAbilityDragging] = useState<{
+    type: 'hero_art' | 'companion'
+    targetSide: 'friendly' | 'enemy' | 'none'
+    name: string
   } | null>(null)
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -212,7 +237,22 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     })
   }, [gameState, playerId, sendGameInput])
 
-  // 必殺技発動
+  // アビリティ発動（ドラッグ終了時 or 直接呼び出し）
+  const handleFireAbility = useCallback(
+    (type: 'hero_art' | 'companion', target?: string) => {
+      sendGameInput({
+        type,
+        playerId,
+        target,
+        timestamp: Date.now(),
+      })
+      setAbilityTargetMode(null)
+      setAbilityDragging(null)
+    },
+    [playerId, sendGameInput]
+  )
+
+  // 必殺技発動（クリック/タップ用フォールバック）
   const handleHeroArt = useCallback(
     (target?: string) => {
       if (!gameState) return
@@ -224,19 +264,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         setAbilityTargetMode({ type: 'hero_art', targetSide: 'enemy' })
         return
       }
-
-      sendGameInput({
-        type: 'hero_art',
-        playerId,
-        target,
-        timestamp: Date.now(),
-      })
-      setAbilityTargetMode(null)
+      handleFireAbility('hero_art', target)
     },
-    [gameState, playerId, sendGameInput]
+    [gameState, handleFireAbility]
   )
 
-  // おとも発動
+  // おとも発動（クリック/タップ用フォールバック）
   const handleCompanion = useCallback(
     (target?: string) => {
       if (!gameState) return
@@ -248,17 +281,77 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         setAbilityTargetMode({ type: 'companion', targetSide: 'friendly' })
         return
       }
-
-      sendGameInput({
-        type: 'companion',
-        playerId,
-        target,
-        timestamp: Date.now(),
-      })
-      setAbilityTargetMode(null)
+      handleFireAbility('companion', target)
     },
-    [gameState, playerId, sendGameInput]
+    [gameState, handleFireAbility]
   )
+
+  // アビリティドラッグ開始
+  const onAbilityDragStart = useCallback(
+    (type: 'hero_art' | 'companion', x: number, y: number) => {
+      if (!gameState) return
+      const player = gameState.players[0]
+      const ability = type === 'hero_art' ? player.hero.heroArt : player.hero.companion
+      if (!ability || player.ap < ability.cost) return
+
+      const targetSide: 'friendly' | 'enemy' | 'none' = ability.requiresTarget
+        ? (type === 'hero_art' ? 'enemy' : 'friendly')
+        : 'none'
+
+      setAbilityDragging({ type, targetSide, name: ability.name })
+      setDragPos({ x, y })
+    },
+    [gameState]
+  )
+
+  // アビリティドラッグ中
+  const onAbilityDragMove = useCallback(
+    (x: number, y: number) => {
+      if (!abilityDragging) return
+      setDragPos({ x, y })
+
+      if (abilityDragging.targetSide === 'friendly') {
+        let foundUnitId: string | null = null
+        unitRefs.current.forEach((ref, unitId) => {
+          if (ref) {
+            const rect = ref.getBoundingClientRect()
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              const player = gameState?.players[0]
+              if (player?.units.some((u) => u.id === unitId)) foundUnitId = unitId
+            }
+          }
+        })
+        setHoveredUnitId(foundUnitId)
+      } else if (abilityDragging.targetSide === 'enemy') {
+        let foundUnitId: string | null = null
+        unitRefs.current.forEach((ref, unitId) => {
+          if (ref) {
+            const rect = ref.getBoundingClientRect()
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              const opponent = gameState?.players[1]
+              if (opponent?.units.some((u) => u.id === unitId)) foundUnitId = unitId
+            }
+          }
+        })
+        setHoveredUnitId(foundUnitId)
+      }
+    },
+    [abilityDragging, gameState]
+  )
+
+  // アビリティドラッグ終了
+  const onAbilityDragEnd = useCallback(() => {
+    if (!abilityDragging) return
+
+    if (abilityDragging.targetSide === 'none') {
+      handleFireAbility(abilityDragging.type)
+    } else if (hoveredUnitId) {
+      handleFireAbility(abilityDragging.type, hoveredUnitId)
+    }
+
+    setAbilityDragging(null)
+    setHoveredUnitId(null)
+  }, [abilityDragging, hoveredUnitId, handleFireAbility])
 
   // ターゲット選択モードでのユニットクリック
   const handleAbilityTargetSelect = useCallback(
@@ -396,14 +489,24 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     setDetailCard(null)
   }, [dragging, hoveredLane, hoveredUnitId, hoveredHeroId, gameState, handlePlayCard, requiresTarget, getTargetType])
 
-  // グローバルマウス/タッチイベント
+  // グローバルマウス/タッチイベント（カードドラッグ + アビリティドラッグ）
   useEffect(() => {
-    if (!dragging) return
-    const handleMouseMove = (e: MouseEvent) => onDragMove(e.clientX, e.clientY)
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
+    if (!dragging && !abilityDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragging) onDragMove(e.clientX, e.clientY)
+      if (abilityDragging) onAbilityDragMove(e.clientX, e.clientY)
     }
-    const handleEnd = () => onDragEnd()
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) {
+        if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
+        if (abilityDragging) onAbilityDragMove(e.touches[0].clientX, e.touches[0].clientY)
+      }
+    }
+    const handleEnd = () => {
+      if (dragging) onDragEnd()
+      if (abilityDragging) onAbilityDragEnd()
+    }
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleEnd)
@@ -415,7 +518,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleEnd)
     }
-  }, [dragging, onDragMove, onDragEnd])
+  }, [dragging, abilityDragging, onDragMove, onDragEnd, onAbilityDragMove, onAbilityDragEnd])
 
   // === ローディング & マッチング画面 ===
 
@@ -519,15 +622,24 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           >
             <HeroPortrait player={toPlayerState(player)} side="left" />
           </div>
-          {/* 必殺技・おともボタン */}
+          {/* 必殺技・おともボタン（ドラッグ or タップで発動） */}
           {player.hero.heroArt && (
             <div className="mt-2 flex flex-col gap-1 px-2">
               <button
-                onClick={() => handleHeroArt()}
+                onMouseDown={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost) {
+                    onAbilityDragStart('hero_art', e.clientX, e.clientY)
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
+                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
+                  }
+                }}
                 disabled={player.ap < player.hero.heroArt.cost}
                 className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
                   player.ap >= player.hero.heroArt.cost
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse'
+                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
                     : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                 }`}
                 title={player.hero.heroArt.description}
@@ -536,11 +648,20 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               </button>
               {player.hero.companion && (
                 <button
-                  onClick={() => handleCompanion()}
+                  onMouseDown={(e) => {
+                    if (player.ap >= player.hero.companion!.cost) {
+                      onAbilityDragStart('companion', e.clientX, e.clientY)
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
+                      onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                    }
+                  }}
                   disabled={player.ap < player.hero.companion.cost}
                   className={`px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
                     player.ap >= player.hero.companion.cost
-                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                      ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
                       : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                   }`}
                   title={player.hero.companion.description}
@@ -627,9 +748,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       className={`transition-all ${
                         dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
                           ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
-                          : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
-                            ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
-                            : ''
+                          : abilityDragging && abilityDragging.targetSide === 'friendly' && hoveredUnitId === leftUnit.id
+                            ? 'ring-4 ring-cyan-400 shadow-[0_0_20px_cyan]'
+                            : abilityDragging && abilityDragging.targetSide === 'friendly'
+                              ? 'ring-2 ring-cyan-400/50 shadow-[0_0_8px_cyan]'
+                              : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
+                                ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
+                                : ''
                       }`}
                     >
                       <GameCard cardDef={leftCardDef} unit={leftUnit} isField onClick={() => {
@@ -652,6 +777,19 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                     : ''
                 }`}>
                   {rightUnit && rightCardDef ? (
+                    <div
+                      ref={(el) => {
+                        if (el) unitRefs.current.set(rightUnit.id, el)
+                        else unitRefs.current.delete(rightUnit.id)
+                      }}
+                      className={`transition-all ${
+                        abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id
+                          ? 'ring-4 ring-red-400 shadow-[0_0_20px_red]'
+                          : abilityDragging && abilityDragging.targetSide === 'enemy'
+                            ? 'ring-2 ring-red-400/50 shadow-[0_0_8px_red]'
+                            : ''
+                      }`}
+                    >
                     <GameCard cardDef={rightCardDef} unit={rightUnit} isField onClick={() => {
                       if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
                         handleAbilityTargetSelect(rightUnit.id)
@@ -659,6 +797,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         setDetailCard({ card: rightCardDef!, side: 'right' })
                       }
                     }} />
+                    </div>
                   ) : (
                     <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}
@@ -785,6 +924,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
       {/* Dragging Card */}
       {dragging && <DraggingCard card={dragging.cardDef} position={dragPos} />}
+
+      {/* Dragging Ability */}
+      {abilityDragging && (
+        <DraggingAbility name={abilityDragging.name} type={abilityDragging.type} position={dragPos} />
+      )}
     </div>
   )
 }
