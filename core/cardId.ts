@@ -13,6 +13,8 @@ export type CardIdMeta = {
   baseId: string
   costOverride: number | null
   noRevenge: boolean
+  buffAttack: number | null
+  buffHp: number | null
 }
 
 export function parseCardId(cardId: string): CardIdMeta {
@@ -24,6 +26,8 @@ export function parseCardId(cardId: string): CardIdMeta {
 
   let costOverride: number | null = null
   let noRevenge = false
+  let buffAttack: number | null = null
+  let buffHp: number | null = null
 
   for (let i = 1; i < parts.length; i++) {
     const part = parts[i]
@@ -45,9 +49,25 @@ export function parseCardId(cardId: string): CardIdMeta {
       noRevenge = true
       continue
     }
+
+    if (normalizedKey === 'buff_attack') {
+      const parsed = parseInt(value, 10)
+      if (!Number.isNaN(parsed)) {
+        buffAttack = parsed
+      }
+      continue
+    }
+
+    if (normalizedKey === 'buff_hp') {
+      const parsed = parseInt(value, 10)
+      if (!Number.isNaN(parsed)) {
+        buffHp = parsed
+      }
+      continue
+    }
   }
 
-  return { baseId, costOverride, noRevenge }
+  return { baseId, costOverride, noRevenge, buffAttack, buffHp }
 }
 
 function removeEffectFunctionToken(effectFunctions: string, removeName: string): string {
@@ -89,6 +109,14 @@ export function resolveCardDefinition(
 
   if (meta.costOverride !== null) {
     resolved.cost = meta.costOverride
+  }
+
+  if ((meta.buffAttack !== null || meta.buffHp !== null) && resolved.unitStats) {
+    resolved.unitStats = {
+      ...resolved.unitStats,
+      attack: resolved.unitStats.attack + (meta.buffAttack || 0),
+      hp: resolved.unitStats.hp + (meta.buffHp || 0),
+    }
   }
 
   if (meta.noRevenge && resolved.effectFunctions) {

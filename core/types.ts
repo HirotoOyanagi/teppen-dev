@@ -123,14 +123,6 @@ export interface WhileOnFieldEffect {
   excludeSelf?: boolean
 }
 
-// EXポケットカード
-export interface ExPocketCard {
-  cardId: string
-  costModifier?: number  // オルカおとも: -2
-  buffAttack?: number    // セラフおとも: +1
-  buffHp?: number        // セラフおとも: +1
-}
-
 // ヒーロー能力定義
 export interface HeroAbility {
   name: string
@@ -173,13 +165,12 @@ export interface PlayerState {
   heroArtGauge?: number // ヒーローアーツ用（後で拡張）
   graveyard: string[] // 墓地のカードID
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
-  exPocket: ExPocketCard[] // EXポケット
+  exPocket: string[] // EXポケット（cardId文字列、@cost=等の修飾子付き）
   actionCardUsedCount?: number // バトル中アクションカード使用回数
   levelUpCount?: number // 味方ユニットレベルアップ回数
   awakeningCount?: number // 目覚め回数
   chainFireCount?: Record<string, number> // カードID毎の使用回数（連鎖する烈火等）
   laneLocks?: Record<number, number> // レーン毎の封鎖タイマー（ms）
-  deckCostReduction?: number // デッキカードコスト軽減値（オルカ必殺技用）
 }
 
 // Active Responseスタック

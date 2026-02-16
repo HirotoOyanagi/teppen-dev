@@ -3,7 +3,7 @@
  * イベント駆動型の効果解決システム
  */
 
-import type { GameState, Unit, PlayerState, CardDefinition, GameEvent, ExPocketCard } from './types'
+import type { GameState, Unit, PlayerState, CardDefinition, GameEvent } from './types'
 
 // ステータス効果の種類
 export type StatusEffect =
@@ -1167,7 +1167,7 @@ function resolveDrawToEx(
   for (let i = 0; i < drawCount && newDeck.length > 0; i++) {
     const cardId = newDeck.shift()
     if (cardId) {
-      newExPocket.push({ cardId })
+      newExPocket.push(cardId)
     }
   }
 
@@ -1190,7 +1190,7 @@ function resolveReturnToEx(
   newState.players[ownerIndex] = {
     ...player,
     units: player.units.filter((u) => u.id !== targetUnit.unit.id),
-    exPocket: [...player.exPocket, { cardId: targetUnit.unit.cardId }],
+    exPocket: [...player.exPocket, targetUnit.unit.cardId],
   }
   return { state: newState, events }
 }
@@ -1225,7 +1225,7 @@ function resolveReviveFromGraveyard(
   newState.players[playerIndex] = {
     ...player,
     graveyard: newGraveyard,
-    exPocket: [...player.exPocket, { cardId }],
+    exPocket: [...player.exPocket, cardId],
   }
   return { state: newState, events }
 }
@@ -1756,7 +1756,7 @@ function resolveReturnFriendlyToEx(
   newState.players[playerIndex] = {
     ...player,
     units: player.units.filter((u) => u.id !== targetUnit.unit.id),
-    exPocket: [...player.exPocket, { cardId: targetUnit.unit.cardId }],
+    exPocket: [...player.exPocket, targetUnit.unit.cardId],
   }
   return { state: newState, events }
 }
@@ -1789,7 +1789,7 @@ function resolveReturnLowAttackEnemyToEx(
   newState.players[opponentIndex] = {
     ...opponent,
     units: opponent.units.filter((u) => u.id !== target.id),
-    exPocket: [...opponent.exPocket, { cardId: target.cardId }],
+    exPocket: [...opponent.exPocket, target.cardId],
   }
   return { state: newState, events }
 }
@@ -1966,7 +1966,7 @@ function resolveLockLane(
   newState.players[ownerIndex] = {
     ...player,
     units: player.units.filter((u) => u.id !== targetUnit.unit.id),
-    exPocket: [...player.exPocket, { cardId: targetUnit.unit.cardId }],
+    exPocket: [...player.exPocket, targetUnit.unit.cardId],
     laneLocks: {
       ...(player.laneLocks || {}),
       [lane]: durationSec * 1000,
@@ -2001,7 +2001,7 @@ function resolveNegateAndReturn(
       const returnCardId = `${item.cardId.split('@')[0]}@cost=${newCost}`
       newState.players[opponentIndex] = {
         ...opponent,
-        exPocket: [...opponent.exPocket, { cardId: returnCardId }],
+        exPocket: [...opponent.exPocket, returnCardId],
       }
       break
     }

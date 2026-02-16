@@ -848,17 +848,13 @@ function processInput(
 
     // EXポケットからプレイする場合
     const isFromExPocket = input.fromExPocket === true
-    let exCard: import('./types').ExPocketCard | undefined
     if (isFromExPocket) {
-      const exIdx = player.exPocket.findIndex((e) => e.cardId === input.cardId)
+      const exIdx = player.exPocket.findIndex((e) => e === input.cardId)
       if (exIdx === -1) return { state: newState, events }
-      exCard = player.exPocket[exIdx]
     }
 
-    // コスト計算: EXポケットからの場合はcostModifierも考慮
-    const effectiveCost = isFromExPocket && exCard
-      ? Math.max(0, cardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
-      : Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+    // コスト計算: cardIdの@cost=はresolveCardDefinitionで反映済み
+    const effectiveCost = cardDef.cost
 
     // MPチェック（通常MP + 青MP）
     const availableMp = player.mp + player.blueMp
@@ -869,7 +865,7 @@ function processInput(
     let newExPocket = [...player.exPocket]
     if (isFromExPocket) {
       newHand = [...player.hand]
-      const exIdx = newExPocket.findIndex((e) => e.cardId === input.cardId)
+      const exIdx = newExPocket.indexOf(input.cardId)
       if (exIdx !== -1) newExPocket.splice(exIdx, 1)
     } else {
       newHand = removeOneCardFromHand(player.hand, input.cardId)
@@ -1259,9 +1255,9 @@ function processInput(
       const newUnit: Unit = {
         id: `unit_${Date.now()}_${Math.random()}`,
         cardId: input.cardId,
-        hp: cardDef.unitStats.hp + (isFromExPocket && exCard?.buffHp ? exCard.buffHp : 0),
-        maxHp: cardDef.unitStats.hp + (isFromExPocket && exCard?.buffHp ? exCard.buffHp : 0),
-        attack: cardDef.unitStats.attack + (isFromExPocket && exCard?.buffAttack ? exCard.buffAttack : 0),
+        hp: cardDef.unitStats.hp,
+        maxHp: cardDef.unitStats.hp,
+        attack: cardDef.unitStats.attack,
         attackGauge: initialAttackGauge,
         attackInterval: adjustedAttackInterval,
         lane: lane,
@@ -1728,8 +1724,7 @@ function processInput(
       const cardDef = cardDefinitions.get(input.cardId)
       if (!cardDef || cardDef.type !== 'action') return { state: newState, events }
 
-      // デッキコスト軽減を適用
-      const effectiveCost = Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+      const effectiveCost = cardDef.cost
 
       // MPチェック（通常MP + 青MP）
       const availableMp = player.mp + player.blueMp

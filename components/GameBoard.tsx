@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GameState, GameInput, Hero, CardDefinition, ExPocketCard } from '@/core/types'
+import type { GameState, GameInput, Hero, CardDefinition } from '@/core/types'
 import {
   updateGameState,
   createInitialGameState,
@@ -293,7 +293,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       // EXポケットから or 手札から
       if (fromExPocket) {
-        if (!player.exPocket.some((e) => e.cardId === cardId)) return
+        if (!player.exPocket.includes(cardId)) return
       } else {
         if (!player.hand.includes(cardId)) return
       }
@@ -303,12 +303,9 @@ export default function GameBoard(props: GameBoardProps) {
         return
       }
 
-      // MPチェック（通常MP + 青MP）- EXポケットからの場合はcostModifierも考慮
+      // MPチェック（cardDef.costはresolveCardDefinitionで@cost=反映済み）
       const availableMp = player.mp + player.blueMp
-      const exCard = fromExPocket ? player.exPocket.find((e) => e.cardId === cardId) : undefined
-      const effectiveCost = fromExPocket && exCard
-        ? Math.max(0, cardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
-        : Math.max(0, cardDef.cost - (player.deckCostReduction || 0))
+      const effectiveCost = cardDef.cost
       if (availableMp < effectiveCost) return
 
       // ユニットカードの場合はレーン選択が必要
@@ -568,12 +565,8 @@ export default function GameBoard(props: GameBoardProps) {
     const availableMp = player.mp + player.blueMp
     const isActiveResponse = gameState.activeResponse.isActive
 
-    // EXポケットからの場合はcostModifierを考慮
-    let effectiveCost = cardDef.cost
-    if (fromExPocket) {
-      const exCard = player.exPocket.find((e) => e.cardId === cardId)
-      effectiveCost = Math.max(0, cardDef.cost + (exCard?.costModifier || 0) - (player.deckCostReduction || 0))
-    }
+    // cardDef.costはresolveCardDefinitionで@cost=反映済み
+    const effectiveCost = cardDef.cost
     const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isActiveResponse)
     if (!canPlay) return
 
@@ -1077,7 +1070,7 @@ export default function GameBoard(props: GameBoardProps) {
                   </div>
                 )
               }
-              const exCardDef = resolveCardDefinition(cardMap, exCard.cardId)
+              const exCardDef = resolveCardDefinition(cardMap, exCard)
               if (!exCardDef) {
                 return (
                   <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
@@ -1086,7 +1079,7 @@ export default function GameBoard(props: GameBoardProps) {
                 )
               }
               const availableMp = player.mp + player.blueMp
-              const effectiveCost = Math.max(0, exCardDef.cost + (exCard.costModifier || 0) - (player.deckCostReduction || 0))
+              const effectiveCost = exCardDef.cost
               const isActiveResponse = gameState.activeResponse.isActive
               const canPlay = availableMp >= effectiveCost && (exCardDef.type === 'action' || !isActiveResponse)
               const isDragging = dragging?.fromExPocket && dragging?.idx === slotIdx
@@ -1098,26 +1091,11 @@ export default function GameBoard(props: GameBoardProps) {
                       cardDef={exCardDef}
                       size="sm"
                       onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
-                      onDragStart={(x, y) => onDragStart(exCard.cardId, exCardDef, slotIdx, x, y, true)}
+                      onDragStart={(x, y) => onDragStart(exCard, exCardDef, slotIdx, x, y, true)}
                       canPlay={canPlay}
                       isDragging={isDragging}
                     />
                   </div>
-                  {/* コスト修正表示 */}
-                  {(exCard.costModifier || exCard.buffAttack || exCard.buffHp) && (
-                    <div className="absolute -top-2 -right-2 z-10 flex flex-col gap-0.5">
-                      {exCard.costModifier && (
-                        <span className="bg-purple-600 text-white text-[8px] font-bold px-1 rounded">
-                          MP{exCard.costModifier}
-                        </span>
-                      )}
-                      {(exCard.buffAttack || exCard.buffHp) && (
-                        <span className="bg-green-600 text-white text-[8px] font-bold px-1 rounded">
-                          +{exCard.buffAttack || 0}/+{exCard.buffHp || 0}
-                        </span>
-                      )}
-                    </div>
-                  )}
                   <div className="absolute -bottom-1 left-0 right-0 text-center">
                     <span className="bg-purple-700/80 text-purple-200 text-[7px] px-1 rounded">EX</span>
                   </div>
@@ -1132,7 +1110,8 @@ export default function GameBoard(props: GameBoardProps) {
 
             const availableMp = player.mp + player.blueMp
             const isActiveResponse = gameState.activeResponse.isActive
-            const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isActiveResponse)
+            const effectiveCost = cardDef.cost
+            const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isActiveResponse)
             const isDragging = !dragging?.fromExPocket && dragging?.idx === i
 
             return (

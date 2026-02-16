@@ -2,7 +2,8 @@
  * ヒーロー必殺技・おとも効果の実装
  */
 
-import type { GameState, GameEvent, CardDefinition, Unit, ExPocketCard } from './types'
+import type { GameState, GameEvent, CardDefinition, Unit } from './types'
+import { parseCardId } from './cardId'
 import { resolveCardDefinition } from './cardId'
 
 // ─── ヘルパー ───
@@ -183,18 +184,27 @@ export function resolveHeroArtEffect(
     // ── オルカ: デッキ全カードコスト-1 + 1枚EXへ ──
     case 'hero_purple_orca': {
       const player = newState.players[playerIndex]
+      // デッキ内全カードのコストを-1（cardIdに@cost=を埋め込む）
+      const reducedDeck = player.deck.map((cardId) => {
+        const def = resolveCardDefinition(cardDefinitions, cardId)
+        if (!def) return cardId
+        const meta = parseCardId(cardId)
+        const newCost = Math.max(0, def.cost - 1)
+        // 既存の@cost=を置き換えて再構築
+        return `${meta.baseId}@cost=${newCost}`
+      })
+      // デッキから1枚EXポケットへ（上限2枚）
+      let finalDeck = reducedDeck
+      let finalExPocket = [...player.exPocket]
+      if (finalDeck.length > 0 && finalExPocket.length < 2) {
+        const cardToEx = finalDeck[0]
+        finalDeck = finalDeck.slice(1)
+        finalExPocket = [...finalExPocket, cardToEx]
+      }
       newState.players[playerIndex] = {
         ...player,
-        deckCostReduction: (player.deckCostReduction || 0) + 1,
-      }
-      // デッキから1枚EXポケットへ（上限2枚）
-      if (player.deck.length > 0 && newState.players[playerIndex].exPocket.length < 2) {
-        const cardToEx = player.deck[0]
-        newState.players[playerIndex] = {
-          ...newState.players[playerIndex],
-          deck: newState.players[playerIndex].deck.slice(1),
-          exPocket: [...newState.players[playerIndex].exPocket, { cardId: cardToEx }],
-        }
+        deck: finalDeck,
+        exPocket: finalExPocket,
       }
       break
     }
@@ -393,10 +403,15 @@ export function resolveCompanionEffect(
       const cardToEx = player.deck[actionIdx]
       const newDeck = [...player.deck]
       newDeck.splice(actionIdx, 1)
+      // コスト-2をcardIdに埋め込む
+      const meta = parseCardId(cardToEx)
+      const baseDef = resolveCardDefinition(cardDefinitions, cardToEx)
+      const newCost = Math.max(0, (baseDef?.cost ?? 0) - 2)
+      const exCardId = `${meta.baseId}@cost=${newCost}`
       newState.players[playerIndex] = {
         ...player,
         deck: newDeck,
-        exPocket: [...player.exPocket, { cardId: cardToEx, costModifier: -2 }],
+        exPocket: [...player.exPocket, exCardId],
       }
       break
     }
@@ -412,14 +427,16 @@ export function resolveCompanionEffect(
       })
       if (unitGraveyardCards.length === 0) break
       const chosenCardId = unitGraveyardCards[Math.floor(Math.random() * unitGraveyardCards.length)]
-      // 墓地から除去してEXポケットに追加（+1/+1バフ付き）
+      // 墓地から除去してEXポケットに追加（+1/+1バフをcardIdに埋め込む）
       const newGraveyard = [...player.graveyard]
       const idx = newGraveyard.indexOf(chosenCardId)
       if (idx !== -1) newGraveyard.splice(idx, 1)
+      const seraphMeta = parseCardId(chosenCardId)
+      const exCardId = `${seraphMeta.baseId}@buff_attack=1@buff_hp=1`
       newState.players[playerIndex] = {
         ...player,
         graveyard: newGraveyard,
-        exPocket: [...player.exPocket, { cardId: chosenCardId, buffAttack: 1, buffHp: 1 }],
+        exPocket: [...player.exPocket, exCardId],
       }
       break
     }

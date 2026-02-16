@@ -198,9 +198,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       // AR中はユニット不可
       if (gameState.activeResponse.isActive && cardDef.type === 'unit') return
 
-      // MPチェック
+      // MPチェック（デッキコスト軽減を適用）
       const availableMp = player.mp + player.blueMp
-      if (availableMp < cardDef.cost) return
+      const effectiveCost = cardDef.cost
+      if (availableMp < effectiveCost) return
 
       // ユニットのレーンチェック
       if (cardDef.type === 'unit') {
@@ -391,7 +392,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     const player = gameState.players[0]
     const availableMp = player.mp + player.blueMp
     const isAR = gameState.activeResponse.isActive
-    const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isAR)
+    const effectiveCost = cardDef.cost
+    const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
     if (!canPlay) return
     setDragging({ cardId, cardDef, idx })
     setDragPos({ x, y })
@@ -839,7 +841,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
             const availableMp = player.mp + player.blueMp
             const isAR = gameState.activeResponse.isActive
-            const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !isAR)
+            const effectiveCost = cardDef.cost
+            const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
             const isDragging = dragging?.idx === i
 
             return (
