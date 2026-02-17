@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import type { CardDefinition, Unit } from '@/core/types'
+import { parseCardId } from '@/core/cardId'
 
 interface GameCardProps {
   cardDef: CardDefinition
@@ -10,6 +11,7 @@ interface GameCardProps {
   onDragStart?: (x: number, y: number) => void
   canPlay?: boolean
   isDragging?: boolean
+  cardMap?: Map<string, CardDefinition>
 }
 
 // キーワード効果の定義
@@ -120,6 +122,7 @@ const GameCard: React.FC<GameCardProps> = ({
   onDragStart,
   canPlay = true,
   isDragging = false,
+  cardMap,
 }) => {
   const [shake, setShake] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -135,6 +138,46 @@ const GameCard: React.FC<GameCardProps> = ({
       description: cardDef.description,
     })
   }, [cardDef.effectFunctions, cardDef.description, unit?.statusEffects])
+
+  // ベース定義を取得して色分け判定
+  const baseDef = useMemo(() => {
+    if (!cardMap) return null
+    const meta = parseCardId(cardDef.id)
+    return cardMap.get(meta.baseId) || null
+  }, [cardMap, cardDef.id])
+
+  // コストの色: 低い=緑、高い=赤
+  const costColor = useMemo(() => {
+    if (!baseDef) return ''
+    if (cardDef.cost < baseDef.cost) return 'text-green-400'
+    if (cardDef.cost > baseDef.cost) return 'text-red-400'
+    return ''
+  }, [cardDef.cost, baseDef])
+
+  // 攻撃力の色: 高い=緑、低い=赤（フィールドではunit.attack vs baseDef）
+  const attackColor = useMemo(() => {
+    if (!baseDef?.unitStats) return ''
+    const baseAtk = baseDef.unitStats.attack
+    const currentAtk = unit ? unit.attack : (cardDef.unitStats?.attack || 0)
+    if (currentAtk > baseAtk) return 'text-green-400'
+    if (currentAtk < baseAtk) return 'text-red-400'
+    return ''
+  }, [unit, cardDef.unitStats, baseDef])
+
+  // HPの色: unit.hp < maxHpで赤(ダメージ)、maxHp > baseHpで緑(バフ)
+  const hpColor = useMemo(() => {
+    if (!baseDef?.unitStats) return ''
+    const baseHp = baseDef.unitStats.hp
+    if (unit) {
+      if (unit.hp < unit.maxHp) return 'text-red-400'
+      if (unit.maxHp > baseHp) return 'text-green-400'
+      return ''
+    }
+    const cardHp = cardDef.unitStats?.hp || 0
+    if (cardHp > baseHp) return 'text-green-400'
+    if (cardHp < baseHp) return 'text-red-400'
+    return ''
+  }, [unit, cardDef.unitStats, baseDef])
 
   // タッチ/マウス開始
   const handlePressStart = useCallback((clientX: number, clientY: number) => {
@@ -217,9 +260,15 @@ const GameCard: React.FC<GameCardProps> = ({
       }}
       onTouchEnd={handlePressEnd}
       onContextMenu={(e) => e.preventDefault()}
-      className={`relative card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-200 ${
+      className={`relative ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''} ${
         (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
-      } ${shake ? 'animate-bounce' : ''} ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''}`}
+      }`}
+    >
+    {/* カード本体（overflow-hidden適用） */}
+    <div
+      className={`absolute inset-0 card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-200 ${
+        shake ? 'animate-bounce' : ''
+      }`}
     >
       {/* カード背景レイヤー */}
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
@@ -241,12 +290,7 @@ const GameCard: React.FC<GameCardProps> = ({
         <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
       )}
 
-      {/* Cost */}
-      {!isField && (
-        <div className="absolute top-1 left-1 z-10 w-6 h-6 bg-red-800 rounded-full flex items-center justify-center font-bold text-xs border border-white/40 shadow-lg">
-          {cardDef.cost}
-        </div>
-      )}
+      {/* Cost（プレースホルダー、実際の表示はカード外レイヤーで行う） */}
 
       {/* カード名 */}
       {!isField && (
@@ -287,22 +331,6 @@ const GameCard: React.FC<GameCardProps> = ({
         </div>
       )}
 
-      {/* Stats */}
-      {cardDef.type === 'unit' && (
-        <div className="absolute bottom-1 w-full px-2 flex justify-between items-end z-10">
-          <div className="text-xl font-orbitron font-bold text-red-500 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
-            {attack}
-          </div>
-          <div
-            className={`text-lg font-orbitron font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,1)] ${
-              currentHp < maxHp ? 'text-orange-400' : 'text-blue-400'
-            }`}
-          >
-            {currentHp}
-          </div>
-        </div>
-      )}
-
       {/* アクションカードの表示 */}
       {cardDef.type === 'action' && !isField && (
         <div className="absolute bottom-1 left-1 right-1 z-10">
@@ -314,6 +342,66 @@ const GameCard: React.FC<GameCardProps> = ({
 
       {/* Damage Flash Overlay */}
       {shake && <div className="absolute inset-0 bg-red-500/30 pointer-events-none animate-pulse" />}
+    </div>
+
+      {/* コスト - 緑の丸（左上、カード外レイヤー） */}
+      {!isField && (
+        <div className="absolute -top-2 -left-2 z-20 w-9 h-9 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+          <svg viewBox="0 0 36 36" className="absolute inset-0 w-full h-full">
+            <circle cx="18" cy="18" r="16" fill="rgba(30,130,50,0.9)" stroke="rgba(60,200,80,0.95)" strokeWidth="2" />
+            <circle cx="18" cy="18" r="12.5" fill="rgba(25,110,40,0.5)" stroke="rgba(80,200,100,0.3)" strokeWidth="0.7" />
+          </svg>
+          <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${costColor || 'text-white'}`}>
+            {cardDef.cost}
+          </span>
+        </div>
+      )}
+
+      {/* Stats — カード本体の上のレイヤー（overflow-hiddenの外） */}
+      {cardDef.type === 'unit' && (
+        <>
+          {/* 攻撃力 - 赤いダイヤ型（左下） */}
+          <div className="absolute -bottom-2 -left-2 z-20 w-10 h-10 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+            <svg viewBox="0 0 40 40" className="absolute inset-0 w-full h-full">
+              <path
+                d="M20 2L38 20L20 38L2 20Z"
+                fill="rgba(160,30,30,0.9)"
+                stroke="rgba(220,60,60,0.95)"
+                strokeWidth="2"
+              />
+              <path
+                d="M20 6L34 20L20 34L6 20Z"
+                fill="rgba(130,20,20,0.5)"
+                stroke="rgba(180,50,50,0.3)"
+                strokeWidth="0.7"
+              />
+            </svg>
+            <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${attackColor || 'text-white'}`}>
+              {attack}
+            </span>
+          </div>
+          {/* HP - 青い盾型（右下） */}
+          <div className="absolute -bottom-2 -right-2 z-20 w-10 h-11 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+            <svg viewBox="0 0 36 42" className="absolute inset-0 w-full h-full">
+              <path
+                d="M18 2L3 10V22C3 31 18 39 18 39C18 39 33 31 33 22V10L18 2Z"
+                fill="rgba(25,70,170,0.9)"
+                stroke="rgba(80,160,255,0.95)"
+                strokeWidth="2"
+              />
+              <path
+                d="M18 6L7 12.5V22C7 29 18 35 18 35C18 35 29 29 29 22V12.5L18 6Z"
+                fill="rgba(35,90,200,0.5)"
+                stroke="rgba(100,180,255,0.3)"
+                strokeWidth="0.7"
+              />
+            </svg>
+            <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] -mt-0.5 ${hpColor || 'text-white'}`}>
+              {currentHp}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 }

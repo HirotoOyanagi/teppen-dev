@@ -139,10 +139,61 @@ export default function GameBoard(props: GameBoardProps) {
     targetSide: 'friendly' | 'enemy' | 'none'
     name: string
   } | null>(null)
+  // ダメージ数字エフェクト
+  const [damageEffects, setDamageEffects] = useState<
+    { id: string; unitId: string; damage: number; timestamp: number }[]
+  >([])
+  // 破壊エフェクト
+  const [destroyEffects, setDestroyEffects] = useState<
+    { id: string; unitId: string; timestamp: number }[]
+  >([])
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  // イベント処理: ダメージ数字 / 破壊エフェクトを追加
+  const processEvents = useCallback((events: import('@/core/types').GameEvent[]) => {
+    const now = Date.now()
+    const newDamage: typeof damageEffects = []
+    const newDestroy: typeof destroyEffects = []
+
+    for (const ev of events) {
+      if (ev.type === 'unit_damage' && ev.damage > 0) {
+        newDamage.push({
+          id: `dmg_${ev.unitId}_${now}_${Math.random()}`,
+          unitId: ev.unitId,
+          damage: ev.damage,
+          timestamp: now,
+        })
+      }
+      if (ev.type === 'unit_destroyed') {
+        newDestroy.push({
+          id: `dest_${ev.unitId}_${now}`,
+          unitId: ev.unitId,
+          timestamp: now,
+        })
+      }
+    }
+
+    if (newDamage.length > 0) {
+      setDamageEffects((prev) => [...prev, ...newDamage])
+    }
+    if (newDestroy.length > 0) {
+      setDestroyEffects((prev) => [...prev, ...newDestroy])
+    }
+  }, [])
+
+  // エフェクトの自動クリーンアップ（800ms後に消す）
+  useEffect(() => {
+    if (damageEffects.length === 0 && destroyEffects.length === 0) return
+    const timer = setInterval(() => {
+      const now = Date.now()
+      setDamageEffects((prev) => prev.filter((e) => now - e.timestamp < 800))
+      setDestroyEffects((prev) => prev.filter((e) => now - e.timestamp < 600))
+    }, 100)
+    return () => clearInterval(timer)
+  }, [damageEffects.length, destroyEffects.length])
 
   // ゲーム初期化
   useEffect(() => {
@@ -207,6 +258,9 @@ export default function GameBoard(props: GameBoardProps) {
   const animIdRef = useRef<number | null>(null)
   const cardMapRef = useRef(cardMap)
   cardMapRef.current = cardMap
+  const pendingEventsRef = useRef<import('@/core/types').GameEvent[]>([])
+  const processEventsRef = useRef(processEvents)
+  processEventsRef.current = processEvents
 
   useEffect(() => {
     if (!gameState || gameState.phase !== 'playing') return
@@ -229,6 +283,11 @@ export default function GameBoard(props: GameBoardProps) {
           cardMapRef.current
         )
 
+        // イベントをRefに蓄積（setState内から直接他のsetStateは呼べないため）
+        if (result.events.length > 0) {
+          pendingEventsRef.current.push(...result.events)
+        }
+
         // テスト用: MP減らない（毎フレーム最大値に補充）
         const s = result.state
         const p = s.players[0]
@@ -240,6 +299,12 @@ export default function GameBoard(props: GameBoardProps) {
         }
         return s
       })
+
+      // Refに溜まったイベントを処理
+      if (pendingEventsRef.current.length > 0) {
+        processEventsRef.current(pendingEventsRef.current)
+        pendingEventsRef.current = []
+      }
 
       animIdRef.current = requestAnimationFrame(gameLoop)
     }
@@ -341,13 +406,24 @@ export default function GameBoard(props: GameBoardProps) {
 
       setGameState((prevState) => {
         if (!prevState) return prevState
-        const s = updateGameState(prevState, input, 0, cardMap).state
+        const result = updateGameState(prevState, input, 0, cardMap)
+        if (result.events.length > 0) {
+          pendingEventsRef.current.push(...result.events)
+        }
         // テスト用: MP減らない
+        const s = result.state
         const p = s.players[0]
         return { ...s, players: [{ ...p, mp: p.maxMp }, s.players[1]] }
       })
+      // Refに溜まったイベントを処理
+      setTimeout(() => {
+        if (pendingEventsRef.current.length > 0) {
+          processEvents(pendingEventsRef.current)
+          pendingEventsRef.current = []
+        }
+      }, 0)
     },
-    [gameState, cardMap, requiresTarget]
+    [gameState, cardMap, requiresTarget, processEvents]
   )
 
   // 必殺技/おとも発動（ドラッグ終了時 or 直接呼び出し）
@@ -361,12 +437,22 @@ export default function GameBoard(props: GameBoardProps) {
       }
       setGameState((prevState) => {
         if (!prevState) return prevState
-        return updateGameState(prevState, input, 0, cardMap).state
+        const result = updateGameState(prevState, input, 0, cardMap)
+        if (result.events.length > 0) {
+          pendingEventsRef.current.push(...result.events)
+        }
+        return result.state
       })
+      setTimeout(() => {
+        if (pendingEventsRef.current.length > 0) {
+          processEvents(pendingEventsRef.current)
+          pendingEventsRef.current = []
+        }
+      }, 0)
       setAbilityTargetMode(null)
       setAbilityDragging(null)
     },
-    [cardMap]
+    [cardMap, processEvents]
   )
 
   // 必殺技発動（クリック/タップ用フォールバック）
@@ -501,10 +587,20 @@ export default function GameBoard(props: GameBoardProps) {
 
       setGameState((prevState) => {
         if (!prevState) return prevState
-        return updateGameState(prevState, input, 0, cardMap).state
+        const result = updateGameState(prevState, input, 0, cardMap)
+        if (result.events.length > 0) {
+          pendingEventsRef.current.push(...result.events)
+        }
+        return result.state
       })
+      setTimeout(() => {
+        if (pendingEventsRef.current.length > 0) {
+          processEvents(pendingEventsRef.current)
+          pendingEventsRef.current = []
+        }
+      }, 0)
     },
-    [gameState, cardMap]
+    [gameState, cardMap, processEvents]
   )
 
   // マリガン処理
@@ -995,6 +1091,7 @@ export default function GameBoard(props: GameBoardProps) {
                         cardDef={leftCardDef}
                         unit={leftUnit}
                         isField
+                        cardMap={cardMap}
                         onClick={() => {
                           if (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') {
                             handleAbilityTargetSelect(leftUnit.id)
@@ -1033,6 +1130,7 @@ export default function GameBoard(props: GameBoardProps) {
                       cardDef={rightCardDef}
                       unit={rightUnit}
                       isField
+                      cardMap={cardMap}
                       onClick={() => {
                         if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
                           handleAbilityTargetSelect(rightUnit.id)
@@ -1090,6 +1188,7 @@ export default function GameBoard(props: GameBoardProps) {
                     <GameCard
                       cardDef={exCardDef}
                       size="sm"
+                      cardMap={cardMap}
                       onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
                       onDragStart={(x, y) => onDragStart(exCard, exCardDef, slotIdx, x, y, true)}
                       canPlay={canPlay}
@@ -1119,6 +1218,7 @@ export default function GameBoard(props: GameBoardProps) {
                 key={`${cardId}_${i}`}
                 cardDef={cardDef}
                 size="lg"
+                cardMap={cardMap}
                 onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
                 onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
                 canPlay={canPlay}
@@ -1153,6 +1253,7 @@ export default function GameBoard(props: GameBoardProps) {
                       key={`${cardId}_${idx}`}
                       cardDef={cardDef}
                       size="md"
+                      cardMap={cardMap}
                       onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
                     />
                   )
@@ -1211,6 +1312,69 @@ export default function GameBoard(props: GameBoardProps) {
       {abilityDragging && (
         <DraggingAbility name={abilityDragging.name} type={abilityDragging.type} position={dragPos} />
       )}
+
+      {/* ダメージ数字エフェクト */}
+      {damageEffects.map((effect) => {
+        const ref = unitRefs.current.get(effect.unitId)
+        if (!ref) return null
+        const rect = ref.getBoundingClientRect()
+        const elapsed = Date.now() - effect.timestamp
+        const progress = Math.min(1, elapsed / 800)
+        return (
+          <div
+            key={effect.id}
+            className="fixed z-[300] pointer-events-none font-orbitron font-black"
+            style={{
+              left: rect.left + rect.width / 2,
+              top: rect.top + rect.height * 0.3 - progress * 40,
+              transform: 'translateX(-50%)',
+              opacity: 1 - progress,
+              fontSize: '28px',
+              color: '#ff4444',
+              textShadow: '0 0 8px rgba(255,0,0,0.8), 0 2px 4px rgba(0,0,0,1)',
+            }}
+          >
+            -{effect.damage}
+          </div>
+        )
+      })}
+
+      {/* 破壊エフェクト */}
+      {destroyEffects.map((effect) => {
+        const ref = unitRefs.current.get(effect.unitId)
+        if (!ref) return null
+        const rect = ref.getBoundingClientRect()
+        const elapsed = Date.now() - effect.timestamp
+        const progress = Math.min(1, elapsed / 600)
+        return (
+          <div
+            key={effect.id}
+            className="fixed z-[300] pointer-events-none"
+            style={{
+              left: rect.left + rect.width / 2,
+              top: rect.top + rect.height / 2,
+              transform: `translate(-50%, -50%) scale(${0.5 + progress * 1.5})`,
+              opacity: 1 - progress,
+            }}
+          >
+            <div
+              className="w-24 h-24 rounded-full"
+              style={{
+                background: `radial-gradient(circle, rgba(255,100,0,${0.8 - progress * 0.8}) 0%, rgba(255,0,0,${0.4 - progress * 0.4}) 50%, transparent 70%)`,
+                boxShadow: `0 0 ${30 + progress * 20}px rgba(255,50,0,${0.6 - progress * 0.6})`,
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center font-orbitron font-black text-yellow-300 text-sm"
+              style={{
+                textShadow: '0 0 10px rgba(255,200,0,0.8), 0 0 20px rgba(255,100,0,0.5)',
+                opacity: 1 - progress * 1.5,
+              }}
+            >
+              DESTROY
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
