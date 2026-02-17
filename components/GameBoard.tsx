@@ -1071,6 +1071,7 @@ export default function GameBoard(props: GameBoardProps) {
                 >
                   {leftUnit && leftCardDef ? (
                     <div
+                      key={`unit_left_${leftUnit.id}`}
                       ref={(el) => {
                         if (el) unitRefs.current.set(leftUnit.id, el)
                         else unitRefs.current.delete(leftUnit.id)
@@ -1102,7 +1103,7 @@ export default function GameBoard(props: GameBoardProps) {
                       />
                     </div>
                   ) : (
-                    <div className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
+                    <div key={`empty_left_${lane}`} className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
                 </div>
 
@@ -1114,6 +1115,7 @@ export default function GameBoard(props: GameBoardProps) {
                 }`}>
                   {rightUnit && rightCardDef ? (
                     <div
+                      key={`unit_right_${rightUnit.id}`}
                       ref={(el) => {
                         if (el) unitRefs.current.set(rightUnit.id, el)
                         else unitRefs.current.delete(rightUnit.id)
@@ -1141,7 +1143,7 @@ export default function GameBoard(props: GameBoardProps) {
                     />
                     </div>
                   ) : (
-                    <div className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                    <div key={`empty_right_${lane}`} className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}
                 </div>
               </div>
