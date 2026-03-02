@@ -1,0 +1,40 @@
+/* デフォルト: 非表示 */
+.overlay {
+  display: none;
+}
+
+/* スマホ縦画面時のみ表示（タブレットは除外: max-width 500px で絞る） */
+@media (orientation: portrait) and (max-width: 500px) {
+  .overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+}
+
+.icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  animation: rotate 2s ease-in-out infinite;
+}
+
+.message {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+@keyframes rotate {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(90deg);
+  }
+}

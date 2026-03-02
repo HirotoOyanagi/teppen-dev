@@ -106,10 +106,11 @@
 /* スマホ横画面対応 */
 @media (orientation: landscape) and (max-height: 500px) {
   .container {
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
     padding-bottom: 0;
     padding-right: 56px;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .header {

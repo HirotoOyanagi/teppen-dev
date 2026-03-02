@@ -148,8 +148,11 @@
 /* スマホ横画面対応 */
 @media (orientation: landscape) and (max-height: 500px) {
   .container {
+    height: 100vh;
+    height: 100dvh;
     padding-bottom: 0;
     padding-right: 56px;
+    overflow: hidden;
   }
 
   .header {
@@ -167,6 +170,10 @@
     padding: 6px 10px;
     font-size: 13px;
     margin-bottom: 0;
+  }
+
+  .cardGrid {
+    touch-action: pan-y;
   }
 
   .filters {

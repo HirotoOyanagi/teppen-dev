@@ -54,6 +54,17 @@ body {
     font-size: 13px;
   }
 
+  /* 画面全体を固定（スクロール禁止） */
+  html,
+  body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+
   /* 安全領域対応（ノッチ付きスマホ） */
   body {
     padding-left: env(safe-area-inset-left);

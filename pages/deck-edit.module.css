@@ -281,8 +281,11 @@
 /* スマホ横画面対応 */
 @media (orientation: landscape) and (max-height: 500px) {
   .container {
+    height: 100vh;
+    height: 100dvh;
     padding-bottom: 0;
     padding-right: 56px;
+    overflow: hidden;
   }
 
   .header {
@@ -344,6 +347,7 @@
     max-height: 100px;
     gap: 4px;
     padding: 4px;
+    touch-action: pan-y;
   }
 
   .deckCardItem {
@@ -394,6 +398,7 @@
     gap: 4px;
     max-height: calc(100vh - 300px);
     padding: 4px;
+    touch-action: pan-y;
   }
 
   .cardItem {

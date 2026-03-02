@@ -189,8 +189,11 @@
 /* スマホ横画面対応 */
 @media (orientation: landscape) and (max-height: 500px) {
   .container {
+    height: 100vh;
+    height: 100dvh;
     padding-bottom: 0;
     padding-right: 56px;
+    overflow: hidden;
   }
 
   .header {
@@ -210,6 +213,10 @@
     padding: 8px 12px;
     gap: 12px;
     min-height: calc(100vh - 60px);
+  }
+
+  .deckList {
+    touch-action: pan-y;
   }
 
   .deckItem {

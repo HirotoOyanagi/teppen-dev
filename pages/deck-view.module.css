@@ -115,8 +115,11 @@
 /* スマホ横画面対応 */
 @media (orientation: landscape) and (max-height: 500px) {
   .container {
+    height: 100vh;
+    height: 100dvh;
     padding-bottom: 0;
     padding-right: 56px;
+    overflow: hidden;
   }
 
   .header {
@@ -146,6 +149,7 @@
     padding: 8px 12px;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 6px;
+    touch-action: pan-y;
   }
 
   .cardItem {
