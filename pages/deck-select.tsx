@@ -53,15 +53,19 @@ export default function DeckSelectPage() {
                 onAction={() => router.push('/deck-edit')}
               />
             ) : (
-              decks.map((deck) => (
-                <DeckListItem
-                  key={deck.id}
-                  deck={deck}
-                  isSelected={selectedDeck?.id === deck.id}
-                  onClick={() => setSelectedDeck(deck)}
-                  warning={deck.cardIds.length !== 30 ? '※30枚のデッキが必要です' : undefined}
-                />
-              ))
+              decks.map((deck) => {
+                const hero = HEROES.find((h) => h.id === deck.heroId) || HEROES[0]
+                return (
+                  <DeckListItem
+                    key={deck.id}
+                    deck={deck}
+                    hero={hero}
+                    isSelected={selectedDeck?.id === deck.id}
+                    onClick={() => setSelectedDeck(deck)}
+                    warning={deck.cardIds.length !== 30 ? '※30枚のデッキが必要です' : undefined}
+                  />
+                )
+              })
             )}
           </div>
 

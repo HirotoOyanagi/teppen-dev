@@ -8,6 +8,8 @@ import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { resolveCardDefinition } from '@/core/cardId'
+import { calculateRatingChange, getRankTier, INITIAL_RATING } from '@/core/ranking'
+import { getPlayerRanking, updateRankingAfterMatch, addMatchRecord } from '@/utils/rankingStorage'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
@@ -45,6 +47,13 @@ export default function GameBoard(props: GameBoardProps) {
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy' | 'none'
     name: string
+  } | null>(null)
+  // ランキング結果
+  const [rankResult, setRankResult] = useState<{
+    isWin: boolean
+    ratingBefore: number
+    ratingDelta: number
+    ratingAfter: number
   } | null>(null)
   // ダメージ数字エフェクト
   const [damageEffects, setDamageEffects] = useState<
@@ -735,14 +744,45 @@ export default function GameBoard(props: GameBoardProps) {
   const player = gameState.players[0]
   const opponent = gameState.players[1]
 
-  // マリガンフェーズのUI
   // ゲーム終了チェック
   const gameOver = gameState.phase === 'ended'
+  const isPlayerWin = gameOver
+    ? (gameState.players.find((p) => p.hp > 0)?.playerId === 'player1')
+    : false
   const winner = gameOver
-    ? gameState.players.find((p) => p.hp > 0)?.playerId === 'player1'
-      ? 'あなたの勝利！'
-      : '相手の勝利！'
+    ? (isPlayerWin ? 'あなたの勝利！' : '相手の勝利！')
     : null
+
+  // ランキング更新（1回だけ）
+  useEffect(() => {
+    if (!gameOver || rankResult) return
+    const playerRanking = getPlayerRanking()
+    // 相手のレーティングはCPUなので初期値を使用
+    const opponentRating = INITIAL_RATING
+    const result = calculateRatingChange(
+      isPlayerWin ? playerRanking.rating : opponentRating,
+      isPlayerWin ? opponentRating : playerRanking.rating,
+    )
+    const delta = isPlayerWin ? result.winnerDelta : result.loserDelta
+    const newRating = playerRanking.rating + delta
+
+    updateRankingAfterMatch(isPlayerWin ? 'win' : 'lose', delta)
+    addMatchRecord({
+      timestamp: Date.now(),
+      opponentHeroId: opponent.hero.id,
+      playerHeroId: player.hero.id,
+      result: isPlayerWin ? 'win' : 'lose',
+      ratingBefore: playerRanking.rating,
+      ratingAfter: newRating,
+      ratingDelta: delta,
+    })
+    setRankResult({
+      isWin: isPlayerWin,
+      ratingBefore: playerRanking.rating,
+      ratingDelta: delta,
+      ratingAfter: newRating,
+    })
+  }, [gameOver])
 
   // レーンごとのユニットを取得
   const getUnitInLane = (playerUnits: typeof player.units, lane: number) => {
@@ -1198,12 +1238,46 @@ export default function GameBoard(props: GameBoardProps) {
           <h2 className="text-8xl ls:text-4xl font-black italic tracking-tighter text-white animate-pulse">
             {winner}
           </h2>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-12 ls:mt-4 px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
-          >
-            リマッチ
-          </button>
+
+          {/* ランキング結果 */}
+          {rankResult && (
+            <div className="mt-8 ls:mt-3 flex flex-col items-center gap-2">
+              <div className="text-sm ls:text-xs text-white/50 tracking-widest">RATING</div>
+              <div className="flex items-center gap-4 ls:gap-2">
+                <span className="text-2xl ls:text-lg text-white/60">{rankResult.ratingBefore}</span>
+                <span className={`text-3xl ls:text-xl font-black ${rankResult.ratingDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  →
+                </span>
+                <span className="text-4xl ls:text-2xl font-black text-white">{rankResult.ratingAfter}</span>
+                <span className={`text-2xl ls:text-lg font-bold ${rankResult.ratingDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  ({rankResult.ratingDelta > 0 ? '+' : ''}{rankResult.ratingDelta})
+                </span>
+              </div>
+              {(() => {
+                const rank = getRankTier(rankResult.ratingAfter)
+                return (
+                  <div className="text-lg ls:text-sm font-bold tracking-wider" style={{ color: rank.color }}>
+                    {rank.label}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          <div className="flex gap-4 ls:gap-2 mt-8 ls:mt-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+            >
+              リマッチ
+            </button>
+            <button
+              onClick={() => window.location.href = '/home'}
+              className="px-8 ls:px-4 py-4 ls:py-2 bg-white/10 text-white font-bold text-lg ls:text-sm hover:bg-white/20 transition-colors skew-x-[-12deg]"
+            >
+              ホームへ
+            </button>
+          </div>
         </div>
       )}
 

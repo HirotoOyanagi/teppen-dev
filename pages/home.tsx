@@ -4,6 +4,8 @@ import PageLayout from '@/components/layout/PageLayout'
 import HeroCard from '@/components/ui/HeroCard'
 import type { Hero } from '@/core/types'
 import { HEROES } from '@/core/heroes'
+import { getRankTier } from '@/core/ranking'
+import { getPlayerRanking, type PlayerRanking } from '@/utils/rankingStorage'
 import { useBgm } from '@/utils/useBgm'
 import styles from './home.module.css'
 
@@ -11,23 +13,20 @@ export default function HomePage() {
   const router = useRouter()
   const [userName, setUserName] = useState('プレイヤー')
   const [currentHero, setCurrentHero] = useState<Hero>(HEROES[0])
+  const [ranking, setRanking] = useState<PlayerRanking | null>(null)
   useBgm('/sounds/home.mp3')
 
   useEffect(() => {
-    // 保存されたユーザー名を読み込み
     const savedName = localStorage.getItem('teppen_userName')
-    if (savedName) {
-      setUserName(savedName)
-    }
+    if (savedName) setUserName(savedName)
 
-    // 保存されたヒーローを読み込み
     const savedHeroId = localStorage.getItem('teppen_currentHeroId')
     if (savedHeroId) {
       const hero = HEROES.find((h) => h.id === savedHeroId)
-      if (hero) {
-        setCurrentHero(hero)
-      }
+      if (hero) setCurrentHero(hero)
     }
+
+    setRanking(getPlayerRanking())
   }, [])
 
   const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,9 +35,7 @@ export default function HomePage() {
     localStorage.setItem('teppen_userName', name)
   }
 
-  const handleRankMatch = () => {
-    router.push('/deck-select')
-  }
+  const rankInfo = ranking ? getRankTier(ranking.rating) : null
 
   return (
     <PageLayout title="ホーム">
@@ -63,7 +60,24 @@ export default function HomePage() {
             </HeroCard>
           </div>
 
-          <button className={styles.rankMatchButton} onClick={handleRankMatch}>
+          {/* ランキング表示 */}
+          {ranking && rankInfo && (
+            <div className={styles.rankPanel}>
+              <div className={styles.rankTier} style={{ color: rankInfo.color }}>
+                {rankInfo.label}
+              </div>
+              <div className={styles.rankRating}>{ranking.rating}</div>
+              <div className={styles.rankStats}>
+                <span className={styles.wins}>{ranking.wins}W</span>
+                <span className={styles.losses}>{ranking.losses}L</span>
+                {ranking.streak > 0 && (
+                  <span className={styles.streak}>{ranking.streak}連勝中</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button className={styles.rankMatchButton} onClick={() => router.push('/deck-select')}>
             ランクマッチ
           </button>
         </div>
@@ -72,4 +86,3 @@ export default function HomePage() {
     </PageLayout>
   )
 }
-
