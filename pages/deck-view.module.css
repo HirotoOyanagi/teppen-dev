@@ -112,7 +112,35 @@
   color: #3498db;
 }
 
+/* モバイル対応 */
+@media (max-width: 640px) {
+  .header {
+    padding: 16px;
+  }
 
+  .header h1 {
+    font-size: 22px;
+  }
 
+  .cardGrid {
+    padding: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+  }
 
+  .cardItem {
+    min-height: 120px;
+    padding: 8px;
+  }
 
+  .cardCost {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .cardName {
+    margin-top: 28px;
+    font-size: 12px;
+  }
+}

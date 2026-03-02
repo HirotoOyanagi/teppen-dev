@@ -102,7 +102,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  min-height: 100px;
+  min-height: 60px;
   max-height: 200px;
   overflow-y: auto;
   padding: 8px;
@@ -116,8 +116,8 @@
   padding: 8px;
   cursor: pointer;
   position: relative;
-  min-width: 80px;
-  min-height: 100px;
+  min-width: 60px;
+  min-height: 80px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -207,7 +207,7 @@
   padding: 8px;
   cursor: pointer;
   position: relative;
-  min-height: 120px;
+  min-height: 100px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -278,7 +278,58 @@
   cursor: not-allowed;
 }
 
+/* モバイル対応 */
+@media (max-width: 640px) {
+  .header {
+    padding: 12px 16px;
+  }
 
+  .heroSection {
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 12px;
+  }
 
+  .heroCard {
+    min-width: unset;
+  }
 
+  .deckArea {
+    margin: 12px 12px 0;
+    padding: 12px;
+  }
 
+  .deckCards {
+    max-height: 150px;
+  }
+
+  .filters {
+    flex-direction: column;
+    margin: 12px 12px 0;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .filterSelect {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .cardPool {
+    padding: 12px;
+  }
+
+  .cardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    max-height: none;
+    flex: 1;
+  }
+
+  .cardItem {
+    min-height: 80px;
+  }
+
+  .saveButton {
+    margin: 12px;
+  }
+}
