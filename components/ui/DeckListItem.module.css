@@ -1,0 +1,34 @@
+.deckItem {
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.deckItem:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.deckItem.selected {
+  background: #4a9eff;
+  color: white;
+}
+
+.deckInfo h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+}
+
+.deckInfo p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.warning {
+  color: #e74c3c;
+  font-size: 12px;
+  font-weight: bold;
+}

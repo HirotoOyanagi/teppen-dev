@@ -1,29 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
-import BottomNavigation from '@/components/BottomNavigation'
+import PageLayout from '@/components/layout/PageLayout'
 import CardModal from '@/components/CardModal'
+import AttributeFilter from '@/components/ui/AttributeFilter'
 import { getDeck, saveDeck, updateDeck } from '@/utils/deckStorage'
 import { validateDeck, calculateMaxMp } from '@/core/cards'
 import { useCards } from '@/utils/useCards'
 import type { CardDefinition, CardAttribute } from '@/core/types'
 import { HEROES } from '@/core/heroes'
+import { ATTRIBUTE_COLORS } from '@/utils/constants'
 import styles from './deck-edit.module.css'
-
-const ATTR_COLORS: Record<string, string> = {
-  red: '#e74c3c',
-  green: '#27ae60',
-  purple: '#9b59b6',
-  black: '#2c3e50',
-}
-
-const ATTR_LABELS: { key: CardAttribute | 'all'; color: string; label: string }[] = [
-  { key: 'all', color: '#888', label: '全' },
-  { key: 'red', color: '#e74c3c', label: '赤' },
-  { key: 'green', color: '#27ae60', label: '緑' },
-  { key: 'purple', color: '#9b59b6', label: '紫' },
-  { key: 'black', color: '#2c3e50', label: '黒' },
-]
 
 export default function DeckEditPage() {
   const router = useRouter()
@@ -167,11 +153,7 @@ export default function DeckEditPage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - デッキ編成</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title="デッキ編成">
       <div className={styles.container}>
         {/* メインエリア */}
         <div className={styles.main}>
@@ -219,7 +201,7 @@ export default function DeckEditPage() {
                     {/* 属性カラーバー（左端） */}
                     <div
                       className={styles.cardAttrBar}
-                      style={{ background: ATTR_COLORS[card.attribute] }}
+                      style={{ background: ATTRIBUTE_COLORS[card.attribute] }}
                     />
                     {/* 所持数バッジ */}
                     {count > 0 && (
@@ -272,7 +254,7 @@ export default function DeckEditPage() {
                 >
                   <div
                     className={styles.deckCardAttr}
-                    style={{ background: ATTR_COLORS[card.attribute] }}
+                    style={{ background: ATTRIBUTE_COLORS[card.attribute] }}
                   />
                   <div className={styles.deckCardCost}>{card.cost}</div>
                   <div className={styles.deckCardName}>{card.name}</div>
@@ -327,32 +309,18 @@ export default function DeckEditPage() {
         </div>
 
         {/* 下: フィルターバー */}
-        <div className={styles.filterBar}>
-          {ATTR_LABELS.map(({ key, color, label }) => (
-            <div
-              key={key}
-              className={`${styles.attrChip} ${selectedAttribute === key ? styles.active : ''}`}
-              style={{ background: color }}
-              onClick={() => setSelectedAttribute(key)}
-            >
-              {label}
-            </div>
-          ))}
-          <input
-            type="text"
-            placeholder="カード名で検索..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
+        <AttributeFilter
+          selected={selectedAttribute}
+          onChange={setSelectedAttribute}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
         {selectedCard && (
           <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
         )}
 
-        <BottomNavigation />
       </div>
-    </>
+    </PageLayout>
   )
 }

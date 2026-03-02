@@ -1,0 +1,38 @@
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.attrChip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  color: white;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.attrChip.active {
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.searchInput {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  padding: 4px 8px;
+  font-size: 13px;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}

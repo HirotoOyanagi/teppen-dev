@@ -1,10 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
-import BottomNavigation from '@/components/BottomNavigation'
+import PageLayout from '@/components/layout/PageLayout'
+import PageHeader from '@/components/ui/PageHeader'
 import CardModal from '@/components/CardModal'
+import CardListItem from '@/components/ui/CardListItem'
 import { useCards } from '@/utils/useCards'
+import { useBgm } from '@/utils/useBgm'
 import type { CardDefinition, CardAttribute, CardTribe } from '@/core/types'
+import { ATTRIBUTE_LABELS, TRIBE_LABELS } from '@/utils/constants'
 import styles from './card-list.module.css'
 
 export default function CardListPage() {
@@ -14,25 +17,21 @@ export default function CardListPage() {
   const [selectedTribe, setSelectedTribe] = useState<CardTribe | 'all'>('all')
   const [selectedCost, setSelectedCost] = useState<number | 'all'>('all')
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
-  const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
+  useBgm('/sounds/home.mp3')
 
   const { cards: allCards, isLoading } = useCards()
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
-      // 検索
       if (searchTerm && !card.name.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false
       }
-      // 属性フィルター
       if (selectedAttribute !== 'all' && card.attribute !== selectedAttribute) {
         return false
       }
-      // 種族フィルター
       if (selectedTribe !== 'all' && card.tribe !== selectedTribe) {
         return false
       }
-      // コストフィルター
       if (selectedCost !== 'all' && card.cost !== selectedCost) {
         return false
       }
@@ -40,30 +39,8 @@ export default function CardListPage() {
     })
   }, [allCards, searchTerm, selectedAttribute, selectedTribe, selectedCost])
 
-  useEffect(() => {
-    // home.mp3の再生（存在しない場合はスキップ）
-    const audio = new Audio('/sounds/home.mp3')
-    audio.loop = true
-    audio.volume = 0.3
-    setBgm(audio)
-    // 実際の実装では、音声ファイルが存在する場合のみ再生
-    // audio.play().catch(() => {})
-
-    return () => {
-      audio.pause()
-    }
-  }, [])
-
   const attributes: CardAttribute[] = ['red', 'green', 'purple', 'black']
-  const tribes: CardTribe[] = [
-    'street_fighter',
-    'monster_hunter',
-    'rockman',
-    'okami',
-    'devil_may_cry',
-    'resident_evil',
-    'other',
-  ]
+  const tribes = Object.keys(TRIBE_LABELS) as CardTribe[]
   const costs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
   if (isLoading) {
@@ -75,18 +52,9 @@ export default function CardListPage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - カード一覧</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title="カード一覧">
       <div className={styles.container}>
-        <div className={styles.header}>
-          <button className={styles.backButton} onClick={() => router.back()}>
-            ← 戻る
-          </button>
-          <h1>カード一覧</h1>
-        </div>
+        <PageHeader title="カード一覧" />
 
         <div className={styles.filters}>
           <input
@@ -107,7 +75,7 @@ export default function CardListPage() {
               <option value="all">すべて</option>
               {attributes.map((attr) => (
                 <option key={attr} value={attr}>
-                  {attr === 'red' ? '赤' : attr === 'green' ? '緑' : attr === 'purple' ? '紫' : '黒'}
+                  {ATTRIBUTE_LABELS[attr]}
                 </option>
               ))}
             </select>
@@ -123,12 +91,7 @@ export default function CardListPage() {
               <option value="all">すべて</option>
               {tribes.map((tribe) => (
                 <option key={tribe} value={tribe}>
-                  {tribe === 'street_fighter' ? 'ストリートファイター' :
-                   tribe === 'monster_hunter' ? 'モンスターハンター' :
-                   tribe === 'rockman' ? 'ロックマン' :
-                   tribe === 'okami' ? '大神' :
-                   tribe === 'devil_may_cry' ? 'デビルメイクライ' :
-                   tribe === 'resident_evil' ? 'バイオハザード' : 'その他'}
+                  {TRIBE_LABELS[tribe]}
                 </option>
               ))}
             </select>
@@ -153,20 +116,11 @@ export default function CardListPage() {
 
         <div className={styles.cardGrid}>
           {filteredCards.map((card) => (
-            <div
+            <CardListItem
               key={card.id}
-              className={styles.cardItem}
+              card={card}
               onClick={() => setSelectedCard(card)}
-            >
-              <div className={styles.cardCost}>{card.cost}</div>
-              <div className={styles.cardName}>{card.name}</div>
-              {card.unitStats && (
-                <div className={styles.cardStats}>
-                  <span className={styles.attack}>{card.unitStats.attack}</span>
-                  <span className={styles.hp}>{card.unitStats.hp}</span>
-                </div>
-              )}
-            </div>
+            />
           ))}
         </div>
 
@@ -174,9 +128,8 @@ export default function CardListPage() {
           <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
         )}
 
-        <BottomNavigation />
       </div>
-    </>
+    </PageLayout>
   )
 }
 

@@ -1,17 +1,12 @@
 import { useRouter } from 'next/router'
-import Head from 'next/head'
-import BottomNavigation from '@/components/BottomNavigation'
+import PageLayout from '@/components/layout/PageLayout'
 import styles from './cards.module.css'
 
 export default function CardsPage() {
   const router = useRouter()
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - カード</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title="カード">
       <div className={styles.container}>
         <div className={styles.header}>
           <h1>カード</h1>
@@ -43,9 +38,8 @@ export default function CardsPage() {
           </button>
         </div>
 
-        <BottomNavigation />
       </div>
-    </>
+    </PageLayout>
   )
 }
 

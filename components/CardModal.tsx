@@ -1,27 +1,11 @@
 import { useEffect } from 'react'
 import type { CardDefinition } from '@/core/types'
+import { ATTRIBUTE_COLORS, TRIBE_ICONS } from '@/utils/constants'
 import styles from './CardModal.module.css'
 
 interface CardModalProps {
   card: CardDefinition | null
   onClose: () => void
-}
-
-const attributeColors: Record<string, string> = {
-  red: '#e74c3c',
-  green: '#27ae60',
-  purple: '#9b59b6',
-  black: '#2c3e50',
-}
-
-const tribeIcons: Record<string, string> = {
-  street_fighter: '👊',
-  monster_hunter: '⚔️',
-  rockman: '🤖',
-  okami: '🐺',
-  devil_may_cry: '👿',
-  resident_evil: '🧟',
-  other: '⭐',
 }
 
 export default function CardModal({ card, onClose }: CardModalProps) {
@@ -37,8 +21,8 @@ export default function CardModal({ card, onClose }: CardModalProps) {
 
   if (!card) return null
 
-  const attributeColor = attributeColors[card.attribute] || '#666'
-  const tribeIcon = tribeIcons[card.tribe] || '⭐'
+  const attributeColor = ATTRIBUTE_COLORS[card.attribute] || '#666'
+  const tribeIcon = TRIBE_ICONS[card.tribe] || '⭐'
 
   return (
     <>
