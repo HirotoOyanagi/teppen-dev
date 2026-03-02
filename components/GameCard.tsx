@@ -245,6 +245,11 @@ const GameCard: React.FC<GameCardProps> = ({
     lg: 'w-32 h-44',
   }
 
+  // フィールド上のカードはモバイルでレスポンシブサイズ
+  const effectiveSizeClass = isField
+    ? 'w-[72px] h-[100px] sm:w-28 sm:h-40'
+    : sizeClasses[size]
+
   return (
     <div
       onMouseDown={(e) => handlePressStart(e.clientX, e.clientY)}
@@ -260,7 +265,7 @@ const GameCard: React.FC<GameCardProps> = ({
       }}
       onTouchEnd={handlePressEnd}
       onContextMenu={(e) => e.preventDefault()}
-      className={`relative ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''} ${
+      className={`relative ${effectiveSizeClass} ${isDragging ? 'opacity-30 scale-95' : ''} ${
         (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
       }`}
     >
