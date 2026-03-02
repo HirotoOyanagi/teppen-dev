@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import PageLayout from '@/components/layout/PageLayout'
 import PageHeader from '@/components/ui/PageHeader'
 import CardModal from '@/components/CardModal'
-import CardListItem from '@/components/ui/CardListItem'
+import GameCard from '@/components/GameCard'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { useBgm } from '@/utils/useBgm'
@@ -27,6 +27,14 @@ export default function DeckViewPage() {
     }
   }, [id])
 
+  const cards = useMemo(() => {
+    if (!deck) return []
+    return deck.cardIds
+      .map((cardId) => cardMap.get(cardId))
+      .filter((card): card is CardDefinition => card !== undefined)
+      .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name))
+  }, [deck, cardMap])
+
   if (!deck) {
     return (
       <div className={styles.container}>
@@ -35,10 +43,6 @@ export default function DeckViewPage() {
     )
   }
 
-  const cards = deck.cardIds
-    .map((cardId) => cardMap.get(cardId))
-    .filter((card): card is CardDefinition => card !== undefined)
-
   return (
     <PageLayout title="デッキ確認">
       <div className={styles.container}>
@@ -46,10 +50,12 @@ export default function DeckViewPage() {
 
         <div className={styles.cardGrid}>
           {cards.map((card, index) => (
-            <CardListItem
+            <GameCard
               key={`${card.id}-${index}`}
-              card={card}
+              cardDef={card}
+              size="sm"
               onClick={() => setSelectedCard(card)}
+              cardMap={cardMap}
             />
           ))}
         </div>
