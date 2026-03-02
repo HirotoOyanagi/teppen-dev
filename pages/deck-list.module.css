@@ -174,48 +174,7 @@
   color: #666;
 }
 
-/* モバイル対応 */
-@media (max-width: 640px) {
-  .header {
-    padding: 16px;
-  }
 
-  .header h1 {
-    font-size: 20px;
-  }
 
-  .content {
-    flex-direction: column;
-    height: auto;
-    min-height: calc(100vh - 200px);
-    padding: 16px;
-    gap: 16px;
-  }
 
-  .deckList {
-    max-height: 40vh;
-  }
 
-  .deckDetail {
-    min-width: unset;
-    gap: 12px;
-  }
-
-  .heroCard {
-    padding: 16px;
-  }
-
-  .heroCard h2 {
-    font-size: 20px;
-  }
-
-  .buttons {
-    gap: 8px;
-  }
-
-  .actionButton,
-  .deleteButton {
-    padding: 12px;
-    font-size: 14px;
-  }
-}

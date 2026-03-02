@@ -705,7 +705,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
 
         {/* Battle Slots */}
-        <div className="flex-1 flex flex-col justify-center gap-1 sm:gap-4 px-1 sm:px-4">
+        <div className="flex-1 flex flex-col justify-center gap-4 px-4">
           {[0, 1, 2].map((lane) => {
             const leftUnit = getUnitInLane(player.units, lane)
             const rightUnit = getUnitInLane(opponent.units, lane)
@@ -717,13 +717,39 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             if (rightUnit) rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
 
             return (
-              <div key={lane} className="relative h-[100px] sm:h-44 w-full flex items-center px-0 sm:px-16">
+              <div key={lane} className="relative h-44 w-full flex items-center justify-between px-16">
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
+
+                {/* Attack Progress Bar - Left */}
+                {leftUnit && (
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    style={{ left: 'calc(4rem + 7rem)', width: 'calc(100% - 8rem - 14rem)' }}
+                  >
+                    <div className="h-1 bg-gradient-to-r from-cyan-400 to-cyan-300 shadow-[0_0_12px_cyan] rounded-full" style={{ width: `${leftProgress}%` }} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center" style={{ left: `calc(${leftProgress}% - 8px)` }}>
+                      <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[10px] border-l-cyan-400 drop-shadow-[0_0_6px_cyan]" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Attack Progress Bar - Right */}
+                {rightUnit && (
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    style={{ right: 'calc(4rem + 7rem)', width: 'calc(100% - 8rem - 14rem)' }}
+                  >
+                    <div className="h-1 bg-gradient-to-l from-red-500 to-red-400 shadow-[0_0_12px_red] rounded-full ml-auto" style={{ width: `${rightProgress}%` }} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center" style={{ right: `calc(${rightProgress}% - 8px)` }}>
+                      <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[10px] border-r-red-500 drop-shadow-[0_0_6px_red]" />
+                    </div>
+                  </div>
+                )}
 
                 {/* Left Slot (自分) */}
                 <div
                   ref={(el) => { laneRefs.current[lane] = el }}
-                  className={`relative z-20 flex-shrink-0 w-[72px] h-[100px] sm:w-28 sm:h-40 flex items-center justify-center transition-all rounded ${
+                  className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all rounded ${
                     dragging && !leftUnit && hoveredLane === lane
                       ? 'bg-cyan-400/30 border-2 border-cyan-400 shadow-[0_0_20px_cyan]'
                       : dragging && !leftUnit
@@ -759,46 +785,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       }} />
                     </div>
                   ) : (
-                    <div key={`empty_left_${lane}`} className="w-12 h-6 sm:w-20 sm:h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
-                  )}
-                </div>
-
-                {/* Attack Progress Area (カード間のフレックス子要素) */}
-                <div className="relative flex-1 z-10 h-2 self-center pointer-events-none mx-1">
-                  {/* 進捗バー - 左から右へ (自分のユニット) */}
-                  {leftUnit && (
-                    <>
-                      <div
-                        className="absolute top-0 left-0 h-1 bg-gradient-to-r from-cyan-400 to-cyan-300 shadow-[0_0_12px_cyan] rounded-full"
-                        style={{ width: `${leftProgress}%` }}
-                      />
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center"
-                        style={{ left: `calc(${leftProgress}% - 8px)` }}
-                      >
-                        <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[10px] border-l-cyan-400 drop-shadow-[0_0_6px_cyan]" />
-                      </div>
-                    </>
-                  )}
-                  {/* 進捗バー - 右から左へ (相手のユニット) */}
-                  {rightUnit && (
-                    <>
-                      <div
-                        className="absolute top-0 right-0 h-1 bg-gradient-to-l from-red-500 to-red-400 shadow-[0_0_12px_red] rounded-full"
-                        style={{ width: `${rightProgress}%` }}
-                      />
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center"
-                        style={{ right: `calc(${rightProgress}% - 8px)` }}
-                      >
-                        <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[10px] border-r-red-500 drop-shadow-[0_0_6px_red]" />
-                      </div>
-                    </>
+                    <div key={`empty_left_${lane}`} className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className={`relative z-20 flex-shrink-0 w-[72px] h-[100px] sm:w-28 sm:h-40 flex items-center justify-center ${
+                <div className={`relative z-20 w-28 h-40 flex items-center justify-center ${
                   abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
                     : ''
@@ -827,7 +819,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                     }} />
                     </div>
                   ) : (
-                    <div key={`empty_right_${lane}`} className="w-12 h-6 sm:w-20 sm:h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                    <div key={`empty_right_${lane}`} className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}
                 </div>
               </div>
@@ -841,8 +833,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       </div>
 
       {/* Footer Area */}
-      <div className="relative z-20 h-48 sm:h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-2 sm:pb-6">
-        <div className="flex gap-1 sm:gap-4 items-end mb-2 sm:mb-6 overflow-x-auto max-w-full px-2">
+      <div className="relative z-20 h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
+        <div className="flex gap-4 items-end mb-6">
           {player.hand.map((cardId, i) => {
             // 相手の手札は空文字（表示しない）
             if (!cardId) return null
