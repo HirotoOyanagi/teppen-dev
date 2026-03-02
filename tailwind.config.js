@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const plugin = require('tailwindcss/plugin')
+
 module.exports = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -12,7 +14,12 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(function ({ addVariant }) {
+      // スマホ横画面用バリアント: ls: プレフィックスで使用
+      addVariant('ls', '@media (orientation: landscape) and (max-height: 500px)')
+    }),
+  ],
 }
 
 

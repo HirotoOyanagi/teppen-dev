@@ -69,7 +69,7 @@ export default function DeckListPage() {
     <>
       <Head>
         <title>TEPPEN - デッキ編成</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className={styles.container}>
         <div className={styles.header}>

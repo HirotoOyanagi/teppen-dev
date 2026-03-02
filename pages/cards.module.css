@@ -72,7 +72,48 @@
   color: #999;
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    height: 100vh;
+    height: 100dvh;
+    padding-bottom: 0;
+    padding-right: 56px;
+    overflow: hidden;
+  }
 
+  .header {
+    padding: 8px 12px;
+  }
 
+  .header h1 {
+    font-size: 20px;
+  }
 
+  .content {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .menuButton {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .buttonIcon {
+    font-size: 32px;
+  }
+
+  .buttonContent h2 {
+    font-size: 16px;
+  }
+
+  .buttonContent p {
+    font-size: 12px;
+  }
+
+  .buttonArrow {
+    font-size: 18px;
+  }
+}
 

@@ -30,7 +30,23 @@
   background-color: #2a2a2a;
 }
 
+/* スマホ横画面: 右サイドの縦ナビに変換 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bottomNav {
+    bottom: 0;
+    left: auto;
+    right: 0;
+    top: 0;
+    flex-direction: column;
+    width: 56px;
+    border-top: none;
+    border-left: 1px solid #333;
+  }
 
-
-
-
+  .navItem {
+    flex: none;
+    padding: 10px 4px;
+    font-size: 10px;
+    writing-mode: horizontal-tb;
+  }
+}

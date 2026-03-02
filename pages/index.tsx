@@ -37,7 +37,7 @@ export default function TitlePage() {
     <>
       <Head>
         <title>TEPPEN - タイトル</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className={styles.container} onClick={handleClick}>
         <div className={styles.videoContainer}>

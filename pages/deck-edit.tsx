@@ -1,14 +1,29 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
-import { getDeck, saveDeck, updateDeck, type SavedDeck } from '@/utils/deckStorage'
+import { getDeck, saveDeck, updateDeck } from '@/utils/deckStorage'
 import { validateDeck, calculateMaxMp } from '@/core/cards'
 import { useCards } from '@/utils/useCards'
-import type { CardDefinition, Hero, CardAttribute } from '@/core/types'
+import type { CardDefinition, CardAttribute } from '@/core/types'
 import { HEROES } from '@/core/heroes'
 import styles from './deck-edit.module.css'
+
+const ATTR_COLORS: Record<string, string> = {
+  red: '#e74c3c',
+  green: '#27ae60',
+  purple: '#9b59b6',
+  black: '#2c3e50',
+}
+
+const ATTR_LABELS: { key: CardAttribute | 'all'; color: string; label: string }[] = [
+  { key: 'all', color: '#888', label: '全' },
+  { key: 'red', color: '#e74c3c', label: '赤' },
+  { key: 'green', color: '#27ae60', label: '緑' },
+  { key: 'purple', color: '#9b59b6', label: '紫' },
+  { key: 'black', color: '#2c3e50', label: '黒' },
+]
 
 export default function DeckEditPage() {
   const router = useRouter()
@@ -19,9 +34,10 @@ export default function DeckEditPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAttribute, setSelectedAttribute] = useState<CardAttribute | 'all'>('all')
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
-  const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const { cards: allCards, cardMap, isLoading: cardsLoading } = useCards()
+  const deckListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (id && typeof id === 'string') {
@@ -32,55 +48,44 @@ export default function DeckEditPage() {
         setDeckCardIds([...savedDeck.cardIds])
       }
     }
-
-    // home.mp3の再生（存在しない場合はスキップ）
-    const audio = new Audio('/sounds/home.mp3')
-    audio.loop = true
-    audio.volume = 0.3
-    setBgm(audio)
-    // 実際の実装では、音声ファイルが存在する場合のみ再生
-    // audio.play().catch(() => {})
-
-    return () => {
-      audio.pause()
-    }
   }, [id])
 
   const selectedHero = HEROES.find((h) => h.id === selectedHeroId) || HEROES[0]
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
-      if (searchTerm && !card.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false
-      }
-      if (selectedAttribute !== 'all' && card.attribute !== selectedAttribute) {
-        return false
-      }
+      if (searchTerm && !card.name.toLowerCase().includes(searchTerm.toLowerCase())) return false
+      if (selectedAttribute !== 'all' && card.attribute !== selectedAttribute) return false
       return true
     })
   }, [allCards, searchTerm, selectedAttribute])
 
-  const deckCards = useMemo(() => {
-    interface DeckCard extends CardDefinition {
-      originalIndex: number
-    }
-    const cards: DeckCard[] = []
-    deckCardIds.forEach((cardId, index) => {
-      const card = cardMap.get(cardId)
-      if (card) {
-        cards.push({ ...card, originalIndex: index })
-      }
+  // デッキ内カードを集計（コスト順ソート）
+  const deckCardSummary = useMemo(() => {
+    const counts = new Map<string, number>()
+    deckCardIds.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
+    const entries: { card: CardDefinition; count: number }[] = []
+    counts.forEach((count, cid) => {
+      const card = cardMap.get(cid)
+      if (card) entries.push({ card, count })
     })
-    return cards
+    entries.sort((a, b) => a.card.cost - b.card.cost || a.card.name.localeCompare(b.card.name))
+    return entries
   }, [deckCardIds, cardMap])
 
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    deckCardIds.forEach((cardId) => {
-      counts.set(cardId, (counts.get(cardId) || 0) + 1)
-    })
+    deckCardIds.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
     return counts
   }, [deckCardIds])
+
+  const deckUnitCount = useMemo(() => {
+    return deckCardIds.filter((cid) => cardMap.get(cid)?.type === 'unit').length
+  }, [deckCardIds, cardMap])
+
+  const deckActionCount = useMemo(() => {
+    return deckCardIds.filter((cid) => cardMap.get(cid)?.type === 'action').length
+  }, [deckCardIds, cardMap])
 
   const maxMp = useMemo(() => {
     return calculateMaxMp(selectedHero.attribute, deckCardIds, cardMap)
@@ -90,20 +95,26 @@ export default function DeckEditPage() {
     return validateDeck(deckCardIds, cardMap)
   }, [deckCardIds, cardMap])
 
-  const handleAddCard = (card: CardDefinition) => {
-    const count = cardCounts.get(card.id) || 0
-    const maxCount = card.rarity === 'legend' ? 1 : 3
+  const handleAddCard = useCallback((card: CardDefinition) => {
+    setDeckCardIds((prev) => {
+      const counts = new Map<string, number>()
+      prev.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
+      const count = counts.get(card.id) || 0
+      const maxCount = card.rarity === 'legend' ? 1 : 3
+      if (count < maxCount && prev.length < 30) return [...prev, card.id]
+      return prev
+    })
+  }, [])
 
-    if (count < maxCount && deckCardIds.length < 30) {
-      setDeckCardIds([...deckCardIds, card.id])
-    }
-  }
-
-  const handleRemoveCard = (index: number) => {
-    const newDeck = [...deckCardIds]
-    newDeck.splice(index, 1)
-    setDeckCardIds(newDeck)
-  }
+  const handleRemoveCard = useCallback((cardId: string) => {
+    setDeckCardIds((prev) => {
+      const idx = prev.lastIndexOf(cardId)
+      if (idx === -1) return prev
+      const next = [...prev]
+      next.splice(idx, 1)
+      return next
+    })
+  }, [])
 
   const handleSaveDeck = () => {
     if (id && typeof id === 'string') {
@@ -117,7 +128,7 @@ export default function DeckEditPage() {
         router.push('/deck-list')
       }
     } else {
-      const newDeck = saveDeck({
+      saveDeck({
         name: deckName,
         heroId: selectedHeroId,
         cardIds: deckCardIds,
@@ -127,142 +138,214 @@ export default function DeckEditPage() {
     }
   }
 
-  const attributeColors: Record<string, string> = {
-    red: '#e74c3c',
-    green: '#27ae60',
-    purple: '#9b59b6',
-    black: '#2c3e50',
+  // --- ドラッグ&ドロップ ---
+  const handleDragStart = (e: React.DragEvent, card: CardDefinition) => {
+    e.dataTransfer.setData('text/plain', card.id)
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const cardId = e.dataTransfer.getData('text/plain')
+    const card = cardMap.get(cardId)
+    if (card) handleAddCard(card)
   }
 
   if (cardsLoading) {
-    return (
-      <div className={styles.container}>
-        <div style={{ padding: '20px', textAlign: 'center' }}>カードデータを読み込み中...</div>
-      </div>
-    )
+    return <div className={styles.loading}>カードデータを読み込み中...</div>
   }
 
   return (
     <>
       <Head>
         <title>TEPPEN - デッキ編成</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <button className={styles.backButton} onClick={() => router.back()}>
-            ← 戻る
-          </button>
-          <input
-            type="text"
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value)}
-            className={styles.deckNameInput}
-          />
-        </div>
+        {/* メインエリア */}
+        <div className={styles.main}>
+          {/* 左: カードプール */}
+          <div className={styles.cardPoolArea}>
+            <div className={styles.cardGrid}>
+              {filteredCards.map((card) => {
+                const count = cardCounts.get(card.id) || 0
+                const maxCount = card.rarity === 'legend' ? 1 : 3
+                const canAdd = count < maxCount && deckCardIds.length < 30
 
-        <div className={styles.heroSection}>
-          <div
-            className={styles.heroCard}
-            style={{ borderColor: attributeColors[selectedHero.attribute] }}
-          >
-            <h3>{selectedHero.name}</h3>
-            <select
-              value={selectedHeroId}
-              onChange={(e) => setSelectedHeroId(e.target.value)}
-              className={styles.heroSelect}
-            >
-              {HEROES.map((hero) => (
-                <option key={hero.id} value={hero.id}>
-                  {hero.name} ({hero.attribute})
-                </option>
-              ))}
-            </select>
-            <p>最大MP: {maxMp}</p>
+                return (
+                  <div
+                    key={card.id}
+                    className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
+                    onClick={() => canAdd && handleAddCard(card)}
+                    draggable={canAdd}
+                    onDragStart={(e) => canAdd && handleDragStart(e, card)}
+                  >
+                    {/* カード画像 */}
+                    {card.imageUrl && (
+                      <img
+                        src={card.imageUrl}
+                        alt={card.name}
+                        className={styles.cardImage}
+                        loading="lazy"
+                        draggable={false}
+                      />
+                    )}
+                    {/* 画像の上のオーバーレイ（テキスト可読性） */}
+                    <div className={styles.cardOverlay} />
+                    {/* コストバッジ */}
+                    <div className={styles.cardCost}>{card.cost}</div>
+                    {/* 下部の情報 */}
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardName}>{card.name}</div>
+                      {card.type === 'unit' && card.unitStats && (
+                        <div className={styles.cardStats}>
+                          <span>{card.unitStats.attack}</span>
+                          <span>/</span>
+                          <span>{card.unitStats.hp}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* 属性カラーバー（左端） */}
+                    <div
+                      className={styles.cardAttrBar}
+                      style={{ background: ATTR_COLORS[card.attribute] }}
+                    />
+                    {/* 所持数バッジ */}
+                    {count > 0 && (
+                      <div className={styles.cardCountBadge}>x{count}</div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <div className={styles.deckInfo}>
-            <p>デッキ: {deckCardIds.length}/30枚</p>
+
+          {/* 右: デッキサイドバー */}
+          <div className={styles.sidebar}>
+            <div className={styles.sidebarHeader}>
+              <select
+                value={selectedHeroId}
+                onChange={(e) => setSelectedHeroId(e.target.value)}
+                className={styles.heroSelect}
+              >
+                {HEROES.map((hero) => (
+                  <option key={hero.id} value={hero.id}>
+                    {hero.name} ({hero.attribute})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.sidebarHeader}>
+              <input
+                type="text"
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                className={styles.deckNameInput}
+                placeholder="デッキ名"
+              />
+            </div>
+
+            {/* デッキカードリスト（ドロップゾーン） */}
+            <div
+              ref={deckListRef}
+              className={`${styles.deckCardList} ${isDragOver ? styles.dropTarget : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {deckCardSummary.map(({ card, count }) => (
+                <div
+                  key={card.id}
+                  className={styles.deckCardRow}
+                  onClick={() => handleRemoveCard(card.id)}
+                >
+                  <div
+                    className={styles.deckCardAttr}
+                    style={{ background: ATTR_COLORS[card.attribute] }}
+                  />
+                  <div className={styles.deckCardCost}>{card.cost}</div>
+                  <div className={styles.deckCardName}>{card.name}</div>
+                  {count > 1 && (
+                    <div className={styles.deckCardQty}>x{count}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* バリデーションエラー */}
             {!validation.valid && (
               <div className={styles.validationErrors}>
-                {validation.errors.map((error, i) => (
-                  <p key={i} className={styles.error}>{error}</p>
+                {validation.errors.map((err, i) => (
+                  <p key={i} className={styles.error}>{err}</p>
                 ))}
               </div>
             )}
-          </div>
-        </div>
 
-        <div className={styles.deckArea}>
-          <h3>デッキ ({deckCardIds.length}/30)</h3>
-          <div className={styles.deckCards}>
-            {deckCards.map((card) => (
-              <div
-                key={`${card.id}-${card.originalIndex}`}
-                className={styles.deckCardItem}
-                onClick={() => handleRemoveCard(card.originalIndex)}
+            {/* デッキ統計 */}
+            <div className={styles.deckStats}>
+              <span
+                className={`${styles.deckCount} ${
+                  deckCardIds.length === 30
+                    ? styles.full
+                    : deckCardIds.length > 30
+                      ? styles.over
+                      : ''
+                }`}
               >
-                <div className={styles.cardCost}>{card.cost}</div>
-                <div className={styles.cardName}>{card.name}</div>
-              </div>
-            ))}
+                {deckCardIds.length}/30
+              </span>
+              <span>U:{deckUnitCount}</span>
+              <span>A:{deckActionCount}</span>
+              <span>MP:{maxMp}</span>
+            </div>
+
+            {/* 保存・戻るボタン */}
+            <div className={styles.sidebarButtons}>
+              <button
+                className={styles.saveButton}
+                onClick={handleSaveDeck}
+                disabled={deckCardIds.length === 0}
+              >
+                保存
+              </button>
+              <button className={styles.quitButton} onClick={() => router.back()}>
+                戻る
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className={styles.filters}>
+        {/* 下: フィルターバー */}
+        <div className={styles.filterBar}>
+          {ATTR_LABELS.map(({ key, color, label }) => (
+            <div
+              key={key}
+              className={`${styles.attrChip} ${selectedAttribute === key ? styles.active : ''}`}
+              style={{ background: color }}
+              onClick={() => setSelectedAttribute(key)}
+            >
+              {label}
+            </div>
+          ))}
           <input
             type="text"
-            placeholder="カード名で検索"
+            placeholder="カード名で検索..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
-          <select
-            value={selectedAttribute}
-            onChange={(e) => setSelectedAttribute(e.target.value as CardAttribute | 'all')}
-            className={styles.filterSelect}
-          >
-            <option value="all">すべての属性</option>
-            <option value="red">赤</option>
-            <option value="green">緑</option>
-            <option value="purple">紫</option>
-            <option value="black">黒</option>
-          </select>
         </div>
-
-        <div className={styles.cardPool}>
-          <h3>カードプール</h3>
-          <div className={styles.cardGrid}>
-            {filteredCards.map((card) => {
-              const count = cardCounts.get(card.id) || 0
-              const maxCount = card.rarity === 'legend' ? 1 : 3
-              const canAdd = count < maxCount && deckCardIds.length < 30
-
-              return (
-                <div
-                  key={card.id}
-                  className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
-                  onClick={() => canAdd && handleAddCard(card)}
-                >
-                  <div className={styles.cardCost}>{card.cost}</div>
-                  <div className={styles.cardName}>{card.name}</div>
-                  {count > 0 && (
-                    <div className={styles.cardCount}>
-                      {count}/{maxCount}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        <button
-          className={styles.saveButton}
-          onClick={handleSaveDeck}
-          disabled={deckCardIds.length === 0}
-        >
-          デッキを保存
-        </button>
 
         {selectedCard && (
           <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
@@ -273,4 +356,3 @@ export default function DeckEditPage() {
     </>
   )
 }
-

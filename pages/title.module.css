@@ -68,7 +68,15 @@
   }
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .title {
+    font-size: 48px;
+    margin-bottom: 10px;
+  }
 
-
-
+  .subtitle {
+    font-size: 16px;
+  }
+}
 

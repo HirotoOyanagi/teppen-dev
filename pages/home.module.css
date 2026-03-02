@@ -103,7 +103,65 @@
   transform: translateY(0);
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    height: 100vh;
+    height: 100dvh;
+    padding-bottom: 0;
+    padding-right: 56px;
+    overflow: hidden;
+  }
 
+  .header {
+    padding: 8px 12px;
+  }
 
+  .userIcon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
 
+  .userNameInput {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .main {
+    padding: 12px 16px;
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .heroDisplay {
+    max-width: 280px;
+  }
+
+  .heroCard {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .heroName {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+
+  .heroAttribute {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .heroDescription {
+    font-size: 12px;
+  }
+
+  .rankMatchButton {
+    padding: 14px 32px;
+    font-size: 18px;
+  }
+}
 

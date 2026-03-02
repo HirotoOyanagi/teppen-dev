@@ -145,7 +145,88 @@
   color: #3498db;
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    height: 100vh;
+    height: 100dvh;
+    padding-bottom: 0;
+    padding-right: 56px;
+    overflow: hidden;
+  }
 
+  .header {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
+  .header h1 {
+    font-size: 18px;
+  }
 
+  .backButton {
+    padding: 6px 10px;
+    font-size: 13px;
+    margin-bottom: 0;
+  }
+
+  .cardGrid {
+    touch-action: pan-y;
+  }
+
+  .filters {
+    padding: 8px 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .searchInput {
+    padding: 6px;
+    font-size: 13px;
+    min-width: 120px;
+  }
+
+  .filterGroup label {
+    min-width: 40px;
+    font-size: 12px;
+  }
+
+  .filterSelect {
+    padding: 4px;
+    font-size: 12px;
+  }
+
+  .cardGrid {
+    padding: 8px 12px;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 6px;
+    max-height: calc(100vh - 120px);
+  }
+
+  .cardItem {
+    min-height: 100px;
+    padding: 6px;
+  }
+
+  .cardCost {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    top: 4px;
+    left: 4px;
+  }
+
+  .cardName {
+    margin-top: 24px;
+    font-size: 11px;
+  }
+
+  .cardStats {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+}
 

@@ -589,9 +589,9 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       <div className="absolute inset-0 z-0 scanline pointer-events-none" />
 
       {/* Header */}
-      <div className="relative z-10 w-full flex justify-center pt-4">
-        <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
-          <span className="text-2xl text-yellow-400 font-bold tracking-widest">ONLINE BATTLE</span>
+      <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-1">
+        <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
+          <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">ONLINE BATTLE</span>
         </div>
         {gameState.activeResponse.isActive && (
           <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">
@@ -610,7 +610,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
       {/* Main Area */}
       <div className="relative z-10 flex-1 flex items-stretch">
-        <div className="w-1/4">
+        <div className="w-1/4 ls:w-1/5">
           <div
             ref={(el) => {
               if (el) heroRefs.current.set(player.playerId, el)
@@ -705,7 +705,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
 
         {/* Battle Slots */}
-        <div className="flex-1 flex flex-col justify-center gap-4 px-4">
+        <div className="flex-1 flex flex-col justify-center gap-4 ls:gap-1 px-4 ls:px-2">
           {[0, 1, 2].map((lane) => {
             const leftUnit = getUnitInLane(player.units, lane)
             const rightUnit = getUnitInLane(opponent.units, lane)
@@ -717,7 +717,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             if (rightUnit) rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
 
             return (
-              <div key={lane} className="relative h-44 w-full flex items-center justify-between px-16">
+              <div key={lane} className="relative h-44 ls:h-24 w-full flex items-center justify-between px-16 ls:px-8">
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
 
                 {/* Attack Progress Bar - Left */}
@@ -749,7 +749,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 {/* Left Slot (自分) */}
                 <div
                   ref={(el) => { laneRefs.current[lane] = el }}
-                  className={`relative z-20 w-28 h-40 flex items-center justify-center transition-all rounded ${
+                  className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center transition-all rounded ${
                     dragging && !leftUnit && hoveredLane === lane
                       ? 'bg-cyan-400/30 border-2 border-cyan-400 shadow-[0_0_20px_cyan]'
                       : dragging && !leftUnit
@@ -785,12 +785,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       }} />
                     </div>
                   ) : (
-                    <div key={`empty_left_${lane}`} className="w-20 h-10 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
+                    <div key={`empty_left_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
                   )}
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className={`relative z-20 w-28 h-40 flex items-center justify-center ${
+                <div className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
                   abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
                     : ''
@@ -819,7 +819,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                     }} />
                     </div>
                   ) : (
-                    <div key={`empty_right_${lane}`} className="w-20 h-10 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                    <div key={`empty_right_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
                   )}
                 </div>
               </div>
@@ -827,14 +827,14 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           })}
         </div>
 
-        <div className="w-1/4">
+        <div className="w-1/4 ls:w-1/5">
           <HeroPortrait player={toPlayerState(opponent)} side="right" />
         </div>
       </div>
 
       {/* Footer Area */}
-      <div className="relative z-20 h-64 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6">
-        <div className="flex gap-4 items-end mb-6">
+      <div className="relative z-20 h-64 ls:h-32 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6 ls:pb-1">
+        <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
           {player.hand.map((cardId, i) => {
             // 相手の手札は空文字（表示しない）
             if (!cardId) return null
@@ -872,16 +872,16 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       {/* マリガンオーバーレイ */}
       {gameState.phase === 'mulligan' && (
         <div className="absolute inset-0 z-40 bg-black/80 flex flex-col font-orbitron">
-          <div className="relative z-10 w-full flex justify-center pt-4">
-            <div className="bg-black/60 px-8 py-2 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
-              <span className="text-2xl text-yellow-400 font-bold tracking-widest">マリガン</span>
+          <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-1">
+            <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
+              <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">マリガン</span>
             </div>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-8">
-            <h2 className="text-3xl text-white mb-8">初期手札を確認してください</h2>
-            <div className="mb-8">
-              <h3 className="text-xl text-white mb-4">あなたの手札</h3>
-              <div className="flex gap-4 flex-wrap justify-center">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 ls:p-2">
+            <h2 className="text-3xl ls:text-lg text-white mb-8 ls:mb-2">初期手札を確認してください</h2>
+            <div className="mb-8 ls:mb-2">
+              <h3 className="text-xl ls:text-sm text-white mb-4 ls:mb-1">あなたの手札</h3>
+              <div className="flex gap-4 ls:gap-2 flex-wrap justify-center">
                 {player.hand.map((cardId, idx) => {
                   if (!cardId) return null
                   const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -898,16 +898,16 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               </div>
             </div>
             {!gameState.mulliganDone[0] ? (
-              <div className="flex gap-4">
-                <button onClick={() => handleMulligan(true)} className="px-8 py-4 bg-red-600 text-white font-bold text-lg hover:bg-red-700 transition-colors rounded">
+              <div className="flex gap-4 ls:gap-2">
+                <button onClick={() => handleMulligan(true)} className="px-8 py-4 ls:px-4 ls:py-2 bg-red-600 text-white font-bold text-lg ls:text-sm hover:bg-red-700 transition-colors rounded">
                   全て交換
                 </button>
-                <button onClick={() => handleMulligan(false)} className="px-8 py-4 bg-green-600 text-white font-bold text-lg hover:bg-green-700 transition-colors rounded">
+                <button onClick={() => handleMulligan(false)} className="px-8 py-4 ls:px-4 ls:py-2 bg-green-600 text-white font-bold text-lg ls:text-sm hover:bg-green-700 transition-colors rounded">
                   このまま
                 </button>
               </div>
             ) : (
-              <p className="text-yellow-400 text-lg mt-4 animate-pulse">相手のマリガン完了を待っています...</p>
+              <p className="text-yellow-400 text-lg ls:text-sm mt-4 ls:mt-1 animate-pulse">相手のマリガン完了を待っています...</p>
             )}
           </div>
           {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
@@ -917,10 +917,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       {/* 相手切断通知 */}
       {opponentDisconnected && (
         <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
-          <h2 className="text-4xl font-bold text-yellow-400 mb-4">相手が切断しました</h2>
+          <h2 className="text-4xl ls:text-2xl font-bold text-yellow-400 mb-4 ls:mb-2">相手が切断しました</h2>
           <button
             onClick={() => (window.location.href = '/deck-select')}
-            className="px-12 py-4 bg-yellow-500 text-black font-bold text-2xl hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+            className="px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
           >
             戻る
           </button>
@@ -930,10 +930,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       {/* Game Over */}
       {gameOver && winner && !opponentDisconnected && (
         <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
-          <h2 className="text-8xl font-black italic tracking-tighter text-white animate-pulse">{winner}</h2>
+          <h2 className="text-8xl ls:text-4xl font-black italic tracking-tighter text-white animate-pulse">{winner}</h2>
           <button
             onClick={() => (window.location.href = '/matchmaking')}
-            className="mt-12 px-12 py-4 bg-yellow-500 text-black font-bold text-2xl hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+            className="mt-12 ls:mt-4 px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
           >
             もう一戦
           </button>

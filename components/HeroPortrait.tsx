@@ -47,10 +47,10 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
         />
       </div>
 
-      <div className={`relative z-10 flex flex-col items-center ${isLeft ? 'ml-8' : 'mr-8'}`}>
+      <div className={`relative z-10 flex flex-col items-center ${isLeft ? 'ml-8 ls:ml-2' : 'mr-8 ls:mr-2'}`}>
         <div className="relative">
           <div
-            className={`text-7xl font-orbitron font-black tracking-tighter drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] transition-colors ${
+            className={`text-7xl ls:text-3xl font-orbitron font-black tracking-tighter drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] transition-colors ${
               player.hp < 10 ? 'text-red-500' : 'text-white'
             }`}
           >
@@ -58,8 +58,8 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
           </div>
         </div>
 
-        <div className="mt-8 relative flex items-center justify-center">
-          <div className={`absolute w-16 h-14 bg-black/80 hex-clip border ${
+        <div className="mt-8 ls:mt-2 relative flex items-center justify-center">
+          <div className={`absolute w-16 h-14 ls:w-10 ls:h-9 bg-black/80 hex-clip border ${
             player.hero.heroArt && player.ap >= player.hero.heroArt.cost
               ? 'border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
               : player.hero.companion && player.ap >= player.hero.companion.cost
@@ -67,8 +67,8 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
                 : 'border-white/20'
           }`} />
           <div className="relative z-10 text-center">
-            <div className="text-[10px] font-bold opacity-60 uppercase">AP</div>
-            <div className={`text-xl font-orbitron font-bold ${
+            <div className="text-[10px] ls:text-[7px] font-bold opacity-60 uppercase">AP</div>
+            <div className={`text-xl ls:text-sm font-orbitron font-bold ${
               player.hero.heroArt && player.ap >= player.hero.heroArt.cost
                 ? 'text-yellow-400'
                 : player.hero.companion && player.ap >= player.hero.companion.cost
@@ -99,13 +99,13 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
         )}
 
         {/* ヒーロー名 */}
-        <div className="mt-2 text-center">
-          <div className={`text-sm font-orbitron font-bold ${attributeColor}`}>{player.hero.name}</div>
+        <div className="mt-2 ls:mt-1 text-center">
+          <div className={`text-sm ls:text-[9px] font-orbitron font-bold ${attributeColor}`}>{player.hero.name}</div>
         </div>
 
         {/* シールド表示 */}
         {player.shieldCount && player.shieldCount > 0 && (
-          <div className="mt-2 flex gap-0.5 justify-center">
+          <div className="mt-2 ls:mt-0.5 flex gap-0.5 justify-center">
             {Array.from({ length: player.shieldCount }).map((_, idx) => (
               <span
                 key={idx}
