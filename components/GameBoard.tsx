@@ -8,105 +8,14 @@ import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { resolveCardDefinition } from '@/core/cardId'
+import { calculateRatingChange, getRankTier, INITIAL_RATING } from '@/core/ranking'
+import { getPlayerRanking, updateRankingAfterMatch, addMatchRecord } from '@/utils/rankingStorage'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
-
-// カード詳細ツールチップ（HPの上に表示）
-function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
-  const attributeColors: Record<string, string> = {
-    red: 'border-red-500 bg-red-950/95',
-    green: 'border-green-500 bg-green-950/95',
-    purple: 'border-purple-500 bg-purple-950/95',
-    black: 'border-gray-500 bg-gray-950/95',
-  }
-
-  // HPの上（ヒーローポートレートの上）に配置
-  const positionClass = side === 'left'
-    ? 'left-2 top-16'
-    : 'right-2 top-16'
-
-  return (
-    <div
-      className={`absolute ${positionClass} z-[100]
-        w-48 p-2 rounded border-2 shadow-lg backdrop-blur-sm
-        ${attributeColors[card.attribute] || attributeColors.black}
-        animate-in fade-in duration-100`}
-      onClick={onClose}
-    >
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-white font-bold text-[10px] truncate flex-1">{card.name}</span>
-        <span className="ml-1 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[8px] font-bold text-white">
-          {card.cost}
-        </span>
-      </div>
-
-      {/* スタッツ */}
-      {card.unitStats && (
-        <div className="flex gap-2 mb-1 text-[9px]">
-          <span className="text-red-400">⚔{card.unitStats.attack}</span>
-          <span className="text-blue-400">♥{card.unitStats.hp}</span>
-        </div>
-      )}
-
-      {/* 効果テキスト */}
-      {card.description && (
-        <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">
-          {card.description}
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ドラッグ中のカード表示
-function DraggingCard({ card, position }: { card: CardDefinition; position: { x: number; y: number } }) {
-  return (
-    <div
-      className="fixed z-[200] pointer-events-none opacity-90"
-      style={{
-        left: position.x - 48,
-        top: position.y - 70,
-      }}
-    >
-      <div className="w-24 h-36 bg-black rounded border-2 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)]">
-        <div className="absolute top-1 left-1 w-5 h-5 bg-red-800 rounded-full flex items-center justify-center text-[10px] font-bold">
-          {card.cost}
-        </div>
-        <div className="absolute top-7 left-1 right-1 text-[8px] font-bold text-white truncate">
-          {card.name}
-        </div>
-        {card.unitStats && (
-          <div className="absolute bottom-1 w-full px-1 flex justify-between text-sm font-bold">
-            <span className="text-red-500">{card.unitStats.attack}</span>
-            <span className="text-blue-400">{card.unitStats.hp}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ドラッグ中のアビリティ表示
-function DraggingAbility({ name, type, position }: { name: string; type: 'hero_art' | 'companion'; position: { x: number; y: number } }) {
-  const isHeroArt = type === 'hero_art'
-  return (
-    <div
-      className="fixed z-[200] pointer-events-none"
-      style={{ left: position.x - 40, top: position.y - 40 }}
-    >
-      <div className={`w-20 h-20 rounded-full flex items-center justify-center text-center
-        ${isHeroArt
-          ? 'bg-yellow-500/90 border-2 border-yellow-300 shadow-[0_0_30px_rgba(234,179,8,0.8)]'
-          : 'bg-cyan-500/90 border-2 border-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.8)]'
-        }`}
-      >
-        <span className="text-black font-bold text-[9px] leading-tight px-1">{name}</span>
-      </div>
-    </div>
-  )
-}
+import CardTooltip from './battle/CardTooltip'
+import DraggingCard from './battle/DraggingCard'
+import DraggingAbility from './battle/DraggingAbility'
 
 const TICK_INTERVAL = 50 // 50ms
 
@@ -138,6 +47,13 @@ export default function GameBoard(props: GameBoardProps) {
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy' | 'none'
     name: string
+  } | null>(null)
+  // ランキング結果
+  const [rankResult, setRankResult] = useState<{
+    isWin: boolean
+    ratingBefore: number
+    ratingDelta: number
+    ratingAfter: number
   } | null>(null)
   // ダメージ数字エフェクト
   const [damageEffects, setDamageEffects] = useState<
@@ -828,14 +744,45 @@ export default function GameBoard(props: GameBoardProps) {
   const player = gameState.players[0]
   const opponent = gameState.players[1]
 
-  // マリガンフェーズのUI
   // ゲーム終了チェック
   const gameOver = gameState.phase === 'ended'
+  const isPlayerWin = gameOver
+    ? (gameState.players.find((p) => p.hp > 0)?.playerId === 'player1')
+    : false
   const winner = gameOver
-    ? gameState.players.find((p) => p.hp > 0)?.playerId === 'player1'
-      ? 'あなたの勝利！'
-      : '相手の勝利！'
+    ? (isPlayerWin ? 'あなたの勝利！' : '相手の勝利！')
     : null
+
+  // ランキング更新（1回だけ）
+  useEffect(() => {
+    if (!gameOver || rankResult) return
+    const playerRanking = getPlayerRanking()
+    // 相手のレーティングはCPUなので初期値を使用
+    const opponentRating = INITIAL_RATING
+    const result = calculateRatingChange(
+      isPlayerWin ? playerRanking.rating : opponentRating,
+      isPlayerWin ? opponentRating : playerRanking.rating,
+    )
+    const delta = isPlayerWin ? result.winnerDelta : result.loserDelta
+    const newRating = playerRanking.rating + delta
+
+    updateRankingAfterMatch(isPlayerWin ? 'win' : 'lose', delta)
+    addMatchRecord({
+      timestamp: Date.now(),
+      opponentHeroId: opponent.hero.id,
+      playerHeroId: player.hero.id,
+      result: isPlayerWin ? 'win' : 'lose',
+      ratingBefore: playerRanking.rating,
+      ratingAfter: newRating,
+      ratingDelta: delta,
+    })
+    setRankResult({
+      isWin: isPlayerWin,
+      ratingBefore: playerRanking.rating,
+      ratingDelta: delta,
+      ratingAfter: newRating,
+    })
+  }, [gameOver])
 
   // レーンごとのユニットを取得
   const getUnitInLane = (playerUnits: typeof player.units, lane: number) => {
@@ -1291,12 +1238,46 @@ export default function GameBoard(props: GameBoardProps) {
           <h2 className="text-8xl ls:text-4xl font-black italic tracking-tighter text-white animate-pulse">
             {winner}
           </h2>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-12 ls:mt-4 px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
-          >
-            リマッチ
-          </button>
+
+          {/* ランキング結果 */}
+          {rankResult && (
+            <div className="mt-8 ls:mt-3 flex flex-col items-center gap-2">
+              <div className="text-sm ls:text-xs text-white/50 tracking-widest">RATING</div>
+              <div className="flex items-center gap-4 ls:gap-2">
+                <span className="text-2xl ls:text-lg text-white/60">{rankResult.ratingBefore}</span>
+                <span className={`text-3xl ls:text-xl font-black ${rankResult.ratingDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  →
+                </span>
+                <span className="text-4xl ls:text-2xl font-black text-white">{rankResult.ratingAfter}</span>
+                <span className={`text-2xl ls:text-lg font-bold ${rankResult.ratingDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  ({rankResult.ratingDelta > 0 ? '+' : ''}{rankResult.ratingDelta})
+                </span>
+              </div>
+              {(() => {
+                const rank = getRankTier(rankResult.ratingAfter)
+                return (
+                  <div className="text-lg ls:text-sm font-bold tracking-wider" style={{ color: rank.color }}>
+                    {rank.label}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          <div className="flex gap-4 ls:gap-2 mt-8 ls:mt-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+            >
+              リマッチ
+            </button>
+            <button
+              onClick={() => window.location.href = '/home'}
+              className="px-8 ls:px-4 py-4 ls:py-2 bg-white/10 text-white font-bold text-lg ls:text-sm hover:bg-white/20 transition-colors skew-x-[-12deg]"
+            >
+              ホームへ
+            </button>
+          </div>
         </div>
       )}
 

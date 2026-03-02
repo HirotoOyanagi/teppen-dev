@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
+import PageLayout from '@/components/layout/PageLayout'
 import styles from './title.module.css'
 
 export default function TitlePage() {
@@ -34,11 +34,7 @@ export default function TitlePage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - タイトル</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title="タイトル" showNav={false}>
       <div className={styles.container} onClick={handleClick}>
         <div className={styles.videoContainer}>
           {/* 動画のプレースホルダー */}
@@ -52,6 +48,6 @@ export default function TitlePage() {
           </video> */}
         </div>
       </div>
-    </>
+    </PageLayout>
   )
 }

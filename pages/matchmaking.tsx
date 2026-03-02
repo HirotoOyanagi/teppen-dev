@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
+import PageLayout from '@/components/layout/PageLayout'
 import { getDeck, type SavedDeck } from '@/utils/deckStorage'
 import { HEROES } from '@/core/heroes'
 
@@ -60,11 +60,7 @@ export default function MatchmakingPage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - バトルモード選択</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title="バトルモード選択" showNav={false}>
       <div className="min-h-screen bg-[#0a0f0a] text-white font-orbitron flex flex-col items-center justify-center p-8 ls:p-4 ls:flex-row ls:gap-8">
         {/* デッキ情報 */}
         <div className={`mb-12 ls:mb-0 p-6 ls:p-3 border-2 rounded-lg bg-black/50 text-center ${attributeColors[hero.attribute]}`}>
@@ -102,6 +98,6 @@ export default function MatchmakingPage() {
           </button>
         </div>
       </div>
-    </>
+    </PageLayout>
   )
 }

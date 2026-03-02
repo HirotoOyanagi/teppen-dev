@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
+import PageLayout from '@/components/layout/PageLayout'
 import GameBoard from '@/components/GameBoard'
 import OnlineGameBoard from '@/components/OnlineGameBoard'
 import { getDeck } from '@/utils/deckStorage'
@@ -86,11 +86,7 @@ export default function BattlePage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>TEPPEN - {isOnline ? 'オンラインバトル' : 'バトル'}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-      </Head>
+    <PageLayout title={isOnline ? 'オンラインバトル' : 'バトル'} showNav={false}>
       <div className="fixed inset-0 overflow-hidden">
         {isOnline && onlineProps ? (
           <OnlineGameBoard
@@ -103,6 +99,6 @@ export default function BattlePage() {
           <GameBoard onMulliganComplete={handleMulliganComplete} />
         )}
       </div>
-    </>
+    </PageLayout>
   )
 }
