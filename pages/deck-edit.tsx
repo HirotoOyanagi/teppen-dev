@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, useTransition, useDeferredValue, memo } from 'react'
 import { useRouter } from 'next/router'
 import PageLayout from '@/components/layout/PageLayout'
 import CardModal from '@/components/CardModal'
@@ -11,6 +11,59 @@ import { HEROES } from '@/core/heroes'
 import { ATTRIBUTE_COLORS } from '@/utils/constants'
 import styles from './deck-edit.module.css'
 
+// --- メモ化カードプールアイテム ---
+const CardPoolItem = memo(function CardPoolItem({
+  card,
+  count,
+  canAdd,
+  onAdd,
+  onDragStart,
+}: {
+  card: CardDefinition
+  count: number
+  canAdd: boolean
+  onAdd: () => void
+  onDragStart: (e: React.DragEvent) => void
+}) {
+  return (
+    <div
+      className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
+      onClick={canAdd ? onAdd : undefined}
+      draggable={canAdd}
+      onDragStart={canAdd ? onDragStart : undefined}
+    >
+      {card.imageUrl && (
+        <img
+          src={card.imageUrl}
+          alt={card.name}
+          className={styles.cardImage}
+          loading="lazy"
+          draggable={false}
+        />
+      )}
+      <div className={styles.cardOverlay} />
+      <div className={styles.cardCost}>{card.cost}</div>
+      <div className={styles.cardInfo}>
+        <div className={styles.cardName}>{card.name}</div>
+        {card.type === 'unit' && card.unitStats && (
+          <div className={styles.cardStats}>
+            <span>{card.unitStats.attack}</span>
+            <span>/</span>
+            <span>{card.unitStats.hp}</span>
+          </div>
+        )}
+      </div>
+      <div
+        className={styles.cardAttrBar}
+        style={{ background: ATTRIBUTE_COLORS[card.attribute] }}
+      />
+      {count > 0 && (
+        <div className={styles.cardCountBadge}>x{count}</div>
+      )}
+    </div>
+  )
+})
+
 export default function DeckEditPage() {
   const router = useRouter()
   const { id } = router.query
@@ -21,6 +74,7 @@ export default function DeckEditPage() {
   const [selectedAttribute, setSelectedAttribute] = useState<CardAttribute | 'all'>('all')
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [, startTransition] = useTransition()
 
   const { cards: allCards, cardMap, isLoading: cardsLoading } = useCards()
   const deckListRef = useRef<HTMLDivElement>(null)
@@ -46,32 +100,32 @@ export default function DeckEditPage() {
     })
   }, [allCards, searchTerm, selectedAttribute])
 
-  // デッキ内カードを集計（コスト順ソート）
-  const deckCardSummary = useMemo(() => {
+  // 統合: cardCounts + deckCardSummary + ユニット/アクション数を1回のパスで算出
+  const deckData = useMemo(() => {
     const counts = new Map<string, number>()
-    deckCardIds.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
+    let unitCount = 0
+    let actionCount = 0
+
+    for (const cid of deckCardIds) {
+      counts.set(cid, (counts.get(cid) || 0) + 1)
+      const card = cardMap.get(cid)
+      if (card?.type === 'unit') unitCount++
+      else if (card?.type === 'action') actionCount++
+    }
+
     const entries: { card: CardDefinition; count: number }[] = []
     counts.forEach((count, cid) => {
       const card = cardMap.get(cid)
       if (card) entries.push({ card, count })
     })
     entries.sort((a, b) => a.card.cost - b.card.cost || a.card.name.localeCompare(b.card.name))
-    return entries
+
+    return { counts, summary: entries, unitCount, actionCount }
   }, [deckCardIds, cardMap])
 
-  const cardCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    deckCardIds.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
-    return counts
-  }, [deckCardIds])
-
-  const deckUnitCount = useMemo(() => {
-    return deckCardIds.filter((cid) => cardMap.get(cid)?.type === 'unit').length
-  }, [deckCardIds, cardMap])
-
-  const deckActionCount = useMemo(() => {
-    return deckCardIds.filter((cid) => cardMap.get(cid)?.type === 'action').length
-  }, [deckCardIds, cardMap])
+  // カードグリッド用: deferred値で更新を遅延させINPを改善
+  const deferredCounts = useDeferredValue(deckData.counts)
+  const deferredDeckSize = useDeferredValue(deckCardIds.length)
 
   const maxMp = useMemo(() => {
     return calculateMaxMp(selectedHero.attribute, deckCardIds, cardMap)
@@ -125,28 +179,28 @@ export default function DeckEditPage() {
   }
 
   // --- ドラッグ&ドロップ ---
-  const handleDragStart = (e: React.DragEvent, card: CardDefinition) => {
+  const handleDragStart = useCallback((e: React.DragEvent, card: CardDefinition) => {
     e.dataTransfer.setData('text/plain', card.id)
     e.dataTransfer.effectAllowed = 'copy'
-  }
+  }, [])
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
     setIsDragOver(true)
-  }
+  }, [])
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setIsDragOver(false)
-  }
+  }, [])
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
     const cardId = e.dataTransfer.getData('text/plain')
     const card = cardMap.get(cardId)
     if (card) handleAddCard(card)
-  }
+  }, [cardMap, handleAddCard])
 
   if (cardsLoading) {
     return <div className={styles.loading}>カードデータを読み込み中...</div>
@@ -161,53 +215,19 @@ export default function DeckEditPage() {
           <div className={styles.cardPoolArea}>
             <div className={styles.cardGrid}>
               {filteredCards.map((card) => {
-                const count = cardCounts.get(card.id) || 0
+                const count = deferredCounts.get(card.id) || 0
                 const maxCount = card.rarity === 'legend' ? 1 : 3
-                const canAdd = count < maxCount && deckCardIds.length < 30
+                const canAdd = count < maxCount && deferredDeckSize < 30
 
                 return (
-                  <div
+                  <CardPoolItem
                     key={card.id}
-                    className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
-                    onClick={() => canAdd && handleAddCard(card)}
-                    draggable={canAdd}
-                    onDragStart={(e) => canAdd && handleDragStart(e, card)}
-                  >
-                    {/* カード画像 */}
-                    {card.imageUrl && (
-                      <img
-                        src={card.imageUrl}
-                        alt={card.name}
-                        className={styles.cardImage}
-                        loading="lazy"
-                        draggable={false}
-                      />
-                    )}
-                    {/* 画像の上のオーバーレイ（テキスト可読性） */}
-                    <div className={styles.cardOverlay} />
-                    {/* コストバッジ */}
-                    <div className={styles.cardCost}>{card.cost}</div>
-                    {/* 下部の情報 */}
-                    <div className={styles.cardInfo}>
-                      <div className={styles.cardName}>{card.name}</div>
-                      {card.type === 'unit' && card.unitStats && (
-                        <div className={styles.cardStats}>
-                          <span>{card.unitStats.attack}</span>
-                          <span>/</span>
-                          <span>{card.unitStats.hp}</span>
-                        </div>
-                      )}
-                    </div>
-                    {/* 属性カラーバー（左端） */}
-                    <div
-                      className={styles.cardAttrBar}
-                      style={{ background: ATTRIBUTE_COLORS[card.attribute] }}
-                    />
-                    {/* 所持数バッジ */}
-                    {count > 0 && (
-                      <div className={styles.cardCountBadge}>x{count}</div>
-                    )}
-                  </div>
+                    card={card}
+                    count={count}
+                    canAdd={canAdd}
+                    onAdd={() => handleAddCard(card)}
+                    onDragStart={(e) => handleDragStart(e, card)}
+                  />
                 )
               })}
             </div>
@@ -246,7 +266,7 @@ export default function DeckEditPage() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              {deckCardSummary.map(({ card, count }) => (
+              {deckData.summary.map(({ card, count }) => (
                 <div
                   key={card.id}
                   className={styles.deckCardRow}
@@ -287,8 +307,8 @@ export default function DeckEditPage() {
               >
                 {deckCardIds.length}/30
               </span>
-              <span>U:{deckUnitCount}</span>
-              <span>A:{deckActionCount}</span>
+              <span>U:{deckData.unitCount}</span>
+              <span>A:{deckData.actionCount}</span>
               <span>MP:{maxMp}</span>
             </div>
 
