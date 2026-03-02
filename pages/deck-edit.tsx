@@ -191,27 +191,37 @@ export default function DeckEditPage() {
                     draggable={canAdd}
                     onDragStart={(e) => canAdd && handleDragStart(e, card)}
                   >
-                    <div className={styles.cardItemInner}>
-                      <div
-                        className={styles.cardColorBar}
-                        style={{ background: ATTR_COLORS[card.attribute] }}
+                    {/* カード画像 */}
+                    {card.imageUrl && (
+                      <img
+                        src={card.imageUrl}
+                        alt={card.name}
+                        className={styles.cardImage}
+                        loading="lazy"
+                        draggable={false}
                       />
-                      <div className={styles.cardBody}>
-                        <div className={styles.cardTopRow}>
-                          <div className={styles.cardCost}>{card.cost}</div>
-                          <div className={styles.cardName}>{card.name}</div>
+                    )}
+                    {/* 画像の上のオーバーレイ（テキスト可読性） */}
+                    <div className={styles.cardOverlay} />
+                    {/* コストバッジ */}
+                    <div className={styles.cardCost}>{card.cost}</div>
+                    {/* 下部の情報 */}
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardName}>{card.name}</div>
+                      {card.type === 'unit' && card.unitStats && (
+                        <div className={styles.cardStats}>
+                          <span>{card.unitStats.attack}</span>
+                          <span>/</span>
+                          <span>{card.unitStats.hp}</span>
                         </div>
-                        {card.type === 'unit' && card.unitStats && (
-                          <div className={styles.cardStats}>
-                            <span>ATK {card.unitStats.attack}</span>
-                            <span>HP {card.unitStats.hp}</span>
-                          </div>
-                        )}
-                        <div className={styles.cardType}>
-                          {card.type === 'unit' ? 'ユニット' : 'アクション'}
-                        </div>
-                      </div>
+                      )}
                     </div>
+                    {/* 属性カラーバー（左端） */}
+                    <div
+                      className={styles.cardAttrBar}
+                      style={{ background: ATTR_COLORS[card.attribute] }}
+                    />
+                    {/* 所持数バッジ */}
                     {count > 0 && (
                       <div className={styles.cardCountBadge}>x{count}</div>
                     )}

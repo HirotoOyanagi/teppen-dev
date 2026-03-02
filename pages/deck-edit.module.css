@@ -28,7 +28,9 @@
 .cardGrid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
   gap: 6px;
   padding: 8px;
   overflow-y: auto;
@@ -36,6 +38,22 @@
   overscroll-behavior: contain;
 }
 
+/* スクロールバー（カードプール） */
+.cardGrid::-webkit-scrollbar {
+  width: 6px;
+}
+.cardGrid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.cardGrid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+.cardGrid::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* --- カードタイル --- */
 .cardItem {
   position: relative;
   border-radius: 6px;
@@ -44,101 +62,115 @@
   transition: transform 0.15s, box-shadow 0.15s;
   user-select: none;
   -webkit-user-select: none;
+  aspect-ratio: 3 / 4;
+  background: #2a2a3e;
 }
 
 .cardItem:active {
   transform: scale(0.95);
 }
 
-.cardItemInner {
-  display: flex;
-  flex-direction: column;
+/* カード画像 */
+.cardImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 
-/* 属性カラーの帯 */
-.cardColorBar {
-  height: 4px;
-  flex-shrink: 0;
+/* 画像の上のグラデーション（下部テキスト可読性） */
+.cardOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(0, 0, 0, 0.6) 70%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  pointer-events: none;
 }
 
-.cardBody {
-  flex: 1;
-  padding: 4px 6px;
-  background: #2a2a3e;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 72px;
-}
-
-.cardTopRow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
+/* コストバッジ（左上） */
 .cardCost {
-  width: 20px;
-  height: 20px;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #4a9eff;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #4a9eff;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 11px;
-  flex-shrink: 0;
+  z-index: 2;
+}
+
+/* 属性カラーバー（左端縦ライン） */
+.cardAttrBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  z-index: 2;
+}
+
+/* カード下部の情報 */
+.cardInfo {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 6px;
+  z-index: 2;
 }
 
 .cardName {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: bold;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .cardStats {
   font-size: 10px;
-  color: #aaa;
+  color: #eee;
   display: flex;
-  gap: 6px;
+  gap: 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-.cardType {
-  font-size: 9px;
-  color: #888;
-}
-
-/* 所持数バッジ */
+/* 所持数バッジ（右上） */
 .cardCountBadge {
   position: absolute;
-  top: 6px;
+  top: 4px;
   right: 4px;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   color: #ffd700;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: bold;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 4px;
+  z-index: 2;
 }
 
 .cardItem.disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .cardItem.disabled:active {
   transform: none;
-}
-
-/* ドラッグ中の見た目 */
-.cardItem.dragging {
-  opacity: 0.5;
 }
 
 /* --- 右: デッキサイドバー --- */
@@ -179,12 +211,29 @@
   font-size: 12px;
 }
 
+/* デッキカードリスト（スクロール可能） */
 .deckCardList {
   flex: 1;
   overflow-y: auto;
   touch-action: pan-y;
   overscroll-behavior: contain;
   padding: 4px 0;
+  min-height: 0;
+}
+
+/* スクロールバー（デッキリスト） */
+.deckCardList::-webkit-scrollbar {
+  width: 5px;
+}
+.deckCardList::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+.deckCardList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+.deckCardList::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* ドロップゾーンのハイライト */
@@ -253,6 +302,7 @@
   font-size: 11px;
   color: #aaa;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .deckCount {
@@ -274,6 +324,7 @@
   gap: 4px;
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .saveButton {
@@ -362,6 +413,7 @@
 .validationErrors {
   padding: 4px 10px;
   background: rgba(231, 76, 60, 0.2);
+  flex-shrink: 0;
 }
 
 .error {
@@ -392,24 +444,23 @@
   }
 
   .cardGrid {
-    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 4px;
     padding: 4px;
   }
 
-  .cardBody {
-    min-height: 60px;
-    padding: 3px 4px;
-  }
-
   .cardCost {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     font-size: 9px;
   }
 
   .cardName {
-    font-size: 10px;
+    font-size: 9px;
+  }
+
+  .cardStats {
+    font-size: 9px;
   }
 
   .filterBar {
