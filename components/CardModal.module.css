@@ -147,7 +147,76 @@
   font-size: 14px;
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .modal {
+    max-width: 360px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
 
+  .card {
+    padding: 12px;
+  }
 
+  .cardHeader {
+    margin-bottom: 8px;
+  }
 
+  .cost {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .tribe {
+    font-size: 22px;
+  }
+
+  .cardCenter {
+    margin: 8px 0;
+  }
+
+  .cardImage {
+    aspect-ratio: 3 / 2;
+  }
+
+  .imagePlaceholder {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  .cardFooter {
+    margin-top: 8px;
+  }
+
+  .cardName {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .cardDescription {
+    font-size: 12px;
+    min-height: 20px;
+    margin-bottom: 6px;
+  }
+
+  .unitStats {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .actionEffect {
+    margin-top: 6px;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .closeButton {
+    top: -30px;
+    width: 26px;
+    height: 26px;
+    font-size: 18px;
+  }
+}
 

@@ -47,10 +47,17 @@ body {
   animation: scanline 4s linear infinite;
 }
 
-/* 横画面対応 */
-@media (orientation: landscape) {
+/* ===== 横画面スマホ対応 ===== */
+/* スマホ横画面: orientation:landscape かつ高さが小さいデバイス */
+@media (orientation: landscape) and (max-height: 500px) {
+  html {
+    font-size: 13px;
+  }
+
+  /* 安全領域対応（ノッチ付きスマホ） */
   body {
-    /* 横画面でのスタイル調整 */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 

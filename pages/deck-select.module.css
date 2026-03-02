@@ -186,7 +186,79 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+/* スマホ横画面対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    padding-bottom: 0;
+    padding-right: 56px;
+  }
 
+  .header {
+    padding: 8px 12px;
+  }
 
+  .header h1 {
+    font-size: 18px;
+  }
 
+  .backButton {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .content {
+    padding: 8px 12px;
+    gap: 12px;
+    min-height: calc(100vh - 60px);
+  }
+
+  .deckItem {
+    padding: 10px;
+  }
+
+  .deckInfo h3 {
+    font-size: 14px;
+  }
+
+  .deckInfo p {
+    font-size: 12px;
+  }
+
+  .deckDetail {
+    gap: 10px;
+    min-width: 200px;
+  }
+
+  .heroCard {
+    padding: 12px;
+  }
+
+  .heroCard h2 {
+    font-size: 18px;
+  }
+
+  .buttons {
+    gap: 8px;
+  }
+
+  .viewButton,
+  .startButton {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .startButton {
+    font-size: 14px;
+  }
+
+  .noDeck {
+    padding: 20px;
+    gap: 12px;
+  }
+
+  .createDeckButton {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
 

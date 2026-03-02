@@ -240,9 +240,9 @@ const GameCard: React.FC<GameCardProps> = ({
   const attack = unit ? unit.attack : cardDef.unitStats?.attack || 0
 
   const sizeClasses = {
-    sm: 'w-24 h-32',
-    md: 'w-28 h-40',
-    lg: 'w-32 h-44',
+    sm: 'w-24 h-32 ls:w-16 ls:h-22',
+    md: 'w-28 h-40 ls:w-20 ls:h-28',
+    lg: 'w-32 h-44 ls:w-20 ls:h-28',
   }
 
   return (

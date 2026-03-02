@@ -89,7 +89,7 @@ export default function BattlePage() {
     <>
       <Head>
         <title>TEPPEN - {isOnline ? 'オンラインバトル' : 'バトル'}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className="fixed inset-0 overflow-hidden">
         {isOnline && onlineProps ? (
