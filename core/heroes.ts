@@ -11,7 +11,7 @@ export const HEROES: Hero[] = [
     name: 'レイシア',
     attribute: 'red',
     description: '不撓の正義を掲げる戦士',
-    modelUrl: 'https://v3b.fal.media/files/b/0a90a77d/G6OIGphaAtHqgm78zgypd_model.glb',
+    modelUrl: '/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb',
     heroArt: {
       name: '不撓の正義',
       cost: 18,
