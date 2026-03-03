@@ -110,6 +110,26 @@ function DraggingAbility({ name, type, position }: { name: string; type: 'hero_a
 
 const TICK_INTERVAL = 50 // 50ms
 
+// 試合タイマー表示（参考画像: 4:40形式）
+function TimerDisplay({ gameStartTime }: { gameStartTime: number }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const tick = () => setElapsed(Math.floor((Date.now() - gameStartTime) / 1000))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [gameStartTime])
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  return (
+    <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
+      <span className="font-orbitron font-bold text-xl ls:text-base text-yellow-300 tabular-nums">
+        {m}:{String(s).padStart(2, '0')}
+      </span>
+    </div>
+  )
+}
+
 // 相手用ヒーロー（HEROESからランダム選択）
 function getOpponentHero(playerHeroId: string): Hero {
   const candidates = HEROES.filter((h) => h.id !== playerHeroId)
@@ -853,11 +873,14 @@ export default function GameBoard(props: GameBoardProps) {
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
       <div className="absolute inset-0 z-0 scanline pointer-events-none" />
 
-      {/* Header */}
-      <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-1">
+      {/* Header - 参考画像風: BATTLE + 中央にタイマー */}
+      <div className="relative z-10 w-full flex justify-center items-center gap-4 pt-4 ls:pt-1">
         <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">BATTLE</span>
         </div>
+        {gameState.phase === 'playing' && (
+          <TimerDisplay gameStartTime={gameState.gameStartTime} />
+        )}
         {gameState.activeResponse.isActive && (
           <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">
             <div className="text-white text-sm font-bold">
@@ -873,15 +896,17 @@ export default function GameBoard(props: GameBoardProps) {
         )}
       </div>
 
-      {/* Main Area */}
+      {/* Main Area - ヒーローに3Dモデルがある場合、左パネルを広げて配置 */}
       <div className="relative z-10 flex-1 flex items-stretch">
-        <div className="w-1/4 ls:w-1/5">
+        <div className={`flex flex-col ls:w-1/5 ${
+          player.hero.modelUrl ? 'w-64 min-w-[240px] ls:min-w-0 ls:w-1/5' : 'w-1/4'
+        }`}>
           <div
             ref={(el) => {
               if (el) heroRefs.current.set(player.playerId, el)
               else heroRefs.current.delete(player.playerId)
             }}
-            className={`transition-all ${
+            className={`flex-1 min-h-0 overflow-hidden transition-all ${
               dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'friendly_hero' && hoveredHeroId === player.playerId
                 ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow] rounded'
                 : ''
@@ -1151,8 +1176,12 @@ export default function GameBoard(props: GameBoardProps) {
           })}
         </div>
 
-        <div className="w-1/4 ls:w-1/5">
-          <HeroPortrait player={opponent} side="right" />
+        <div className={`flex flex-col ls:w-1/5 ${
+          opponent.hero.modelUrl ? 'w-64 min-w-[240px] ls:min-w-0 ls:w-1/5' : 'w-1/4'
+        }`}>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <HeroPortrait player={opponent} side="right" />
+          </div>
         </div>
       </div>
 

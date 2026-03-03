@@ -147,6 +147,8 @@ export interface Hero {
   description?: string
   heroArt?: HeroAbility
   companion?: CompanionAbility
+  /** 3Dモデル（.glb）のURL。指定時はキャラクター表示に使用 */
+  modelUrl?: string
 }
 
 // プレイヤーの状態
