@@ -1,15 +1,15 @@
-import { useRouter } from 'next/router'
+import { useNavigation, type Screen } from '@/components/NavigationContext'
 import styles from './BottomNavigation.module.css'
 
-export default function BottomNavigation() {
-  const router = useRouter()
+const navItems: { id: string; label: string; screen: Screen }[] = [
+  { id: 'home', label: 'ホーム', screen: { name: 'home' } },
+  { id: 'cards', label: 'カード', screen: { name: 'cards' } },
+  { id: 'shop', label: 'ショップ', screen: { name: 'shop' } },
+  { id: 'battle', label: 'バトル', screen: { name: 'deck-select' } },
+]
 
-  const navItems = [
-    { id: 'home', label: 'ホーム', path: '/home' },
-    { id: 'cards', label: 'カード', path: '/cards' },
-    { id: 'shop', label: 'ショップ', path: '/shop' },
-    { id: 'battle', label: 'バトル', path: '/deck-select' },
-  ]
+export default function BottomNavigation() {
+  const { currentScreen, navigate } = useNavigation()
 
   return (
     <nav className={styles.bottomNav}>
@@ -17,9 +17,9 @@ export default function BottomNavigation() {
         <button
           key={item.id}
           className={`${styles.navItem} ${
-            router.pathname === item.path ? styles.active : ''
+            currentScreen.name === item.screen.name ? styles.active : ''
           }`}
-          onClick={() => router.push(item.path)}
+          onClick={() => navigate(item.screen)}
         >
           <span>{item.label}</span>
         </button>

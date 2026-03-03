@@ -24,14 +24,14 @@ export default function BattlePage() {
     // オンラインモードの場合はクエリパラメータからデッキIDを取得（localStorage共有問題を回避）
     const deckId = (router.query.deckId as string) || localStorage.getItem('teppen_selectedDeckId')
     if (!deckId) {
-      router.push('/deck-select')
+      router.push('/home')
       return
     }
 
     const deck = getDeck(deckId)
     if (!deck || deck.cardIds.length !== 30) {
       alert('有効なデッキが選択されていません')
-      router.push('/deck-select')
+      router.push('/home')
       return
     }
 
