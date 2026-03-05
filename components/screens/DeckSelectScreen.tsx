@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { useNavigation } from '@/components/NavigationContext'
 import BottomNavigation from '@/components/BottomNavigation'
 import { getDecks, type SavedDeck } from '@/utils/deckStorage'
@@ -7,6 +8,7 @@ import { HEROES } from '@/core/heroes'
 import styles from './DeckSelectScreen.module.css'
 
 export default function DeckSelectScreen() {
+  const router = useRouter()
   const { navigate } = useNavigation()
   const [decks, setDecks] = useState<SavedDeck[]>([])
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null)
@@ -58,7 +60,7 @@ export default function DeckSelectScreen() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button className={styles.backButton} onClick={() => navigate({ name: 'home' })}>
+        <button className={styles.backButton} onClick={() => router.push('/home')}>
           ← ホームに戻る
         </button>
         <h1>デッキ選択</h1>
