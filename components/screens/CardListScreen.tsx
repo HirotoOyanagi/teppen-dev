@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
@@ -6,12 +6,110 @@ import { useCards } from '@/utils/useCards'
 import type { CardDefinition, CardAttribute, CardTribe } from '@/core/types'
 import styles from './CardListScreen.module.css'
 
+const ATTR_COLORS: Record<string, string> = {
+  red: '#e74c3c',
+  green: '#27ae60',
+  purple: '#9b59b6',
+  black: '#2c3e50',
+}
+
+const ATTR_LABELS: Record<string, string> = {
+  red: '赤',
+  green: '緑',
+  purple: '紫',
+  black: '黒',
+}
+
+const TRIBE_LABELS: Record<string, string> = {
+  street_fighter: 'ストリートファイター',
+  monster_hunter: 'モンスターハンター',
+  rockman: 'ロックマン',
+  okami: '大神',
+  devil_may_cry: 'デビルメイクライ',
+  resident_evil: 'バイオハザード',
+  other: 'その他',
+}
+
+const RARITY_LABELS: Record<string, string> = {
+  normal: 'ノーマル',
+  legend: 'レジェンド',
+}
+
+// Memoized card tile for card list
+const CardListTile = memo(function CardListTile({
+  card,
+  onSelect,
+}: {
+  card: CardDefinition
+  onSelect: (card: CardDefinition) => void
+}) {
+  const attrColor = ATTR_COLORS[card.attribute] || '#666'
+
+  return (
+    <div
+      className={styles.cardItem}
+      onClick={() => onSelect(card)}
+    >
+      {/* Card image */}
+      <div className={styles.cardImageWrap}>
+        {card.imageUrl ? (
+          <img
+            src={card.imageUrl}
+            alt={card.name}
+            className={styles.cardImage}
+            loading="lazy"
+            draggable={false}
+          />
+        ) : (
+          <div className={styles.cardImagePlaceholder} />
+        )}
+        <div className={styles.cardImageOverlay} />
+        {/* Cost badge */}
+        <div className={styles.cardCost}>{card.cost}</div>
+        {/* Attribute bar */}
+        <div className={styles.cardAttrBar} style={{ background: attrColor }} />
+        {/* Rarity indicator */}
+        {card.rarity === 'legend' && (
+          <div className={styles.legendBadge}>L</div>
+        )}
+      </div>
+
+      {/* Card info */}
+      <div className={styles.cardBody}>
+        <div className={styles.cardName}>{card.name}</div>
+        <div className={styles.cardMeta}>
+          <span className={styles.cardType}>
+            {card.type === 'unit' ? 'ユニット' : 'アクション'}
+          </span>
+          <span className={styles.cardAttrLabel} style={{ color: attrColor }}>
+            {ATTR_LABELS[card.attribute]}
+          </span>
+        </div>
+        {card.type === 'unit' && card.unitStats && (
+          <div className={styles.cardStats}>
+            <span className={styles.statAttack}>ATK {card.unitStats.attack}</span>
+            <span className={styles.statHp}>HP {card.unitStats.hp}</span>
+          </div>
+        )}
+        {card.description && (
+          <div className={styles.cardEffect}>
+            {card.description.length > 60
+              ? card.description.substring(0, 60) + '...'
+              : card.description}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+})
+
 export default function CardListScreen() {
   const { goBack } = useNavigation()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAttribute, setSelectedAttribute] = useState<CardAttribute | 'all'>('all')
   const [selectedTribe, setSelectedTribe] = useState<CardTribe | 'all'>('all')
   const [selectedCost, setSelectedCost] = useState<number | 'all'>('all')
+  const [selectedType, setSelectedType] = useState<'all' | 'unit' | 'action'>('all')
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
 
   const { cards: allCards, isLoading } = useCards()
@@ -30,9 +128,16 @@ export default function CardListScreen() {
       if (selectedCost !== 'all' && card.cost !== selectedCost) {
         return false
       }
+      if (selectedType !== 'all' && card.type !== selectedType) {
+        return false
+      }
       return true
     })
-  }, [allCards, searchTerm, selectedAttribute, selectedTribe, selectedCost])
+  }, [allCards, searchTerm, selectedAttribute, selectedTribe, selectedCost, selectedType])
+
+  const handleSelectCard = useCallback((card: CardDefinition) => {
+    setSelectedCard(card)
+  }, [])
 
   const attributes: CardAttribute[] = ['red', 'green', 'purple', 'black']
   const tribes: CardTribe[] = [
@@ -49,7 +154,7 @@ export default function CardListScreen() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div style={{ padding: '20px', textAlign: 'center' }}>カードデータを読み込み中...</div>
+        <div className={styles.loadingState}>カードデータを読み込み中...</div>
       </div>
     )
   }
@@ -61,65 +166,61 @@ export default function CardListScreen() {
           ← 戻る
         </button>
         <h1>カード一覧</h1>
+        <span className={styles.cardCount}>{filteredCards.length}枚</span>
       </div>
 
       <div className={styles.filters}>
         <input
           type="text"
-          placeholder="カード名で検索"
+          placeholder="カード名で検索..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className={styles.searchInput}
         />
 
-        <div className={styles.filterGroup}>
-          <label>属性:</label>
-          <select
-            value={selectedAttribute}
-            onChange={(e) => setSelectedAttribute(e.target.value as CardAttribute | 'all')}
-            className={styles.filterSelect}
-          >
-            <option value="all">すべて</option>
+        <div className={styles.filterRow}>
+          {/* Attribute filter chips */}
+          <div className={styles.attrChips}>
+            <div
+              className={`${styles.attrChip} ${selectedAttribute === 'all' ? styles.attrChipActive : ''}`}
+              style={{ background: '#555' }}
+              onClick={() => setSelectedAttribute('all')}
+            >
+              全
+            </div>
             {attributes.map((attr) => (
-              <option key={attr} value={attr}>
-                {attr === 'red' ? '赤' : attr === 'green' ? '緑' : attr === 'purple' ? '紫' : '黒'}
-              </option>
+              <div
+                key={attr}
+                className={`${styles.attrChip} ${selectedAttribute === attr ? styles.attrChipActive : ''}`}
+                style={{ background: ATTR_COLORS[attr] }}
+                onClick={() => setSelectedAttribute(attr)}
+              >
+                {ATTR_LABELS[attr]}
+              </div>
             ))}
-          </select>
-        </div>
+          </div>
 
-        <div className={styles.filterGroup}>
-          <label>種族:</label>
+          {/* Type filter */}
           <select
-            value={selectedTribe}
-            onChange={(e) => setSelectedTribe(e.target.value as CardTribe | 'all')}
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value as 'all' | 'unit' | 'action')}
             className={styles.filterSelect}
           >
-            <option value="all">すべて</option>
-            {tribes.map((tribe) => (
-              <option key={tribe} value={tribe}>
-                {tribe === 'street_fighter' ? 'ストリートファイター' :
-                 tribe === 'monster_hunter' ? 'モンスターハンター' :
-                 tribe === 'rockman' ? 'ロックマン' :
-                 tribe === 'okami' ? '大神' :
-                 tribe === 'devil_may_cry' ? 'デビルメイクライ' :
-                 tribe === 'resident_evil' ? 'バイオハザード' : 'その他'}
-              </option>
-            ))}
+            <option value="all">全種別</option>
+            <option value="unit">ユニット</option>
+            <option value="action">アクション</option>
           </select>
-        </div>
 
-        <div className={styles.filterGroup}>
-          <label>コスト:</label>
+          {/* Cost filter */}
           <select
             value={selectedCost}
             onChange={(e) => setSelectedCost(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
             className={styles.filterSelect}
           >
-            <option value="all">すべて</option>
+            <option value="all">全コスト</option>
             {costs.map((cost) => (
               <option key={cost} value={cost}>
-                {cost}
+                {cost}MP
               </option>
             ))}
           </select>
@@ -128,21 +229,17 @@ export default function CardListScreen() {
 
       <div className={styles.cardGrid}>
         {filteredCards.map((card) => (
-          <div
+          <CardListTile
             key={card.id}
-            className={styles.cardItem}
-            onClick={() => setSelectedCard(card)}
-          >
-            <div className={styles.cardCost}>{card.cost}</div>
-            <div className={styles.cardName}>{card.name}</div>
-            {card.unitStats && (
-              <div className={styles.cardStats}>
-                <span className={styles.attack}>{card.unitStats.attack}</span>
-                <span className={styles.hp}>{card.unitStats.hp}</span>
-              </div>
-            )}
-          </div>
+            card={card}
+            onSelect={handleSelectCard}
+          />
         ))}
+        {filteredCards.length === 0 && (
+          <div className={styles.emptyState}>
+            条件に一致するカードがありません
+          </div>
+        )}
       </div>
 
       {selectedCard && (
