@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
@@ -23,6 +23,88 @@ const ATTR_LABELS: { key: CardAttribute | 'all'; color: string; label: string }[
   { key: 'purple', color: '#9b59b6', label: '紫' },
   { key: 'black', color: '#2c3e50', label: '黒' },
 ]
+
+// Memoized card tile component to prevent unnecessary re-renders
+const CardTile = memo(function CardTile({
+  card,
+  count,
+  canAdd,
+  onAdd,
+  onLongPress,
+}: {
+  card: CardDefinition
+  count: number
+  canAdd: boolean
+  onAdd: (card: CardDefinition) => void
+  onLongPress: (card: CardDefinition) => void
+}) {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+
+  const handlePointerDown = useCallback(() => {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      onLongPress(card)
+    }, 500)
+  }, [card, onLongPress])
+
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    if (!didLongPress.current && canAdd) {
+      onAdd(card)
+    }
+  }, [card, canAdd, onAdd])
+
+  const handlePointerCancel = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }, [])
+
+  return (
+    <div
+      className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {card.imageUrl && (
+        <img
+          src={card.imageUrl}
+          alt={card.name}
+          className={styles.cardImage}
+          loading="lazy"
+          draggable={false}
+        />
+      )}
+      <div className={styles.cardOverlay} />
+      <div className={styles.cardCost}>{card.cost}</div>
+      <div className={styles.cardInfo}>
+        <div className={styles.cardName}>{card.name}</div>
+        {card.type === 'unit' && card.unitStats && (
+          <div className={styles.cardStats}>
+            <span>{card.unitStats.attack}</span>
+            <span>/</span>
+            <span>{card.unitStats.hp}</span>
+          </div>
+        )}
+      </div>
+      <div
+        className={styles.cardAttrBar}
+        style={{ background: ATTR_COLORS[card.attribute] }}
+      />
+      {count > 0 && (
+        <div className={styles.cardCountBadge}>x{count}</div>
+      )}
+    </div>
+  )
+})
 
 interface DeckEditScreenProps {
   deckId?: string
@@ -117,6 +199,10 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
     })
   }, [])
 
+  const handleShowCard = useCallback((card: CardDefinition) => {
+    setSelectedCard(card)
+  }, [])
+
   const handleSaveDeck = () => {
     if (deckId) {
       const updated = updateDeck(deckId, {
@@ -137,11 +223,6 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
       alert('デッキを保存しました')
       navigate({ name: 'deck-list' })
     }
-  }
-
-  const handleDragStart = (e: React.DragEvent, card: CardDefinition) => {
-    e.dataTransfer.setData('text/plain', card.id)
-    e.dataTransfer.effectAllowed = 'copy'
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -179,42 +260,14 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
               const canAdd = count < maxCount && deckCardIds.length < 30
 
               return (
-                <div
+                <CardTile
                   key={card.id}
-                  className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
-                  onClick={() => canAdd && handleAddCard(card)}
-                  draggable={canAdd}
-                  onDragStart={(e) => canAdd && handleDragStart(e, card)}
-                >
-                  {card.imageUrl && (
-                    <img
-                      src={card.imageUrl}
-                      alt={card.name}
-                      className={styles.cardImage}
-                      loading="lazy"
-                      draggable={false}
-                    />
-                  )}
-                  <div className={styles.cardOverlay} />
-                  <div className={styles.cardCost}>{card.cost}</div>
-                  <div className={styles.cardInfo}>
-                    <div className={styles.cardName}>{card.name}</div>
-                    {card.type === 'unit' && card.unitStats && (
-                      <div className={styles.cardStats}>
-                        <span>{card.unitStats.attack}</span>
-                        <span>/</span>
-                        <span>{card.unitStats.hp}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={styles.cardAttrBar}
-                    style={{ background: ATTR_COLORS[card.attribute] }}
-                  />
-                  {count > 0 && (
-                    <div className={styles.cardCountBadge}>x{count}</div>
-                  )}
-                </div>
+                  card={card}
+                  count={count}
+                  canAdd={canAdd}
+                  onAdd={handleAddCard}
+                  onLongPress={handleShowCard}
+                />
               )
             })}
           </div>

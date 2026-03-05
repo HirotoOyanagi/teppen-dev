@@ -59,15 +59,19 @@
   border-radius: 6px;
   cursor: pointer;
   overflow: hidden;
-  transition: transform 0.15s, box-shadow 0.15s;
   user-select: none;
   -webkit-user-select: none;
   aspect-ratio: 3 / 4;
   background: #2a2a3e;
+  content-visibility: auto;
+  contain-intrinsic-size: 100px 133px;
+  contain: layout style paint;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .cardItem:active {
-  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 /* カード画像 */

@@ -1,15 +1,17 @@
-import { useNavigation, type Screen } from '@/components/NavigationContext'
+import { useRouter } from 'next/router'
+import { useNavigation } from '@/components/NavigationContext'
 import styles from './BottomNavigation.module.css'
 
-const navItems: { id: string; label: string; screen: Screen }[] = [
-  { id: 'home', label: 'ホーム', screen: { name: 'home' } },
-  { id: 'cards', label: 'カード', screen: { name: 'cards' } },
-  { id: 'shop', label: 'ショップ', screen: { name: 'shop' } },
-  { id: 'battle', label: 'バトル', screen: { name: 'deck-select' } },
+const navItems: { id: string; label: string; screenName: string; path: string }[] = [
+  { id: 'home', label: 'ホーム', screenName: 'home', path: '/home' },
+  { id: 'cards', label: 'カード', screenName: 'cards', path: '/cards' },
+  { id: 'shop', label: 'ショップ', screenName: 'shop', path: '/shop' },
+  { id: 'battle', label: 'バトル', screenName: 'deck-select', path: '/deck-select' },
 ]
 
 export default function BottomNavigation() {
-  const { currentScreen, navigate } = useNavigation()
+  const router = useRouter()
+  const { currentScreen } = useNavigation()
 
   return (
     <nav className={styles.bottomNav}>
@@ -17,9 +19,9 @@ export default function BottomNavigation() {
         <button
           key={item.id}
           className={`${styles.navItem} ${
-            currentScreen.name === item.screen.name ? styles.active : ''
+            currentScreen.name === item.screenName ? styles.active : ''
           }`}
-          onClick={() => navigate(item.screen)}
+          onClick={() => router.push(item.path)}
         >
           <span>{item.label}</span>
         </button>
@@ -27,4 +29,3 @@ export default function BottomNavigation() {
     </nav>
   )
 }
-
