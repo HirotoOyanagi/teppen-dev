@@ -408,6 +408,12 @@ export function resolveEffectByFunctionName(
       return resolveGrantShieldRandomFriendly(value, context)
     case 'grant_crush_all_friendly_temp':
       return resolveGrantCrushAllFriendlyTemp(context)
+    case 'grant_heavy_pierce_self':
+      return resolveGrantStatusSelf('heavy_pierce', context)
+
+    // ── スタッツ復元 ──
+    case 'restore_stats':
+      return resolveRestoreStats(context)
 
     // ── 攻撃操作系 ──
     case 'reset_attack_timer':
@@ -1627,6 +1633,40 @@ function resolveGrantStatusTarget(
       const effects = u.statusEffects || []
       if (effects.includes(status)) return u
       return { ...u, statusEffects: [...effects, status] }
+    }),
+  }
+  return { state: newState, events }
+}
+
+/** 対象ユニットの攻撃力とHPを元の値に戻す */
+function resolveRestoreStats(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  // targetUnit指定があればそれ、なければランダム味方
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex])
+    targetId = random?.id
+  }
+  if (!targetId) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const player = newState.players[ownerIndex]
+  newState.players[ownerIndex] = {
+    ...player,
+    units: player.units.map((u) => {
+      if (u.id !== targetId) return u
+      const origAtk = u.originalAttack ?? u.attack
+      const origHp = u.originalHp ?? u.maxHp
+      return { ...u, attack: origAtk, hp: origHp, maxHp: origHp }
     }),
   }
   return { state: newState, events }

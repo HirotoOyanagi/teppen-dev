@@ -8,7 +8,7 @@ export type { CardDefinition }
 import { loadCardsFromCsv } from './csvLoader'
 
 // CSVファイルのパス（publicディレクトリからの相対パス）
-const CSV_FILE_PATH = '/Teppen本番 - COR.csv'
+const CSV_FILE_PATH = '/CardEffects_v2.csv'
 
 // キャッシュされたカードリスト
 let cachedCards: CardDefinition[] | null = null
