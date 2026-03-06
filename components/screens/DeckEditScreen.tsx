@@ -40,6 +40,8 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
 
   const { cards: allCards, cardMap, isLoading: cardsLoading } = useCards()
   const deckListRef = useRef<HTMLDivElement>(null)
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const longPressTriggeredRef = useRef(false)
 
   useEffect(() => {
     if (deckId) {
@@ -105,6 +107,31 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
       if (count < maxCount && prev.length < 30) return [...prev, card.id]
       return prev
     })
+  }, [])
+
+  const handleCardPointerDown = useCallback((card: CardDefinition) => {
+    longPressTriggeredRef.current = false
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true
+      setSelectedCard(card)
+    }, 400)
+  }, [])
+
+  const handleCardPointerUp = useCallback((card: CardDefinition, canAdd: boolean) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    if (!longPressTriggeredRef.current && canAdd) {
+      handleAddCard(card)
+    }
+  }, [handleAddCard])
+
+  const handleCardPointerCancel = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
   }, [])
 
   const handleRemoveCard = useCallback((cardId: string) => {
@@ -182,7 +209,11 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
                 <div
                   key={card.id}
                   className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
-                  onClick={() => canAdd && handleAddCard(card)}
+                  onPointerDown={() => handleCardPointerDown(card)}
+                  onPointerUp={() => handleCardPointerUp(card, canAdd)}
+                  onPointerCancel={handleCardPointerCancel}
+                  onPointerLeave={handleCardPointerCancel}
+                  onContextMenu={(e) => e.preventDefault()}
                   draggable={canAdd}
                   onDragStart={(e) => canAdd && handleDragStart(e, card)}
                 >
@@ -258,6 +289,10 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
                 key={card.id}
                 className={styles.deckCardRow}
                 onClick={() => handleRemoveCard(card.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setSelectedCard(card)
+                }}
               >
                 <div
                   className={styles.deckCardAttr}

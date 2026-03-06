@@ -1,10 +1,12 @@
+/* ===== カード詳細モーダル ===== */
+
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.8);
   z-index: 999;
   animation: fadeIn 0.2s;
 }
@@ -15,208 +17,447 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  max-width: 500px;
-  width: 90%;
+  max-width: 680px;
+  width: 95%;
+  background: #1a1a2e;
+  border: 2px solid #444;
+  border-radius: 12px;
+  overflow: hidden;
   animation: slideIn 0.3s;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.7);
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -60%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
+  from { opacity: 0; transform: translate(-50%, -55%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* --- ヘッダー --- */
+.header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid #333;
+  position: relative;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: bold;
+  color: #eee;
+  letter-spacing: 2px;
 }
 
 .closeButton {
   position: absolute;
-  top: -40px;
-  right: 0;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  width: 32px;
-  height: 32px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #555;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  font-size: 24px;
+  font-size: 18px;
+  color: #ccc;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1001;
+  transition: background 0.2s;
 }
 
 .closeButton:hover {
-  background: white;
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border: 4px solid;
-}
-
-.cardHeader {
+/* --- メインコンテンツ --- */
+.content {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  padding: 16px;
+  gap: 16px;
+  min-height: 0;
 }
 
-.cost {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+/* --- 左: カード表示 --- */
+.cardSide {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.cardFrame {
+  position: relative;
+  width: 180px;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  border: 3px solid;
+  overflow: hidden;
+  background: #2a2a3e;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* コストバッジ（左上） */
+.costBadge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 36px;
+  height: 36px;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9));
+}
+
+.costSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.costText {
+  position: relative;
+  font-size: 16px;
+  font-weight: 900;
   color: white;
-  font-weight: bold;
-  font-size: 20px;
+  font-family: 'Orbitron', sans-serif;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
 }
 
-.tribe {
-  font-size: 32px;
-}
-
-.cardCenter {
-  margin: 20px 0;
+/* カード画像 */
+.cardImageArea {
+  position: absolute;
+  inset: 0;
 }
 
 .cardImage {
   width: 100%;
-  aspect-ratio: 5 / 7;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardImagePlaceholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-}
-
-.imagePlaceholder {
-  color: white;
-  font-size: 24px;
+  background: linear-gradient(135deg, #3a3a5e, #2a2a4e);
+  color: #888;
+  font-size: 14px;
   font-weight: bold;
   text-align: center;
-  padding: 20px;
-}
-
-.cardFooter {
-  margin-top: 16px;
-}
-
-.cardName {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.cardDescription {
-  color: #666;
-  margin-bottom: 12px;
-  min-height: 40px;
-}
-
-.unitStats {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  font-weight: bold;
-  font-size: 18px;
-}
-
-.actionEffect {
-  margin-top: 12px;
   padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
+}
+
+.cardImageOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(0, 0, 0, 0.5) 75%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  pointer-events: none;
+}
+
+/* カード名バー */
+.cardNameBar {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 5;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 1);
+  line-height: 1.3;
+}
+
+/* 攻撃力バッジ（左下） */
+.attackBadge {
+  position: absolute;
+  bottom: -6px;
+  left: -6px;
+  width: 38px;
+  height: 38px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9));
+}
+
+/* HPバッジ（右下） */
+.hpBadge {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  width: 38px;
+  height: 42px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9));
+}
+
+.statSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hpSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.statText {
+  position: relative;
+  font-size: 14px;
+  font-weight: 900;
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
+}
+
+/* アクションカードラベル */
+.actionLabel {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 5;
+  color: #ffd700;
+  font-size: 12px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 1);
+}
+
+/* --- 右: カード情報 --- */
+.infoSide {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.infoLabel {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #888;
+  font-weight: bold;
+}
+
+.infoValue {
+  flex: 1;
+  font-size: 13px;
+  color: #eee;
+  font-weight: bold;
+}
+
+.legendBadge {
+  display: inline-block;
+  padding: 1px 8px;
+  background: linear-gradient(135deg, #f5af19, #f12711);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+/* スタッツセクション */
+.statsSection {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.statsRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statsIcon {
   font-size: 14px;
 }
 
-/* スマホ横画面対応 */
-@media (orientation: landscape) and (max-height: 500px) {
+.statsLabel {
+  font-size: 11px;
+  color: #888;
+}
+
+.statsValue {
+  font-size: 16px;
+  font-weight: 900;
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* 効果テキスト */
+.descriptionSection {
+  flex: 1;
+  margin-top: 6px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
+  max-height: 180px;
+}
+
+.descriptionText {
+  font-size: 12px;
+  color: #ccc;
+  line-height: 1.7;
+  margin: 0;
+  word-break: break-word;
+}
+
+.descriptionEmpty {
+  font-size: 12px;
+  color: #555;
+  margin: 0;
+  font-style: italic;
+}
+
+.keyword {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* ===== スマホ縦画面（幅が狭い場合は縦並び） ===== */
+@media (max-width: 500px) {
   .modal {
-    max-width: 360px;
+    width: 95%;
     max-height: 90vh;
-    overflow-y: auto;
   }
 
-  .card {
+  .content {
+    flex-direction: column;
+    align-items: center;
     padding: 12px;
+    gap: 12px;
+    overflow-y: auto;
+    max-height: calc(90vh - 50px);
   }
 
-  .cardHeader {
-    margin-bottom: 8px;
+  .cardFrame {
+    width: 150px;
   }
 
-  .cost {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-  }
-
-  .tribe {
-    font-size: 22px;
-  }
-
-  .cardCenter {
-    margin: 8px 0;
-  }
-
-  .cardImage {
-    aspect-ratio: 3 / 2;
-  }
-
-  .imagePlaceholder {
-    font-size: 16px;
-    padding: 10px;
-  }
-
-  .cardFooter {
-    margin-top: 8px;
-  }
-
-  .cardName {
-    font-size: 16px;
-    margin-bottom: 4px;
-  }
-
-  .cardDescription {
-    font-size: 12px;
-    min-height: 20px;
-    margin-bottom: 6px;
-  }
-
-  .unitStats {
-    margin-top: 6px;
-    font-size: 14px;
-  }
-
-  .actionEffect {
-    margin-top: 6px;
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .closeButton {
-    top: -30px;
-    width: 26px;
-    height: 26px;
-    font-size: 18px;
+  .descriptionSection {
+    max-height: 120px;
   }
 }
 
+/* ===== スマホ横画面対応 ===== */
+@media (orientation: landscape) and (max-height: 500px) {
+  .modal {
+    max-width: 580px;
+    max-height: 92vh;
+    width: 92%;
+  }
+
+  .header {
+    padding: 6px 12px;
+  }
+
+  .headerTitle {
+    font-size: 13px;
+  }
+
+  .closeButton {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .content {
+    padding: 10px;
+    gap: 10px;
+    overflow-y: auto;
+    max-height: calc(92vh - 40px);
+  }
+
+  .cardFrame {
+    width: 130px;
+  }
+
+  .costBadge {
+    width: 28px;
+    height: 28px;
+  }
+
+  .costText {
+    font-size: 13px;
+  }
+
+  .attackBadge {
+    width: 30px;
+    height: 30px;
+  }
+
+  .hpBadge {
+    width: 30px;
+    height: 34px;
+  }
+
+  .statText {
+    font-size: 11px;
+  }
+
+  .infoLabel {
+    width: 52px;
+    font-size: 10px;
+  }
+
+  .infoValue {
+    font-size: 11px;
+  }
+
+  .statsValue {
+    font-size: 13px;
+  }
+
+  .descriptionSection {
+    max-height: 100px;
+    padding: 6px 8px;
+  }
+
+  .descriptionText {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+}
