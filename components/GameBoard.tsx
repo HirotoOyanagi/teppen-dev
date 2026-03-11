@@ -1188,8 +1188,32 @@ export default function GameBoard(props: GameBoardProps) {
       {/* Footer Area */}
       <div className="relative z-20 h-64 ls:h-32 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6 ls:pb-1">
         <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
-          {/* EXポケット */}
-          <div className="flex gap-1 items-end mr-2 ls:mr-1">
+          {/* 手札 */}
+          {player.hand.map((cardId, i) => {
+            const cardDef = resolveCardDefinition(cardMap, cardId)
+            if (!cardDef) return null
+
+            const availableMp = player.mp + player.blueMp
+            const isActiveResponse = gameState.activeResponse.isActive
+            const effectiveCost = cardDef.cost
+            const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isActiveResponse)
+            const isDragging = !dragging?.fromExPocket && dragging?.idx === i
+
+            return (
+              <GameCard
+                key={`${cardId}_${i}`}
+                cardDef={cardDef}
+                size="lg"
+                cardMap={cardMap}
+                onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
+                canPlay={canPlay}
+                isDragging={isDragging}
+              />
+            )
+          })}
+          {/* EXポケット（右側） */}
+          <div className="flex gap-1 items-end ml-2 ls:ml-1">
             {[0, 1].map((slotIdx) => {
               const exCard = player.exPocket[slotIdx]
               if (!exCard) {
@@ -1233,30 +1257,6 @@ export default function GameBoard(props: GameBoardProps) {
               )
             })}
           </div>
-          {/* 手札 */}
-          {player.hand.map((cardId, i) => {
-            const cardDef = resolveCardDefinition(cardMap, cardId)
-            if (!cardDef) return null
-
-            const availableMp = player.mp + player.blueMp
-            const isActiveResponse = gameState.activeResponse.isActive
-            const effectiveCost = cardDef.cost
-            const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isActiveResponse)
-            const isDragging = !dragging?.fromExPocket && dragging?.idx === i
-
-            return (
-              <GameCard
-                key={`${cardId}_${i}`}
-                cardDef={cardDef}
-                size="lg"
-                cardMap={cardMap}
-                onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
-                onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
-                canPlay={canPlay}
-                isDragging={isDragging}
-              />
-            )
-          })}
         </div>
         <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} />
       </div>
