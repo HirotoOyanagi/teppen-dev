@@ -1,0 +1,14 @@
+{
+    "mcpServers": {
+      "t2i-kamui-fal-bytedance-seedream-v5-lite": {
+        "type": "http",
+        "url": "https://kamui-code.ai/t2i/fal/bytedance/seedream-v5-lite",
+        "description": "ByteDance Seedream V5 Lite Text-to-Image - Generate high-quality images using ByteDance's Seedream 5.0 Lite model. Generate images from text prompts with support for customizable parameters including prompt (required), image size (square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9, auto_2K, auto_3K, or custom width/height object - total pixels must be between 2560x1440 and 3072x3072; if outside this range, the image size will be automatically adjusted by scaling), num images (default: 1), max images (default: 1, enables multi-image generation when > 1), sync mode (default: false), and enable safety checker (default: true). Perfect for high-quality text-to-image generation via Kamui Code ⭐⭐⭐",
+        "headers": {
+          "KAMUI-CODE-PASS": "kamui_e_5AYhXa1_f06MUTvVyh_ihW6QwtsGmA67W15T5aFTA"
+        }
+      }
+    }
+  }
+  
+  
