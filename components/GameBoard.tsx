@@ -254,21 +254,22 @@ export default function GameBoard(props: GameBoardProps) {
     initialState.players[0].mp = 10
     initialState.players[0].maxMp = 10
 
-    // 検証用: 相手のフィールドに「ガイ」（cor_12）を3体配置
-    const guyCardId = 'cor_10'
-    const guyCardDef = cardMap.get(guyCardId)
-    if (guyCardDef && guyCardDef.unitStats) {
-      const testUnits: typeof initialState.players[1]['units'] = [0, 1, 2].map((lane) => ({
-        id: `test_guy_${lane}_${Date.now()}`,
-        cardId: guyCardId,
-        hp: guyCardDef.unitStats!.hp,
-        maxHp: guyCardDef.unitStats!.hp,
-        attack: guyCardDef.unitStats!.attack,
-        attackGauge: 0, // Rush効果は別途処理が必要
-        attackInterval: guyCardDef.unitStats!.attackInterval,
-        lane: lane,
-      }))
-      initialState.players[1].units = testUnits
+    // テストルーム検証用: 相手フィールド中央にHP300ユニットを1体配置
+    const testCardId = 'cor_010'
+    const testCardDef = cardMap.get(testCardId)
+    if (testCardDef?.unitStats) {
+      initialState.players[1].units = [
+        {
+          id: `test_hp300_${Date.now()}`,
+          cardId: testCardId,
+          hp: 300,
+          maxHp: 300,
+          attack: testCardDef.unitStats.attack,
+          attackGauge: 0,
+          attackInterval: testCardDef.unitStats.attackInterval,
+          lane: 1,
+        },
+      ]
     }
 
     setGameState(initialState)
