@@ -17,6 +17,7 @@ import { parseCardId, resolveCardDefinition } from './cardId'
 import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
 import { cardSpecificEffects } from './cardSpecificEffects'
 import { resolveHeroArtEffect, resolveCompanionEffect } from './heroAbilities'
+import { applyRedCoreOnPlay, applyRedCoreUnitPassives } from './redCoreEffects'
 
 /**
  * 数値をパース（空文字や無効値は0）
@@ -1391,6 +1392,10 @@ function processInput(
       newUnit.originalAttack = newUnit.attack
       newUnit.originalHp = newUnit.hp
 
+      // 新Core赤カードのコード実装パッシブを適用
+      Object.assign(newUnit, applyRedCoreUnitPassives(input.cardId, newUnit))
+
+
       // 目覚め: 味方ユニットに重ねてプレイした場合、目覚め状態にして効果を発動
       if (hasAwakening && existingUnitInLane) {
         newUnit.isAwakened = true
@@ -1403,6 +1408,17 @@ function processInput(
       }
 
       newState.players[playerIndex].units.push(newUnit)
+
+      // 新Core赤カードの登場時効果（コード実装）
+      newState = applyRedCoreOnPlay(
+        newState,
+        cardDefinitions,
+        input.playerId,
+        input.cardId,
+        events,
+        newUnit,
+        input.target
+      )
 
       // 目覚め効果の発動
       if (newUnit.isAwakened) {
@@ -2032,6 +2048,9 @@ function resolveActionEffect(
   // アクション効果の解決
   // action_effect は「AR解決タイミングで発動する」という条件を表すマーカーで、
   // 実際の効果（ダメージ振り分けなど）は他の関数名で表現する。
+  // 新Core赤カードのアクション効果（コード実装）
+  newState = applyRedCoreOnPlay(newState, cardDefinitions, playerId, cardDef.id, events, undefined, stackItem.target)
+
   const functionTokens = parseEffectFunctionTokens(cardDef.effectFunctions)
   if (functionTokens.length > 0) {
     const playerIndex = newState.players.findIndex((p) => p.playerId === playerId)
