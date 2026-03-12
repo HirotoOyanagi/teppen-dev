@@ -35,8 +35,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_008 ラッシュ: 攻撃時：正面の敵ユニットに3ダメージ
   cor_008: 'attack:damage_front_unit:3',
 
-  // COR_009 スポッター: 自身のアクションカードのダメージを+1する。
-  cor_009: '',
+  // COR_009 スポッター: 自身のアクションカードのダメージを+1する。（場にいる間）
+  cor_009: 'while_on_field:action_damage_boost:1',
 
   // COR_010 マルク: 登場時：正面以外の敵ユニットに5ダメージ。
   cor_010: 'play:damage_non_front_enemy:5',
@@ -45,7 +45,7 @@ export const newCardEffectFunctions: Record<string, string> = {
   cor_011: 'play:damage_target:3;effect_damage_destroy:buff_random_friendly_attack_hp:2',
 
   // COR_012 煉獄の覇者 カイゼル: 登場時：敵リーダーに自信のユニットが受けるダメージをすべて+1するを付与する。ランダムな敵ユニット一体に7ダメージを与える。
-  cor_012: 'play:damage_random_enemy:7',
+  cor_012: 'play:grant_enemy_damage_boost_all:1;play:damage_random_enemy:7',
 
   // COR_013 クーリエ: 登場時：味方ユニット1体に俊敏を付与する。
   cor_013: 'play:grant_agility_target',
@@ -53,14 +53,14 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_014 トラッカー: 登場時：デッキから「火種」1枚を探してEXポケットに加える。
   cor_014: 'play:search_fire_seed_to_ex',
 
-  // COR_015 ガイド: 登場時：「火種」1枚を探して手札に加える。自分がアクションカードを使ったとき、そのカードが「火種」ならこのユニット攻撃力を+1する。
-  cor_015: 'play:search_fire_seed_to_hand',
+  // COR_015 ガイド: 登場時：「火種」1枚をEXポケットに加える。自分がアクションカードを使ったとき、そのカードが「火種」ならこのユニット攻撃力を+1する。
+  cor_015: 'play:add_fire_seed_to_ex;resonate_fire_seed:buff_self_attack:1',
 
-  // COR_016 メッセンジャー: 登場時：デッキから「火種」1枚を探してEXポケットに加え、デッキをシャッフルする。その後、味方ユニット1体の攻撃準備時間を2秒短縮する。
-  cor_016: 'play:search_fire_seed_to_ex;play:reduce_attack_timer_target:2',
+  // COR_016 メッセンジャー: 登場時：「火種」をEXポケットに加える。
+  cor_016: 'play:add_fire_seed_to_ex',
 
   // COR_017 ブレイカー: 「火種」を3枚以上使用していた場合、攻撃時:5ダメージを与えるを得る。俊敏
-  cor_017: 'agility',
+  cor_017: 'agility;attack:damage_front_fire_seed_conditional:5',
 
   // COR_018 スキャッター: 登場時：敵ユニット1体に1ダメージ。対象のHPが3以下なら、代わりに3ダメージ。
   cor_018: 'play:damage_target_conditional_low_hp:1',
@@ -95,13 +95,13 @@ export const newCardEffectFunctions: Record<string, string> = {
   cor_027: 'damage_target:2',
 
   // COR_028 焔の洗式: 自身のユニット1体に+3攻撃力を付与する。そのユニットがこのターン敵ユニットを撃破したとき、自身のEXポケットに「火種」を1枚加える。
-  cor_028: 'buff_target_attack:3',
+  cor_028: 'buff_target_attack:3;grant_decimate_fire_seed_target',
 
   // COR_029 灼熱の一閃: 敵ユニット1体に4ダメージ。アクティブレスポンス中に使った場合、代わりに6ダメージ。このカードの効果で敵ユニットを破壊した時、敵ヒーローに1ダメージ。
   cor_029: 'damage_target_ar_boost:4',
 
   // COR_030 残り焔の記憶: 自身の墓地のアクションカードを1枚選ぶ。そのカード名を記憶した「残響点火」を自身のEXポケットに1枚加える。このカードは記憶したカードと同じ効果を持つ。
-  cor_030: 'draw_to_ex:1',
+  cor_030: 'copy_graveyard_action_to_ex',
 
   // COR_031 無敵突破: 自身のユニット1体は敵ユニットにブロックされないを得る（一回のみ）。さらに+2攻撃力を得る。
   cor_031: 'buff_target_attack:2;grant_unblockable_target',
@@ -113,28 +113,28 @@ export const newCardEffectFunctions: Record<string, string> = {
   cor_033: 'damage_target:5',
 
   // COR_034 爆心撃: 敵ユニットに6ダメージ。破壊した場合、その正面の味方ユニット1体に+3/+3を付与。
-  cor_034: 'damage_target:6',
+  cor_034: 'damage_target_on_destroy_buff_front:6',
 
   // COR_035 死角狙撃: 正面ではない敵ユニット1体に6ダメージ。そのユニットを破壊した場合、最も近い味方ユニット1体に+1/+1を2回付与する。
-  cor_035: 'damage_non_front_enemy:6',
+  cor_035: 'damage_non_front_on_destroy_buff_nearest:6',
 
   // COR_036 散華の弾幕: ランダムなユニットに合計9ダメージを好きなように割り分ける。
   cor_036: 'split_damage_all_enemy_units:9',
 
   // COR_037 焼却ルート: 1つのレーンを選ぶ。そのレーンの敵ユニットに7ダメージ。破壊した場合、その正面の味方ユニット1体は次の攻撃で正面のユニットを無視してヒーローを攻撃する。
-  cor_037: 'damage_target:7',
+  cor_037: 'damage_target_on_destroy_grant_hero_attack:7',
 
   // COR_038 三連焔の起動: 「火種」が3枚以上使用していた場合、敵ユニット1体に6ダメージ。その後、自分のEXポケットの「火種」を2枚まで墓地に送り、その枚数だけ敵ヒーローに1ダメージ。
-  cor_038: 'damage_target:6',
+  cor_038: 'fire_seed_triple_activation:6',
 
   // COR_039 焔の収束点: 敵ユニットに「火種」を使用した回数×2ダメージを振り分ける。
-  cor_039: 'split_damage_all_enemy_units:4',
+  cor_039: 'split_damage_by_fire_seed_count:2',
 
   // COR_040 終末の開炉: 「火種」を使用した回数だけすべての敵ユニットと敵リーダーに1ダメージを与える。
-  cor_040: 'damage_all_enemy_units_each:3;damage_enemy_hero:3',
+  cor_040: 'damage_all_by_fire_seed_count:1',
 
   // COR_041 側面強襲: ランダムな敵ユニットに4ダメージを振り分ける。このアクションの効果で敵ユニットが破壊された場合、敵リーダーに1ダメージ
-  cor_041: 'split_damage_all_enemy_units:4',
+  cor_041: 'split_damage_on_destroy_hero_damage:4',
 
   // COR_042 拡散射撃: 敵ユニットに5ダメージを振り分ける
   cor_042: 'split_damage_all_enemy_units:5',
@@ -143,8 +143,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   cor_043: 'damage_target:2;grant_effect_damage_boost_target:2',
 
   // COR_044 完全制圧: 全ての敵ユニットに2ダメージ。全ての敵ユニットは反撃することができなくなる。
-  cor_044: 'damage_all_enemy_units_each:2',
+  cor_044: 'damage_all_enemy_units_each:2;grant_no_counterattack_all_enemy',
 
   // COR_045 斬り込み特攻: 味方ユニット1体に、その正面に敵ユニットがいるなら+5攻撃力を付与する。いないなら、代わりに+1攻撃力と「連撃」を付与する。
-  cor_045: 'buff_target_attack:5',
+  cor_045: 'buff_target_conditional_front:5',
 }

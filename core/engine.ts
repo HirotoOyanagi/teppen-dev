@@ -44,6 +44,7 @@ type EffectFunctionTrigger =
   | 'enter_field' // 場に出た時（出所を問わず場に出た瞬間）
   | 'ex_resonate' // EXポケットからカード使用時
   | 'enemy_action' // 相手がアクションカードを使用した時
+  | 'resonate_fire_seed' // 火種(cor_027)をアクションカードとして使用した時
 
 type TriggeredEffectFunctionToken = EffectFunctionToken & {
   trigger: EffectFunctionTrigger
@@ -108,6 +109,7 @@ function parseTriggeredEffectFunctionTokens(
     enter_field: 'enter_field',
     ex_resonate: 'ex_resonate',
     enemy_action: 'enemy_action',
+    resonate_fire_seed: 'resonate_fire_seed',
   }
 
   const triggeredTokens: TriggeredEffectFunctionToken[] = []
@@ -954,9 +956,15 @@ function processInput(
         timestamp: input.timestamp,
       })
       // アクションカード使用回数をカウント
+      const baseCardId = input.cardId.split('@')[0]
+      const prevChainFire = newState.players[playerIndex].chainFireCount || {}
       newState.players[playerIndex] = {
         ...newState.players[playerIndex],
         actionCardUsedCount: (newState.players[playerIndex].actionCardUsedCount || 0) + 1,
+        chainFireCount: {
+          ...prevChainFire,
+          [baseCardId]: (prevChainFire[baseCardId] || 0) + 1,
+        },
       }
     }
 

@@ -482,6 +482,12 @@ export function resolveEffectByFunctionName(
       return resolveDiscardLowestMpHand(context)
     case 'reduce_attack_timer_target':
       return resolveReduceAttackTimerTarget(value, context)
+    case 'shuffle_deck':
+      return resolveShuffleDeck(context)
+    case 'copy_graveyard_action_to_ex':
+      return resolveCopyGraveyardActionToEx(context)
+    case 'grant_decimate_fire_seed_target':
+      return resolveGrantDecimateFireSeedTarget(context)
 
     // ── 新カードCore: ダメージ系 ──
     case 'damage_non_front_enemy':
@@ -496,6 +502,22 @@ export function resolveEffectByFunctionName(
       return resolveDamageTargetFireSeedConditional(value, context)
     case 'damage_target_ar_boost':
       return resolveDamageTargetArBoost(value, context)
+    case 'damage_front_fire_seed_conditional':
+      return resolveDamageFrontFireSeedConditional(value, context)
+    case 'damage_target_on_destroy_buff_front':
+      return resolveDamageTargetOnDestroyBuffFront(value, context)
+    case 'damage_non_front_on_destroy_buff_nearest':
+      return resolveDamageNonFrontOnDestroyBuffNearest(value, context)
+    case 'damage_target_on_destroy_grant_hero_attack':
+      return resolveDamageTargetOnDestroyGrantHeroAttack(value, context)
+    case 'fire_seed_triple_activation':
+      return resolveFireSeedTripleActivation(value, context)
+    case 'split_damage_by_fire_seed_count':
+      return resolveSplitDamageByFireSeedCount(value, context)
+    case 'damage_all_by_fire_seed_count':
+      return resolveDamageAllByFireSeedCount(value, context)
+    case 'split_damage_on_destroy_hero_damage':
+      return resolveSplitDamageOnDestroyHeroDamage(value, context)
 
     // ── 新カードCore: バフ系 ──
     case 'buff_random_friendly_attack_hp':
@@ -504,6 +526,8 @@ export function resolveEffectByFunctionName(
       return resolveBuffRandomFriendlyAttackIfMp5(value, context)
     case 'buff_friendly_by_enemy_front_attack':
       return resolveBuffFriendlyByEnemyFrontAttack(context)
+    case 'buff_target_conditional_front':
+      return resolveBuffTargetConditionalFront(value, context)
 
     // ── 新カードCore: ステータス付与系 ──
     case 'grant_effect_damage_boost_front':
@@ -514,6 +538,15 @@ export function resolveEffectByFunctionName(
       return resolveGrantActionDamageImmunitySelf(context)
     case 'grant_unblockable_target':
       return resolveGrantUnblockableTarget(context)
+    case 'grant_enemy_damage_boost_all':
+      return resolveGrantEnemyDamageBoostAll(value, context)
+    case 'grant_no_counterattack_all_enemy':
+      return resolveGrantNoCounterattackAllEnemy(context)
+
+    // ── 新カードCore: while_on_field系 ──
+    case 'while_on_field':
+      // handled by engine tick, not here
+      return { state: newState, events }
 
     // ── 新カードCore: 即時攻撃 ──
     case 'immediate_attack_self':
@@ -2523,9 +2556,7 @@ function resolveDamageTargetFireSeedConditional(
   const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
   if (ownerIndex === -1) return { state: newState, events }
 
-  // 火種の使用回数をチェック（actionCardUsedCountの一部として追跡）
-  // TODO: 火種固有の使用回数追跡を実装
-  // 現在はbaseDamage(4)を適用
+  // 火種の使用回数をチェック（chainFireCountで追跡）
   const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
   const player = newState.players[playerIndex]
   const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
@@ -2759,6 +2790,469 @@ function resolveImmediateAttackSelf(
     units: player.units.map((u) =>
       u.id === sourceUnit.unit.id ? { ...u, attackGauge: 1.0 } : u
     ),
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: 追加カード操作系 ───
+
+/** デッキをシャッフル */
+function resolveShuffleDeck(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  const shuffled = [...player.deck]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  newState.players[playerIndex] = { ...player, deck: shuffled }
+  return { state: newState, events }
+}
+
+/** 墓地のアクションカード1枚をコピーしてEXポケットに追加 */
+function resolveCopyGraveyardActionToEx(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  // 墓地からアクションカードを探す
+  const actionCards = player.graveyard.filter((cid) => {
+    const def = cardMap.get(cid.split('@')[0])
+    return def && def.type === 'action'
+  })
+  if (actionCards.length === 0) return { state: newState, events }
+
+  // ランダムに1枚選んでEXに追加（コピーなので墓地からは消さない）
+  const chosen = actionCards[Math.floor(Math.random() * actionCards.length)]
+  newState.players[playerIndex] = {
+    ...player,
+    exPocket: [...player.exPocket, chosen],
+  }
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに「撃破時：EXに火種追加」を付与 */
+function resolveGrantDecimateFireSeedTarget(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+  }
+  if (!targetId) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  newState.players[ownerIndex] = {
+    ...newState.players[ownerIndex],
+    units: newState.players[ownerIndex].units.map((u) => {
+      if (u.id !== targetId) return u
+      const existing = u.decimateEffects || []
+      return { ...u, decimateEffects: [...existing, 'add_fire_seed_to_ex'] }
+    }),
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: 追加ダメージ系 ───
+
+/** 攻撃時：正面に火種条件ダメ（火種3枚以上使用で発動） */
+function resolveDamageFrontFireSeedConditional(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+
+  if (fireSeedUsed < 3) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find(
+    (u) => u.lane === sourceUnit.unit.lane
+  )
+  if (!frontUnit) return { state: newState, events }
+
+  newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, damage)
+  return { state: newState, events }
+}
+
+/** 敵ユニットにダメージ。破壊時：正面の味方ユニットに+3/+3 */
+function resolveDamageTargetOnDestroyBuffFront(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+  const targetLane = targetUnit.unit.lane
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+
+  // 破壊チェック
+  const wasDestroyed = !newState.players[ownerIndex].units.some(
+    (u) => u.id === targetUnit.unit.id
+  )
+  if (wasDestroyed) {
+    // 正面の味方ユニットに+3/+3
+    const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+    const player = newState.players[playerIndex]
+    const frontAlly = player.units.find((u) => u.lane === targetLane)
+    if (frontAlly) {
+      newState.players[playerIndex] = {
+        ...player,
+        units: player.units.map((u) =>
+          u.id === frontAlly.id
+            ? { ...u, attack: u.attack + 3, hp: u.hp + 3, maxHp: u.maxHp + 3 }
+            : u
+        ),
+      }
+    }
+  }
+  return { state: newState, events }
+}
+
+/** 正面以外の敵にダメージ。破壊時：最も近い味方に+1/+1を2回 */
+function resolveDamageNonFrontOnDestroyBuffNearest(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const frontLane = sourceUnit?.unit.lane
+  const candidates = frontLane !== undefined
+    ? opponent.units.filter((u) => u.lane !== frontLane)
+    : opponent.units
+  if (candidates.length === 0) return { state: newState, events }
+
+  const target = candidates[Math.floor(Math.random() * candidates.length)]
+  const targetLane = target.lane
+
+  newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
+
+  // 破壊チェック
+  const wasDestroyed = !newState.players[opponentIndex].units.some((u) => u.id === target.id)
+  if (wasDestroyed) {
+    // 最も近い味方ユニットに+1/+1を2回（= +2/+2）
+    const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+    const player = newState.players[playerIndex]
+    if (player.units.length > 0) {
+      // レーン距離が最も近い味方を選ぶ
+      let nearest = player.units[0]
+      let minDist = Math.abs(nearest.lane - targetLane)
+      for (const u of player.units) {
+        const dist = Math.abs(u.lane - targetLane)
+        if (dist < minDist) {
+          minDist = dist
+          nearest = u
+        }
+      }
+      newState.players[playerIndex] = {
+        ...player,
+        units: player.units.map((u) =>
+          u.id === nearest.id
+            ? { ...u, attack: u.attack + 2, hp: u.hp + 2, maxHp: u.maxHp + 2 }
+            : u
+        ),
+      }
+    }
+  }
+  return { state: newState, events }
+}
+
+/** 敵ユニットにダメージ。破壊時：正面味方にヒーロー攻撃権付与 */
+function resolveDamageTargetOnDestroyGrantHeroAttack(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+  const targetLane = targetUnit.unit.lane
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+
+  const wasDestroyed = !newState.players[ownerIndex].units.some(
+    (u) => u.id === targetUnit.unit.id
+  )
+  if (wasDestroyed) {
+    const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+    const player = newState.players[playerIndex]
+    const frontAlly = player.units.find((u) => u.lane === targetLane)
+    if (frontAlly) {
+      newState.players[playerIndex] = {
+        ...player,
+        units: player.units.map((u) =>
+          u.id === frontAlly.id ? { ...u, ignoreBlocker: true } : u
+        ),
+      }
+    }
+  }
+  return { state: newState, events }
+}
+
+/** 三連焔の起動：火種3枚以上使用時6ダメ＋EX火種墓地送り＋敵ヒーローダメ */
+function resolveFireSeedTripleActivation(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+
+  // 火種3枚以上使用条件
+  if (fireSeedUsed < 3) return { state: newState, events }
+
+  // 敵ユニットにダメージ
+  if (targetUnit) {
+    const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+    if (ownerIndex !== -1) {
+      newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+    }
+  }
+
+  // EXポケットから火種を最大2枚墓地に送る
+  const updatedPlayer = newState.players[playerIndex]
+  const newExPocket = [...updatedPlayer.exPocket]
+  const newGraveyard = [...updatedPlayer.graveyard]
+  let fireSeedsSent = 0
+  for (let i = newExPocket.length - 1; i >= 0 && fireSeedsSent < 2; i--) {
+    if (newExPocket[i].split('@')[0] === 'cor_027') {
+      newGraveyard.push(newExPocket[i])
+      newExPocket.splice(i, 1)
+      fireSeedsSent++
+    }
+  }
+
+  newState.players[playerIndex] = {
+    ...updatedPlayer,
+    exPocket: newExPocket,
+    graveyard: newGraveyard,
+  }
+
+  // 送った枚数だけ敵ヒーローに1ダメージ
+  if (fireSeedsSent > 0) {
+    const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+    newState = applyDamageToHero(newState, events, opponentIndex, fireSeedsSent)
+  }
+
+  return { state: newState, events }
+}
+
+/** 火種使用回数×Nダメージを敵ユニットに振り分ける */
+function resolveSplitDamageByFireSeedCount(
+  damagePerCount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+  const totalDamage = fireSeedUsed * damagePerCount
+
+  if (totalDamage <= 0) return { state: newState, events }
+
+  // 振り分けダメージ
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  for (let i = 0; i < totalDamage; i++) {
+    const aliveUnits = newState.players[opponentIndex].units
+    if (aliveUnits.length === 0) break
+    const target = aliveUnits[Math.floor(Math.random() * aliveUnits.length)]
+    newState = applyDamageToUnit(newState, events, opponentIndex, target.id, 1)
+  }
+
+  return { state: newState, events }
+}
+
+/** 火種使用回数×N回、全敵ユニットと敵リーダーに1ダメージ */
+function resolveDamageAllByFireSeedCount(
+  _damagePerCount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+
+  if (fireSeedUsed <= 0) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+
+  // 火種使用回数回、全敵ユニットと敵リーダーに1ダメージ
+  for (let round = 0; round < fireSeedUsed; round++) {
+    const unitIds = newState.players[opponentIndex].units.map((u) => u.id)
+    for (const uid of unitIds) {
+      if (!newState.players[opponentIndex].units.some((u) => u.id === uid)) continue
+      newState = applyDamageToUnit(newState, events, opponentIndex, uid, 1)
+    }
+    newState = applyDamageToHero(newState, events, opponentIndex, 1)
+  }
+
+  return { state: newState, events }
+}
+
+/** ランダム敵に振り分けダメージ。破壊したら敵リーダーに1ダメ */
+function resolveSplitDamageOnDestroyHeroDamage(
+  totalDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+
+  // 振り分け前のユニットID一覧
+  const beforeUnitIds = new Set(newState.players[opponentIndex].units.map((u) => u.id))
+
+  // 振り分けダメージ
+  for (let i = 0; i < totalDamage; i++) {
+    const aliveUnits = newState.players[opponentIndex].units
+    if (aliveUnits.length === 0) break
+    const target = aliveUnits[Math.floor(Math.random() * aliveUnits.length)]
+    newState = applyDamageToUnit(newState, events, opponentIndex, target.id, 1)
+  }
+
+  // 破壊されたユニットがあれば敵リーダーに1ダメ
+  const afterUnitIds = new Set(newState.players[opponentIndex].units.map((u) => u.id))
+  let destroyedCount = 0
+  for (const uid of beforeUnitIds) {
+    if (!afterUnitIds.has(uid)) destroyedCount++
+  }
+  if (destroyedCount > 0) {
+    newState = applyDamageToHero(newState, events, opponentIndex, 1)
+  }
+
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: 追加バフ系 ───
+
+/** 味方ユニット1体に条件付きバフ：正面に敵がいれば+5攻撃、いなければ+1攻撃+連撃 */
+function resolveBuffTargetConditionalFront(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+  let targetLane: number | undefined
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+    targetLane = targetUnit.unit.lane
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+    targetLane = random?.lane
+  }
+  if (!targetId || targetLane === undefined) return { state: newState, events }
+
+  const hasFrontEnemy = newState.players[opponentIndex].units.some(
+    (u) => u.lane === targetLane
+  )
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  if (hasFrontEnemy) {
+    // 正面に敵がいる：+5攻撃力
+    newState.players[ownerIndex] = {
+      ...newState.players[ownerIndex],
+      units: newState.players[ownerIndex].units.map((u) =>
+        u.id === targetId ? { ...u, attack: u.attack + value } : u
+      ),
+    }
+  } else {
+    // 正面に敵がいない：+1攻撃力と連撃
+    newState.players[ownerIndex] = {
+      ...newState.players[ownerIndex],
+      units: newState.players[ownerIndex].units.map((u) => {
+        if (u.id !== targetId) return u
+        const statusEffects = [...(u.statusEffects || [])]
+        if (!statusEffects.includes('combo')) statusEffects.push('combo')
+        return { ...u, attack: u.attack + 1, statusEffects }
+      }),
+    }
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: 追加ステータス付与系 ───
+
+/** 全敵ユニットの受けるダメージを+N */
+function resolveGrantEnemyDamageBoostAll(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) => ({
+      ...u,
+      damageReduction: (u.damageReduction || 0) - value,
+    })),
+  }
+  return { state: newState, events }
+}
+
+/** 全敵ユニットに反撃不可を付与 */
+function resolveGrantNoCounterattackAllEnemy(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+
+  // 停止状態にすることで反撃不可を表現（5秒間）
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) => ({
+      ...u,
+      haltTimer: Math.max(u.haltTimer || 0, 5000),
+    })),
   }
   return { state: newState, events }
 }
