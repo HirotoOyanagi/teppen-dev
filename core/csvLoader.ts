@@ -2,8 +2,9 @@
  * CSVからカードデータを読み込む
  */
 
-import type { CardDefinition, CardAttribute, CardRarity, CardType } from './types'
+import type { CardDefinition, CardAttribute, CardRarity, CardType, CardTribe } from './types'
 import { parseEffectText } from './effectParser'
+import { newCardEffectFunctions } from './newCardEffects'
 
 interface CsvRow {
   ID: string
@@ -12,6 +13,7 @@ interface CsvRow {
   属性: string
   カード種別: string
   レアリティ: string
+  種族: string
   コスト: string
   攻撃力: string
   HP: string
@@ -128,6 +130,19 @@ function mapRarity(rarity: string): CardRarity {
 }
 
 /**
+ * 種族をマッピング
+ */
+function mapTribe(tribe: string): CardTribe {
+  const tribeMap: Record<string, CardTribe> = {
+    Human: 'other',
+    Beast: 'monster_hunter',
+    Machine: 'rockman',
+    Spirit: 'other',
+  }
+  return tribeMap[tribe] || 'other'
+}
+
+/**
  * 数値をパース（空文字や無効値は0）
  */
 function parseNumber(value: string): number {
@@ -161,6 +176,22 @@ function calculateAttackInterval(_hp: number, _cost: number): number {
 }
 
 /**
+ * 新カードCSVかどうかを判定
+ * 新カードCSVは ID が "COR_001" 形式
+ */
+function isNewCardFormat(row: CsvRow): boolean {
+  return row.ID.includes('_')
+}
+
+/**
+ * 新カードCSVのIDからカード内部IDを生成
+ * "COR_001" → "cor_001"
+ */
+function normalizeNewCardId(rawId: string): string {
+  return rawId.toLowerCase()
+}
+
+/**
  * CSVからカード定義を生成
  */
 export function loadCardsFromCsv(csvText: string): CardDefinition[] {
@@ -168,24 +199,41 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
   const cards: CardDefinition[] = []
 
   for (const row of rows) {
-    const id = `cor_${row.ID}`
+    const isNewFormat = isNewCardFormat(row)
+
+    // カードIDの生成
+    const id = isNewFormat ? normalizeNewCardId(row.ID) : `cor_${row.ID}`
+
     const name = decodeHtmlEntities(row.カード名)
     const cost = parseNumber(row.コスト)
     const attribute = mapAttribute(row.属性)
     const type = mapCardType(row.カード種別)
     const rarity = mapRarity(row.レアリティ)
+    const tribe = isNewFormat ? mapTribe(row.種族 || '') : 'other'
     const description = decodeHtmlEntities(row.効果 || '')
 
-    // 効果関数を読み込む（形式: "関数名:数値" または "関数名1;関数名2:数値"）
-    const effectFunctions = row.効果関数?.trim() || undefined
+    // 効果関数: CSVの効果関数列 → コード側マッピング → なし の優先順
+    const csvEffectFunctions = row.効果関数?.trim() || undefined
+    const codeEffectFunctions = newCardEffectFunctions[id]
+    const effectFunctions = csvEffectFunctions || codeEffectFunctions || undefined
 
-    const packCodeRaw = typeof row.カードパック === 'string' ? row.カードパック : ''
-    const packCode =
-      packCodeRaw.length > 0
-        ? packCodeRaw[0].toUpperCase() + packCodeRaw.slice(1).toLowerCase()
-        : 'Cor'
-    const paddedId = String(row.ID).padStart(3, '0')
-    const imageFileName = `${packCode}${paddedId}.png`
+    // 画像パスの生成
+    let imageFileName: string
+    if (isNewFormat) {
+      // "COR_001" → "Cor001"
+      const parts = row.ID.split('_')
+      const packCode = parts[0][0].toUpperCase() + parts[0].slice(1).toLowerCase()
+      const paddedId = parts[1] || '000'
+      imageFileName = `${packCode}${paddedId}.png`
+    } else {
+      const packCodeRaw = typeof row.カードパック === 'string' ? row.カードパック : ''
+      const packCode =
+        packCodeRaw.length > 0
+          ? packCodeRaw[0].toUpperCase() + packCodeRaw.slice(1).toLowerCase()
+          : 'Cor'
+      const paddedId = String(row.ID).padStart(3, '0')
+      imageFileName = `${packCode}${paddedId}.png`
+    }
 
     const card: CardDefinition = {
       id,
@@ -194,10 +242,9 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
       type,
       attribute,
       rarity,
-      tribe: 'other', // CSVには種族情報がないのでデフォルト
+      tribe,
       description,
-      // Next.js の public 配下のパスなので、実際の img の src は "/images/cards/Cor001.png" のような形式になる
-      imageUrl: `/images/cards/${imageFileName}`, // IDから画像パスを自動生成（例: /images/cards/Cor001.png）
+      imageUrl: `/images/cards/${imageFileName}`,
       effectFunctions,
     }
 
@@ -229,4 +276,3 @@ export function loadCardsFromCsv(csvText: string): CardDefinition[] {
 
   return cards
 }
-

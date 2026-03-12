@@ -254,8 +254,8 @@ export default function GameBoard(props: GameBoardProps) {
     initialState.players[0].mp = 10
     initialState.players[0].maxMp = 10
 
-    // 検証用: 相手のフィールドに「ガイ」（cor_12）を3体配置
-    const guyCardId = 'cor_10'
+    // 検証用: 相手のフィールドにテストユニットを3体配置
+    const guyCardId = 'cor_001'
     const guyCardDef = cardMap.get(guyCardId)
     if (guyCardDef && guyCardDef.unitStats) {
       const testUnits: typeof initialState.players[1]['units'] = [0, 1, 2].map((lane) => ({

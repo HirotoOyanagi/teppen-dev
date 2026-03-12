@@ -469,6 +469,56 @@ export function resolveEffectByFunctionName(
     case 'death_damage_hero_by_attack':
       return resolveDeathDamageHeroByAttack(context)
 
+    // ── 新カードCore: カード操作系 ──
+    case 'add_fire_seed_to_ex':
+      return resolveAddFireSeedToEx(context)
+    case 'add_flame_baptism_to_ex':
+      return resolveAddFlameBaptismToEx(context)
+    case 'search_fire_seed_to_ex':
+      return resolveSearchFireSeedToEx(context)
+    case 'search_fire_seed_to_hand':
+      return resolveSearchFireSeedToHand(context)
+    case 'discard_lowest_mp_hand':
+      return resolveDiscardLowestMpHand(context)
+    case 'reduce_attack_timer_target':
+      return resolveReduceAttackTimerTarget(value, context)
+
+    // ── 新カードCore: ダメージ系 ──
+    case 'damage_non_front_enemy':
+      return resolveDamageNonFrontEnemy(value, context)
+    case 'split_damage_random_enemy':
+      return resolveSplitDamageRandomEnemy(value, context)
+    case 'damage_target_conditional_low_hp':
+      return resolveDamageTargetConditionalLowHp(value, context)
+    case 'damage_split_by_action_count':
+      return resolveDamageSplitByActionCount(value, context)
+    case 'damage_target_fire_seed_conditional':
+      return resolveDamageTargetFireSeedConditional(value, context)
+    case 'damage_target_ar_boost':
+      return resolveDamageTargetArBoost(value, context)
+
+    // ── 新カードCore: バフ系 ──
+    case 'buff_random_friendly_attack_hp':
+      return resolveBuffRandomFriendlyAttackHp(value, context)
+    case 'buff_random_friendly_attack_if_mp5':
+      return resolveBuffRandomFriendlyAttackIfMp5(value, context)
+    case 'buff_friendly_by_enemy_front_attack':
+      return resolveBuffFriendlyByEnemyFrontAttack(context)
+
+    // ── 新カードCore: ステータス付与系 ──
+    case 'grant_effect_damage_boost_front':
+      return resolveGrantEffectDamageBoostFront(value, context)
+    case 'grant_effect_damage_boost_target':
+      return resolveGrantEffectDamageBoostTarget(value, context)
+    case 'grant_action_damage_immunity_self':
+      return resolveGrantActionDamageImmunitySelf(context)
+    case 'grant_unblockable_target':
+      return resolveGrantUnblockableTarget(context)
+
+    // ── 新カードCore: 即時攻撃 ──
+    case 'immediate_attack_self':
+      return resolveImmediateAttackSelf(context)
+
     default:
       console.warn(`Unknown effect function: ${functionName}`)
       return { state: newState, events }
@@ -2205,6 +2255,511 @@ function resolveSplitDamageAllEnemyUnits(
     }
   }
 
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: カード操作系 ───
+
+/** 火種(cor_027)をEXポケットに追加 */
+function resolveAddFireSeedToEx(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  newState.players[playerIndex] = {
+    ...player,
+    exPocket: [...player.exPocket, 'cor_027'],
+  }
+  return { state: newState, events }
+}
+
+/** 焔の洗礼(cor_028)をEXポケットに追加 */
+function resolveAddFlameBaptismToEx(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  newState.players[playerIndex] = {
+    ...player,
+    exPocket: [...player.exPocket, 'cor_028'],
+  }
+  return { state: newState, events }
+}
+
+/** デッキから火種(cor_027)を検索してEXポケットに追加 */
+function resolveSearchFireSeedToEx(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === 'cor_027')
+  if (deckIndex === -1) return { state: newState, events }
+
+  const newDeck = [...player.deck]
+  const [foundCard] = newDeck.splice(deckIndex, 1)
+
+  newState.players[playerIndex] = {
+    ...player,
+    deck: newDeck,
+    exPocket: [...player.exPocket, foundCard],
+  }
+  return { state: newState, events }
+}
+
+/** デッキから火種(cor_027)を検索して手札に追加 */
+function resolveSearchFireSeedToHand(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === 'cor_027')
+  if (deckIndex === -1) return { state: newState, events }
+
+  const newDeck = [...player.deck]
+  const [foundCard] = newDeck.splice(deckIndex, 1)
+
+  newState.players[playerIndex] = {
+    ...player,
+    deck: newDeck,
+    hand: [...player.hand, foundCard],
+  }
+  events.push({
+    type: 'card_drawn',
+    playerId: player.playerId,
+    cardId: foundCard,
+    timestamp: Date.now(),
+  })
+  return { state: newState, events }
+}
+
+/** 最もMPが低い手札カードを墓地に送る */
+function resolveDiscardLowestMpHand(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  if (player.hand.length === 0) return { state: newState, events }
+
+  // 最もMPが低いカードを探す
+  let lowestMp = Infinity
+  let lowestIndex = 0
+  for (let i = 0; i < player.hand.length; i++) {
+    const def = cardMap.get(player.hand[i].split('@')[0])
+    const mp = def ? def.cost : 0
+    if (mp < lowestMp) {
+      lowestMp = mp
+      lowestIndex = i
+    }
+  }
+
+  const discardedCard = player.hand[lowestIndex]
+  const newHand = [...player.hand]
+  newHand.splice(lowestIndex, 1)
+
+  newState.players[playerIndex] = {
+    ...player,
+    hand: newHand,
+    graveyard: [...player.graveyard, discardedCard],
+  }
+  events.push({
+    type: 'card_sent_to_graveyard',
+    playerId: player.playerId,
+    cardId: discardedCard,
+    reason: 'card_played',
+    timestamp: Date.now(),
+  })
+  return { state: newState, events }
+}
+
+/** 攻撃準備時間を短縮 */
+function resolveReduceAttackTimerTarget(
+  seconds: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+  }
+  if (!targetId) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const player = newState.players[ownerIndex]
+  const reductionMs = seconds * 1000
+  newState.players[ownerIndex] = {
+    ...player,
+    units: player.units.map((u) => {
+      if (u.id !== targetId) return u
+      // 攻撃ゲージを進める（reductionMs / attackInterval分）
+      const gaugeBoost = reductionMs / u.attackInterval
+      return { ...u, attackGauge: Math.min(1.0, u.attackGauge + gaugeBoost) }
+    }),
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: ダメージ系 ───
+
+/** 正面以外の敵ユニット1体にダメージ */
+function resolveDamageNonFrontEnemy(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+
+  // 正面以外の敵ユニットを候補にする
+  const frontLane = sourceUnit?.unit.lane
+  const candidates = frontLane !== undefined
+    ? opponent.units.filter((u) => u.lane !== frontLane)
+    : opponent.units
+
+  if (candidates.length === 0) return { state: newState, events }
+  const target = candidates[Math.floor(Math.random() * candidates.length)]
+
+  newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
+  return { state: newState, events }
+}
+
+/** ランダムな敵ユニットにダメージを振り分ける */
+function resolveSplitDamageRandomEnemy(
+  totalDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  // split_damage_all_enemy_unitsと同じ処理（ランダム振り分け）
+  return resolveSplitDamageAllEnemyUnits(totalDamage, context)
+}
+
+/** 対象の敵ユニットにダメージ（HP3以下なら3ダメ、それ以外1ダメ） */
+function resolveDamageTargetConditionalLowHp(
+  baseDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  // HP3以下なら3ダメージ、それ以外はbaseDamage(1)
+  const actualDamage = targetUnit.unit.hp <= 3 ? 3 : baseDamage
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, actualDamage)
+  return { state: newState, events }
+}
+
+/** 使用したアクションカード数分のダメージを敵ユニットに振り分ける */
+function resolveDamageSplitByActionCount(
+  damagePerAction: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const actionCount = player.actionCardUsedCount || 0
+  const totalDamage = actionCount * damagePerAction
+
+  if (totalDamage <= 0) return { state: newState, events }
+
+  // 振り分けダメージとして処理
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  if (opponent.units.length === 0) return { state: newState, events }
+
+  const damageMap: Record<string, number> = {}
+  for (let i = 0; i < totalDamage; i++) {
+    const aliveUnits = newState.players[opponentIndex].units
+    if (aliveUnits.length === 0) break
+    const target = aliveUnits[Math.floor(Math.random() * aliveUnits.length)]
+    damageMap[target.id] = (damageMap[target.id] || 0) + 1
+  }
+
+  for (const [unitId, dmg] of Object.entries(damageMap)) {
+    if (!newState.players[opponentIndex].units.some((u) => u.id === unitId)) continue
+    newState = applyDamageToUnit(newState, events, opponentIndex, unitId, dmg)
+  }
+
+  return { state: newState, events }
+}
+
+/** 敵ユニットにダメージ（火種3枚以上使用時: 7ダメ+敵ヒーロー2ダメ、それ以外: 4ダメ） */
+function resolveDamageTargetFireSeedConditional(
+  baseDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  // 火種の使用回数をチェック（actionCardUsedCountの一部として追跡）
+  // TODO: 火種固有の使用回数追跡を実装
+  // 現在はbaseDamage(4)を適用
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+
+  if (fireSeedUsed >= 3) {
+    // 7ダメ + 敵ヒーロー2ダメ
+    newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, 7)
+    const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+    newState = applyDamageToHero(newState, events, opponentIndex, 2)
+  } else {
+    newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, baseDamage)
+  }
+  return { state: newState, events }
+}
+
+/** 敵ユニットにダメージ（AR中はダメージ増加） */
+function resolveDamageTargetArBoost(
+  baseDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  // AR中なら6ダメージ、そうでなければbaseDamage(4)
+  const damage = newState.activeResponse.isActive ? baseDamage + 2 : baseDamage
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+
+  // 破壊チェック：破壊していたら敵ヒーロー1ダメ
+  if (!newState.players[ownerIndex].units.some((u) => u.id === targetUnit.unit.id)) {
+    const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+    newState = applyDamageToHero(newState, events, opponentIndex, 1)
+  }
+
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: バフ系 ───
+
+/** ランダム味方1体に+N/+N */
+function resolveBuffRandomFriendlyAttackHp(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+  if (!target) return { state: newState, events }
+
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === target.id
+        ? { ...u, attack: u.attack + value, hp: u.hp + value, maxHp: u.maxHp + value }
+        : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** MP5以上ならランダム味方1体の攻撃力+N */
+function resolveBuffRandomFriendlyAttackIfMp5(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  if (player.mp < 5) return { state: newState, events }
+
+  const target = pickRandomFriendlyUnit(player, sourceUnit?.unit.id)
+  if (!target) return { state: newState, events }
+
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === target.id ? { ...u, attack: u.attack + value } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 味方全体に正面敵ユニットの攻撃力分の攻撃バフ */
+function resolveBuffFriendlyByEnemyFrontAttack(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const opponent = newState.players[opponentIndex]
+
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) => {
+      const frontEnemy = opponent.units.find((e) => e.lane === u.lane)
+      if (!frontEnemy) return u
+      return { ...u, attack: u.attack + frontEnemy.attack }
+    }),
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: ステータス付与系 ───
+
+/** 正面の敵ユニットに「効果ダメージ+N」付与 */
+function resolveGrantEffectDamageBoostFront(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const frontUnit = opponent.units.find((u) => u.lane === sourceUnit.unit.lane)
+  if (!frontUnit) return { state: newState, events }
+
+  // 効果ダメージブーストをダメージ軽減の逆として実装（負の値）
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) =>
+      u.id === frontUnit.id
+        ? { ...u, damageReduction: (u.damageReduction || 0) - value }
+        : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 対象の敵ユニットに「効果ダメージ+N」付与 */
+function resolveGrantEffectDamageBoostTarget(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  newState.players[ownerIndex] = {
+    ...newState.players[ownerIndex],
+    units: newState.players[ownerIndex].units.map((u) =>
+      u.id === targetUnit.unit.id
+        ? { ...u, damageReduction: (u.damageReduction || 0) - value }
+        : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 自身にアクションカードダメージ無効付与 */
+function resolveGrantActionDamageImmunitySelf(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  // ベール（効果ダメージ無効）を付与
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) => {
+      if (u.id !== sourceUnit.unit.id) return u
+      const statusEffects = [...(u.statusEffects || [])]
+      if (!statusEffects.includes('veil')) statusEffects.push('veil')
+      return { ...u, statusEffects }
+    }),
+  }
+  return { state: newState, events }
+}
+
+/** 対象にブロック不可を付与 */
+function resolveGrantUnblockableTarget(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+  }
+  if (!targetId) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  newState.players[ownerIndex] = {
+    ...newState.players[ownerIndex],
+    units: newState.players[ownerIndex].units.map((u) =>
+      u.id === targetId ? { ...u, ignoreBlocker: true } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+// ─── 新カードCore: 即時攻撃 ───
+
+/** 自身が即時攻撃（攻撃ゲージを100%にする） */
+function resolveImmediateAttackSelf(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === sourceUnit.unit.id ? { ...u, attackGauge: 1.0 } : u
+    ),
+  }
   return { state: newState, events }
 }
 

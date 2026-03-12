@@ -42,6 +42,8 @@ type EffectFunctionTrigger =
   | 'damage' // ダメージ時（ダメージを受けた時）
   | 'effect_damage_destroy' // 効果ダメージで破壊時
   | 'enter_field' // 場に出た時（出所を問わず場に出た瞬間）
+  | 'ex_resonate' // EXポケットからカード使用時
+  | 'enemy_action' // 相手がアクションカードを使用した時
 
 type TriggeredEffectFunctionToken = EffectFunctionToken & {
   trigger: EffectFunctionTrigger
@@ -104,6 +106,8 @@ function parseTriggeredEffectFunctionTokens(
     damage: 'damage',
     effect_damage_destroy: 'effect_damage_destroy',
     enter_field: 'enter_field',
+    ex_resonate: 'ex_resonate',
+    enemy_action: 'enemy_action',
   }
 
   const triggeredTokens: TriggeredEffectFunctionToken[] = []
