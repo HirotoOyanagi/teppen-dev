@@ -38,6 +38,11 @@ export default function MatchmakingScreen() {
     router.push('/battle')
   }
 
+  const handleStartTest = () => {
+    if (!deck) return
+    router.push(`/battle?mode=test&deckId=${deck.id}`)
+  }
+
   if (loading || !deck) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white font-orbitron">
@@ -81,6 +86,14 @@ export default function MatchmakingScreen() {
           >
             オフライン対戦
             <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">CPUと対戦</span>
+          </button>
+
+          <button
+            onClick={handleStartTest}
+            className="px-12 py-6 ls:px-6 ls:py-3 bg-gradient-to-r from-amber-700 to-yellow-700 text-white font-bold text-xl ls:text-base hover:from-amber-600 hover:to-yellow-600 transition-all rounded-lg border border-yellow-500/50"
+          >
+            テスト環境
+            <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">全カードを自由にプレイ</span>
           </button>
         </div>
 

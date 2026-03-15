@@ -138,14 +138,21 @@ function getOpponentHero(playerHeroId: string): Hero {
 
 interface GameBoardProps {
   onMulliganComplete?: () => void
+  /** テスト環境: 横に全カードパネルを出し、任意のカードをドラッグでプレイ可能 */
+  testMode?: boolean
 }
 
 export default function GameBoard(props: GameBoardProps) {
-  const { onMulliganComplete } = props
+  const { onMulliganComplete, testMode = false } = props
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
   const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
-  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
+  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean; fromTestPanel?: boolean } | null>(null)
+  const [testPanelOpen, setTestPanelOpen] = useState(true)
+  /** テストパネル: 属性で絞り込み ''=全色, red/green/purple/black */
+  const [testPanelAttribute, setTestPanelAttribute] = useState<'' | 'red' | 'green' | 'purple' | 'black'>('')
+  /** テストパネル: 種別で絞り込み ''=全部, unit/action */
+  const [testPanelType, setTestPanelType] = useState<'' | 'unit' | 'action'>('')
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
@@ -352,22 +359,23 @@ export default function GameBoard(props: GameBoardProps) {
   }, [])
 
   // アクションカードの対象タイプを取得
-  const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | null => {
+  const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | 'enemy_unit' | null => {
     if (cardDef.type !== 'action' || !cardDef.effectFunctions) return null
-    
+
     const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
     const targetToken = tokens.find(t => t.startsWith('target:'))
     if (!targetToken) return null
-    
+
     const targetType = targetToken.split(':')[1]?.trim()
     if (targetType === 'friendly_unit') return 'friendly_unit'
     if (targetType === 'friendly_hero') return 'friendly_hero'
+    if (targetType === 'enemy_unit') return 'enemy_unit'
     return null
   }, [])
 
-  // カードプレイ
+  // カードプレイ（freePlay: テスト用で手札に無くてもプレイ可能）
   const handlePlayCard = useCallback(
-    (playerId: string, cardId: string, lane?: number, target?: string, fromExPocket?: boolean) => {
+    (playerId: string, cardId: string, lane?: number, target?: string, fromExPocket?: boolean, freePlay?: boolean) => {
       if (!gameState) return
 
       const player = gameState.players.find((p) => p.playerId === playerId)
@@ -376,11 +384,13 @@ export default function GameBoard(props: GameBoardProps) {
       const cardDef = resolveCardDefinition(cardMap, cardId)
       if (!cardDef) return
 
-      // EXポケットから or 手札から
-      if (fromExPocket) {
-        if (!player.exPocket.includes(cardId)) return
-      } else {
-        if (!player.hand.includes(cardId)) return
+      // freePlay でないときは手札 or EX にカードがあること
+      if (!freePlay) {
+        if (fromExPocket) {
+          if (!player.exPocket.includes(cardId)) return
+        } else {
+          if (!player.hand.includes(cardId)) return
+        }
       }
 
       // アクティブレスポンス中はユニットカードをプレイできない
@@ -421,6 +431,7 @@ export default function GameBoard(props: GameBoardProps) {
         lane,
         target,
         fromExPocket,
+        ...(freePlay && { freePlay: true }),
         timestamp: Date.now(),
       }
 
@@ -691,6 +702,14 @@ export default function GameBoard(props: GameBoardProps) {
     setDetailCard(null)
   }
 
+  // テストパネルからドラッグ開始（任意のカードを自由にプレイ用）
+  const onTestPanelDragStart = useCallback((cardId: string, cardDef: CardDefinition, x: number, y: number) => {
+    if (!gameState) return
+    setDragging({ cardId, cardDef, idx: -1, fromTestPanel: true })
+    setDragPos({ x, y })
+    setDetailCard(null)
+  }, [gameState])
+
   // ドラッグ中
   const onDragMove = useCallback((x: number, y: number) => {
     if (!dragging) return
@@ -736,6 +755,20 @@ export default function GameBoard(props: GameBoardProps) {
         })
         setHoveredHeroId(foundHeroId)
         setHoveredUnitId(null)
+      } else if (targetType === 'enemy_unit') {
+        // 敵ユニットの上にいるかチェック
+        let foundUnitId: string | null = null
+        const enemyPlayer = gameState?.players[1]
+        unitRefs.current.forEach((ref, unitId) => {
+          if (ref && enemyPlayer?.units.some(u => u.id === unitId)) {
+            const rect = ref.getBoundingClientRect()
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              foundUnitId = unitId
+            }
+          }
+        })
+        setHoveredUnitId(foundUnitId)
+        setHoveredHeroId(null)
       }
       setHoveredLane(null)
     } else {
@@ -752,7 +785,7 @@ export default function GameBoard(props: GameBoardProps) {
       setHoveredLane(foundLane)
       setHoveredUnitId(null)
     }
-  }, [dragging, gameState, requiresTarget])
+  }, [dragging, gameState, requiresTarget, getTargetType])
 
   // ドラッグ終了
   const onDragEnd = useCallback(() => {
@@ -764,21 +797,24 @@ export default function GameBoard(props: GameBoardProps) {
       return
     }
 
-    const { cardId, cardDef, fromExPocket } = dragging
+    const { cardId, cardDef, fromExPocket, fromTestPanel } = dragging
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
     const targetType = getTargetType(cardDef)
+    const isFreePlay = fromTestPanel === true
 
     // アクションカードで対象が必要な場合
     if (needsTarget) {
       if (targetType === 'friendly_unit' && hoveredUnitId) {
-        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket)
+        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
       } else if (targetType === 'friendly_hero' && hoveredHeroId) {
-        handlePlayCard('player1', cardId, undefined, hoveredHeroId, fromExPocket)
+        handlePlayCard('player1', cardId, undefined, hoveredHeroId, fromExPocket, isFreePlay)
+      } else if (targetType === 'enemy_unit' && hoveredUnitId) {
+        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
       }
     }
     // 対象不要のアクションカードはドロップ位置に関係なくプレイ
     else if (cardDef.type === 'action') {
-      handlePlayCard('player1', cardId, undefined, undefined, fromExPocket)
+      handlePlayCard('player1', cardId, undefined, undefined, fromExPocket, isFreePlay)
     }
     // ユニットカードはレーン上にドロップした場合のみプレイ
     else if (hoveredLane !== null) {
@@ -786,7 +822,7 @@ export default function GameBoard(props: GameBoardProps) {
       const existingUnit = player.units.find((u) => u.lane === hoveredLane)
       const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
       if (!existingUnit || (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))) {
-        handlePlayCard('player1', cardId, hoveredLane, undefined, fromExPocket)
+        handlePlayCard('player1', cardId, hoveredLane, undefined, fromExPocket, isFreePlay)
       }
     }
 
@@ -869,7 +905,8 @@ export default function GameBoard(props: GameBoardProps) {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
+    <div className={`flex w-screen h-screen overflow-hidden bg-[#0a0f0a] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
+      <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
       <div className="absolute inset-0 z-0 scanline pointer-events-none" />
 
@@ -1146,9 +1183,11 @@ export default function GameBoard(props: GameBoardProps) {
                         else unitRefs.current.delete(rightUnit.id)
                       }}
                       className={`transition-all ${
-                        abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id
+                        (abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id) ||
+                        (dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'enemy_unit' && hoveredUnitId === rightUnit.id)
                           ? 'ring-4 ring-red-400 shadow-[0_0_20px_red]'
-                          : abilityDragging && abilityDragging.targetSide === 'enemy'
+                          : (abilityDragging && abilityDragging.targetSide === 'enemy') ||
+                            (dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'enemy_unit')
                             ? 'ring-2 ring-red-400/50 shadow-[0_0_8px_red]'
                             : ''
                       }`}
@@ -1406,6 +1445,81 @@ export default function GameBoard(props: GameBoardProps) {
           </div>
         )
       })}
+    </div>
+      {testMode && cardMap && (() => {
+        const attributeColors: Record<string, string> = {
+          red: 'border-red-500 bg-red-950/80 text-red-300',
+          green: 'border-green-500 bg-green-950/80 text-green-300',
+          purple: 'border-purple-500 bg-purple-950/80 text-purple-300',
+          black: 'border-gray-500 bg-gray-900/80 text-gray-300',
+        }
+        const filteredEntries = Array.from(cardMap.entries()).filter(([, def]) => {
+          const matchAttr = !testPanelAttribute || def.attribute === testPanelAttribute
+          const matchType = !testPanelType || def.type === testPanelType
+          return matchAttr && matchType
+        })
+        return (
+          <div className="w-80 border-l border-yellow-500/30 bg-black/95 flex flex-col shrink-0 overflow-hidden">
+            <div className="p-2 border-b border-yellow-500/30">
+              <div className="text-yellow-400 text-sm font-bold mb-2">全カード（ドラッグでプレイ）</div>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {(['', 'red', 'green', 'purple', 'black'] as const).map((attr) => (
+                  <button
+                    key={attr || 'all'}
+                    type="button"
+                    onClick={() => setTestPanelAttribute(attr)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
+                      testPanelAttribute === attr
+                        ? attr === '' ? 'border-yellow-400 bg-yellow-500/30 text-yellow-300' : attributeColors[attr]
+                        : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    {attr === '' ? '全' : attr === 'red' ? '赤' : attr === 'green' ? '緑' : attr === 'purple' ? '紫' : '黒'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {(['', 'unit', 'action'] as const).map((t) => (
+                  <button
+                    key={t || 'all'}
+                    type="button"
+                    onClick={() => setTestPanelType(t)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
+                      testPanelType === t
+                        ? 'border-yellow-400 bg-yellow-500/30 text-yellow-300'
+                        : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    {t === '' ? '全種別' : t === 'unit' ? 'ユニット' : 'アクション'}
+                  </button>
+                ))}
+              </div>
+              <div className="text-white/50 text-[10px] mt-1">{filteredEntries.length}枚</div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 flex flex-wrap gap-2 content-start">
+              {filteredEntries.map(([id, def]) => (
+                <div
+                  key={id}
+                  draggable
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    onTestPanelDragStart(id, def, e.clientX, e.clientY)
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches[0]) onTestPanelDragStart(id, def, e.touches[0].clientX, e.touches[0].clientY)
+                  }}
+                  className={`w-20 cursor-grab active:cursor-grabbing rounded border flex flex-col items-center justify-center p-1 shrink-0 hover:scale-105 transition-transform ${
+                    attributeColors[def.attribute] ?? 'border-yellow-500/50 bg-black/80'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold opacity-90">{def.cost}</span>
+                  <span className="text-[9px] truncate w-full text-center leading-tight">{def.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

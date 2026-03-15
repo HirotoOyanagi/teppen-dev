@@ -866,33 +866,36 @@ function processInput(
     const availableMp = player.mp + player.blueMp
     if (availableMp < effectiveCost) return { state: newState, events }
 
-    // カード元を更新（手札 or EXポケット）
+    // テスト用 freePlay: 手札・デッキは変更しない
+    const freePlay = (input as { freePlay?: boolean }).freePlay === true
     let newHand: string[]
     let newExPocket = [...player.exPocket]
-    if (isFromExPocket) {
-      newHand = [...player.hand]
-      const exIdx = newExPocket.indexOf(input.cardId)
-      if (exIdx !== -1) newExPocket.splice(exIdx, 1)
-    } else {
-      newHand = removeOneCardFromHand(player.hand, input.cardId)
-      newExPocket = player.exPocket
-    }
-
-    // カードをプレイしたらデッキから1枚引く（EXポケットからの場合はドローなし）
-    const newDeck = [...player.deck]
+    let newDeck = [...player.deck]
     let drawnCardId: string | null = null
-    if (!isFromExPocket && newDeck.length > 0) {
-      drawnCardId = newDeck[0]
-      newDeck.shift() // デッキから削除
-      newHand.push(drawnCardId) // 手札に追加
 
-      // カードドローイベント
-      events.push({
-        type: 'card_drawn',
-        playerId: input.playerId,
-        cardId: drawnCardId,
-        timestamp: input.timestamp,
-      })
+    if (freePlay) {
+      newHand = [...player.hand]
+    } else {
+      if (isFromExPocket) {
+        newHand = [...player.hand]
+        const exIdx = newExPocket.indexOf(input.cardId)
+        if (exIdx !== -1) newExPocket.splice(exIdx, 1)
+      } else {
+        newHand = removeOneCardFromHand(player.hand, input.cardId)
+        newExPocket = player.exPocket
+      }
+      // カードをプレイしたらデッキから1枚引く（EXポケットからの場合はドローなし）
+      if (!isFromExPocket && newDeck.length > 0) {
+        drawnCardId = newDeck[0]
+        newDeck.shift()
+        newHand.push(drawnCardId)
+        events.push({
+          type: 'card_drawn',
+          playerId: input.playerId,
+          cardId: drawnCardId,
+          timestamp: input.timestamp,
+        })
+      }
     }
 
     // MP消費とAP獲得

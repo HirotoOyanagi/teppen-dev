@@ -214,6 +214,7 @@ export type GameInput =
       target?: string // 対象（ユニットIDなど）
       lane?: number // ユニット配置レーン
       fromExPocket?: boolean // EXポケットからプレイ
+      freePlay?: boolean // テスト用: 手札に無くてもプレイ可能
       timestamp: number
     }
   | {
