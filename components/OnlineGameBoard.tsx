@@ -128,6 +128,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy'
   } | null>(null)
+  const [cardTargetMode, setCardTargetMode] = useState<{
+    cardId: string
+    lane?: number
+    targetSide: 'friendly' | 'enemy'
+  } | null>(null)
   const [abilityDragging, setAbilityDragging] = useState<{
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy' | 'none'
@@ -158,7 +163,6 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
   // アクションカードが対象を必要とするか判定
   const requiresTarget = useCallback((cardDef: CardDefinition): boolean => {
-    if (cardDef.type !== 'action') return false
     if (cardDef.effectFunctions) {
       const tokens = cardDef.effectFunctions.split(';').map((t) => t.trim())
       return tokens.some((t) => t.startsWith('target:'))
@@ -167,14 +171,15 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   }, [])
 
   // アクションカードの対象タイプを取得
-  const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | null => {
-    if (cardDef.type !== 'action' || !cardDef.effectFunctions) return null
+  const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | 'enemy_unit' | null => {
+    if (!cardDef.effectFunctions) return null
     const tokens = cardDef.effectFunctions.split(';').map((t) => t.trim())
     const targetToken = tokens.find((t) => t.startsWith('target:'))
     if (!targetToken) return null
     const targetType = targetToken.split(':')[1]?.trim()
     if (targetType === 'friendly_unit') return 'friendly_unit'
     if (targetType === 'friendly_hero') return 'friendly_hero'
+    if (targetType === 'enemy_unit') return 'enemy_unit'
     return null
   }, [])
 
@@ -213,8 +218,17 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         }
       }
 
-      // 対象必要チェック
-      if (cardDef.type === 'action' && requiresTarget(cardDef) && !target) return
+      if (requiresTarget(cardDef) && !target) {
+        const targetType = getTargetType(cardDef)
+        if (!targetType) return
+        if (cardDef.type === 'unit' && lane === undefined) return
+        setCardTargetMode({
+          cardId,
+          lane,
+          targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+        })
+        return
+      }
 
       sendGameInput({
         type: 'play_card',
@@ -225,7 +239,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         timestamp: Date.now(),
       })
     },
-    [gameState, cardMap, playerId, requiresTarget, sendGameInput]
+    [gameState, cardMap, getTargetType, playerId, requiresTarget, sendGameInput]
   )
 
   // AR終了
@@ -357,6 +371,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   // ターゲット選択モードでのユニットクリック
   const handleAbilityTargetSelect = useCallback(
     (unitId: string) => {
+      if (cardTargetMode) {
+        handlePlayCard(cardTargetMode.cardId, cardTargetMode.lane, unitId)
+        setCardTargetMode(null)
+        return
+      }
       if (!abilityTargetMode) return
       if (abilityTargetMode.type === 'hero_art') {
         handleHeroArt(unitId)
@@ -364,7 +383,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         handleCompanion(unitId)
       }
     },
-    [abilityTargetMode, handleHeroArt, handleCompanion]
+    [abilityTargetMode, cardTargetMode, handleCompanion, handleHeroArt, handlePlayCard]
   )
 
   // マリガン処理
@@ -436,6 +455,19 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           })
           setHoveredHeroId(foundHeroId)
           setHoveredUnitId(null)
+        } else if (targetType === 'enemy_unit') {
+          let foundUnitId: string | null = null
+          const opponent = gameState?.players[1]
+          unitRefs.current.forEach((ref, unitId) => {
+            if (ref && opponent?.units.some((u) => u.id === unitId)) {
+              const rect = ref.getBoundingClientRect()
+              if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                foundUnitId = unitId
+              }
+            }
+          })
+          setHoveredUnitId(foundUnitId)
+          setHoveredHeroId(null)
         }
         setHoveredLane(null)
       } else {
@@ -472,6 +504,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         handlePlayCard(cardId, undefined, hoveredUnitId)
       } else if (targetType === 'friendly_hero' && hoveredHeroId) {
         handlePlayCard(cardId, undefined, hoveredHeroId)
+      } else if (targetType === 'enemy_unit' && hoveredUnitId) {
+        handlePlayCard(cardId, undefined, hoveredUnitId)
       }
     } else if (cardDef.type === 'action') {
       handlePlayCard(cardId)
@@ -765,19 +799,23 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         else unitRefs.current.delete(leftUnit.id)
                       }}
                       className={`transition-all ${
-                        dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
+                        dragging && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
                           ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
-                          : abilityDragging && abilityDragging.targetSide === 'friendly' && hoveredUnitId === leftUnit.id
+                        : abilityDragging && abilityDragging.targetSide === 'friendly' && hoveredUnitId === leftUnit.id
                             ? 'ring-4 ring-cyan-400 shadow-[0_0_20px_cyan]'
-                            : abilityDragging && abilityDragging.targetSide === 'friendly'
+                          : abilityDragging && abilityDragging.targetSide === 'friendly'
                               ? 'ring-2 ring-cyan-400/50 shadow-[0_0_8px_cyan]'
-                              : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
+                              : (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
+                                (cardTargetMode && cardTargetMode.targetSide === 'friendly')
                                 ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
                                 : ''
                       }`}
                     >
                       <GameCard cardDef={leftCardDef} unit={leftUnit} isField onClick={() => {
-                        if (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') {
+                        if (
+                          (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
+                          (cardTargetMode && cardTargetMode.targetSide === 'friendly')
+                        ) {
                           handleAbilityTargetSelect(leftUnit.id)
                         } else {
                           setDetailCard({ card: leftCardDef!, side: 'left' })
@@ -791,7 +829,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
                 {/* Right Slot (相手) */}
                 <div className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
-                  abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
+                  ((abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
+                    (cardTargetMode && cardTargetMode.targetSide === 'enemy')) && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
                     : ''
                 }`}>
@@ -803,15 +842,21 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         else unitRefs.current.delete(rightUnit.id)
                       }}
                       className={`transition-all ${
-                        abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id
+                        (abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id) ||
+                        (dragging && getTargetType(dragging.cardDef) === 'enemy_unit' && hoveredUnitId === rightUnit.id)
                           ? 'ring-4 ring-red-400 shadow-[0_0_20px_red]'
-                          : abilityDragging && abilityDragging.targetSide === 'enemy'
+                          : (abilityDragging && abilityDragging.targetSide === 'enemy') ||
+                            (dragging && getTargetType(dragging.cardDef) === 'enemy_unit') ||
+                            (cardTargetMode && cardTargetMode.targetSide === 'enemy')
                             ? 'ring-2 ring-red-400/50 shadow-[0_0_8px_red]'
                             : ''
                       }`}
                     >
                     <GameCard cardDef={rightCardDef} unit={rightUnit} isField onClick={() => {
-                      if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
+                      if (
+                        (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
+                        (cardTargetMode && cardTargetMode.targetSide === 'enemy')
+                      ) {
                         handleAbilityTargetSelect(rightUnit.id)
                       } else {
                         setDetailCard({ card: rightCardDef!, side: 'right' })

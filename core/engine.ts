@@ -14,7 +14,12 @@ import type {
 } from './types'
 import { calculateMaxMp } from './cards'
 import { parseCardId, resolveCardDefinition } from './cardId'
-import { resolveEffect, resolveEffectByFunctionName, type EffectContext } from './effects'
+import {
+  resolveEffect,
+  resolveEffectByFunctionName,
+  type EffectContext,
+  type StatusEffect,
+} from './effects'
 import { cardSpecificEffects } from './cardSpecificEffects'
 import { resolveHeroArtEffect, resolveCompanionEffect } from './heroAbilities'
 
@@ -179,6 +184,36 @@ function removeOneCardFromHand(hand: string[], cardId: string): string[] {
     return hand
   }
   return [...hand.slice(0, index), ...hand.slice(index + 1)]
+}
+
+function buildTargetContext(
+  state: GameState,
+  sourcePlayerId: string,
+  targetId: string | undefined
+): Pick<EffectContext, 'targetPlayer' | 'targetUnit'> {
+  if (!targetId) return {}
+
+  for (const player of state.players) {
+    const unit = player.units.find((u) => u.id === targetId)
+    if (unit) {
+      return {
+        targetUnit: {
+          unit,
+          statusEffects: new Set((unit.statusEffects || []) as StatusEffect[]),
+          temporaryBuffs: { attack: unit.tempBuffs?.attack || 0, hp: 0 },
+          counters: {},
+          flags: {},
+        },
+      }
+    }
+  }
+
+  const targetPlayer = state.players.find((p) => p.playerId === targetId)
+  if (targetPlayer) {
+    return { targetPlayer }
+  }
+
+  return {}
 }
 
 /**
@@ -646,7 +681,7 @@ export function updateGameState(
           }
 
           // ── 撃破（decimate）トリガー ──
-          // 交戦で相手ユニットが死亡し、攻撃者が生存している場合に発動
+          // 自身の攻撃時：相手ユニットを倒し、攻撃者が生存している場合に発動
           if (targetWasDestroyed && attackerSurvived && !unit.isSealed) {
             const attackerUnit = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
             if (attackerUnit && attackerUnit.decimateEffects && attackerUnit.decimateEffects.length > 0) {
@@ -665,6 +700,37 @@ export function updateGameState(
                     flags: {},
                   },
                   sourcePlayer: playerUpdates[playerIndex],
+                  events: [],
+                }
+                const effectResult = resolveEffectByFunctionName(funcName, funcValue, decimateCtx)
+                playerUpdates[0] = effectResult.state.players[0]
+                playerUpdates[1] = effectResult.state.players[1]
+                events.push(...effectResult.events)
+              }
+            }
+          }
+
+          // 反撃時：攻撃してきた相手ユニットを反撃で倒し、自身が生存している場合にも撃破発動
+          const attackerWasDestroyed = !attackerSurvived
+          const targetSurvived = targetUnit != null && survivingOpponentIds.has(targetUnit.id)
+          if (attackerWasDestroyed && targetSurvived && targetUnit && !targetUnit.isSealed) {
+            const counterAttacker = playerUpdates[opponentIndex].units.find((u: Unit) => u.id === targetUnit.id)
+            if (counterAttacker && counterAttacker.decimateEffects && counterAttacker.decimateEffects.length > 0) {
+              for (const effectStr of counterAttacker.decimateEffects) {
+                const parts = effectStr.split(':')
+                const funcName = parts[0]
+                const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+                const decimateCtx: EffectContext = {
+                  gameState: { ...newState, players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState] },
+                  cardMap: cardDefinitions,
+                  sourceUnit: {
+                    unit: counterAttacker,
+                    statusEffects: new Set(),
+                    temporaryBuffs: { attack: 0, hp: 0 },
+                    counters: {},
+                    flags: {},
+                  },
+                  sourcePlayer: playerUpdates[opponentIndex],
                   events: [],
                 }
                 const effectResult = resolveEffectByFunctionName(funcName, funcValue, decimateCtx)
@@ -765,6 +831,20 @@ export function updateGameState(
 
     // ARタイマーが0になったら自動解決
     if (newState.activeResponse.timer <= 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+        body: JSON.stringify({
+          sessionId: 'b08703',
+          location: 'engine.ts:AR timer auto resolve',
+          message: 'AR resolve by timer expiry',
+          data: { stackLength: newState.activeResponse.stack.length },
+          timestamp: Date.now(),
+          hypothesisId: 'A',
+        }),
+      }).catch(() => {})
+      // #endregion
       const resolveResult = resolveActiveResponse(
         newState,
         cardDefinitions
@@ -1001,6 +1081,7 @@ function processInput(
             spillover: true,
             revenge: true,
             mp_boost: true,
+            target: true,
           }
 
           for (const token of triggeredTokensForResonate) {
@@ -1023,6 +1104,7 @@ function processInput(
                 gameState: newState,
                 cardMap: cardDefinitions,
                 sourcePlayer: sourcePlayerForResonate,
+                ...buildTargetContext(newState, input.playerId, input.target),
                 events,
               }
               const result = resolveEffectByFunctionName(
@@ -1041,16 +1123,18 @@ function processInput(
         blueMp: opponent.blueMp + blueMpGain,
       }
 
-      // 味方ユニットの呼応（resonate）トリガー発動
+      // 味方ユニットの呼応トリガー発動（手札＝resonate / EXポケット＝ex_resonate）
       const resonatePlayerIndex = newState.players.findIndex(
         (p) => p.playerId === input.playerId
       )
       if (resonatePlayerIndex !== -1) {
         const resonatePlayer = newState.players[resonatePlayerIndex]
-        for (const unit of resonatePlayer.units) {
+        for (let i = 0; i < resonatePlayer.units.length; i++) {
+          const unit = resonatePlayer.units[i]
           if (unit.isSealed) continue
-          if (!unit.resonateEffects || unit.resonateEffects.length === 0) continue
-          for (const effectStr of unit.resonateEffects) {
+          const effectList = isFromExPocket ? unit.exResonateEffects : unit.resonateEffects
+          if (!effectList || effectList.length === 0) continue
+          for (const effectStr of effectList) {
             const parts = effectStr.split(':')
             const funcName = parts[0]
             const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
@@ -1071,7 +1155,7 @@ function processInput(
             newState = result.state
             events.push(...result.events)
           }
-          // メモリーカウンター増加
+          // メモリーカウンター増加（手札からアクション使用時のみ）
           if ((unit.memoryThreshold ?? 0) > 0) {
             const newMemoryCount = (unit.memoryCount || 0) + 1
             const pIdx = newState.players.findIndex((p) => p.playerId === resonatePlayer.playerId)
@@ -1301,6 +1385,9 @@ function processInput(
           } else if (token.trigger === 'resonate') {
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
             newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'ex_resonate') {
+            if (!newUnit.exResonateEffects) newUnit.exResonateEffects = []
+            newUnit.exResonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
           } else if (token.name === 'growth') {
             // growth:N → N MP分のグローポイントでレベルアップ
             newUnit.growthThreshold = token.value ?? 3
@@ -1600,6 +1687,7 @@ function processInput(
           spillover: true,
           revenge: true,
           mp_boost: true,
+          target: true,
         }
 
         const triggeredTokens = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
@@ -1627,6 +1715,7 @@ function processInput(
                 counters: {},
                 flags: {},
               },
+              ...buildTargetContext(newState, input.playerId, input.target),
               events,
             }
             const result = resolveEffectByFunctionName(
@@ -1719,6 +1808,20 @@ function processInput(
         }
       } else {
         // 手動終了
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+          body: JSON.stringify({
+            sessionId: 'b08703',
+            location: 'engine.ts:end_active_response manual',
+            message: 'processInput end_active_response (manual)',
+            data: { stackLength: newState.activeResponse.stack.length },
+            timestamp: Date.now(),
+            hypothesisId: 'E',
+          }),
+        }).catch(() => {})
+        // #endregion
         const resolveResult = resolveActiveResponse(newState, cardDefinitions)
         newState = resolveResult.state
         events.push(...resolveResult.events)
@@ -1998,9 +2101,37 @@ function resolveActiveResponse(
   })
 
   // スタック内のアクションを順に解決
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+    body: JSON.stringify({
+      sessionId: 'b08703',
+      location: 'engine.ts:resolveActiveResponse',
+      message: 'AR resolve started',
+      data: { stackLength: resolvedStack.length, stackCardIds: resolvedStack.map((s) => s.cardId) },
+      timestamp: Date.now(),
+      hypothesisId: 'A',
+    }),
+  }).catch(() => {})
+  // #endregion
   for (const stackItem of resolvedStack) {
     const cardDef = resolveCardDefinition(cardDefinitions, stackItem.cardId)
     if (cardDef && cardDef.type === 'action') {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+        body: JSON.stringify({
+          sessionId: 'b08703',
+          location: 'engine.ts:resolveActionEffect call',
+          message: 'Resolving action effect for card',
+          data: { cardId: stackItem.cardId, playerId: stackItem.playerId },
+          timestamp: Date.now(),
+          hypothesisId: 'B',
+        }),
+      }).catch(() => {})
+      // #endregion
       const effectResult = resolveActionEffect(
         newState,
         stackItem.playerId,
@@ -2062,6 +2193,7 @@ function resolveActionEffect(
         mp_boost: true,
         action_effect: true,
         shield: true, // シールドは別途処理
+        target: true,
       }
 
       // シールド付与の処理（targetが指定されている場合）
@@ -2121,10 +2253,25 @@ function resolveActionEffect(
         const shouldInvoke = shouldInvokeMap.true
 
         if (shouldInvoke) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+            body: JSON.stringify({
+              sessionId: 'b08703',
+              location: 'engine.ts:resolveActionEffect token',
+              message: 'Invoking effect by function name',
+              data: { cardId: stackItem.cardId, funcName: token.name, funcValue: token.value },
+              timestamp: Date.now(),
+              hypothesisId: 'C',
+            }),
+          }).catch(() => {})
+          // #endregion
           const context: EffectContext = {
             gameState: newState,
             cardMap: cardDefinitions,
             sourcePlayer: newState.players[playerIndex],
+            ...buildTargetContext(newState, playerId, stackItem.target),
             events,
           }
           const result = resolveEffectByFunctionName(token.name, token.value, context)
@@ -2191,9 +2338,9 @@ function executeUnitAttack(
     }
 
     // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
-    let actualDamage = damage
+    let actualDamage = damage + (currentOpponent.damageBoostAll || 0)
     let newShieldCount = victim.shieldCount || 0
-    if (newShieldCount > 0 && damage > 0) {
+    if (newShieldCount > 0 && actualDamage > 0) {
       actualDamage = 0
       newShieldCount = newShieldCount - 1
     }
@@ -2370,7 +2517,7 @@ function executeUnitAttack(
       timestamp: Date.now(),
     })
     // 連撃の場合でも、反撃は最初の交戦時のみ発生させる
-    if (hitIndex === 0) {
+    if (hitIndex === 0 && !target.noCounterattack) {
       events.push({
         type: 'unit_attack',
         unitId: target.id,
@@ -2422,7 +2569,7 @@ function executeUnitAttack(
     }
 
     // 反撃ダメージ（簡易: 最初の交戦時のみ受ける。連撃の追加ヒットでは受けない）
-    if (hitIndex === 0) {
+    if (hitIndex === 0 && !target.noCounterattack) {
       // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
       let actualDamage = target.attack
       let newShieldCount = updatedUnit.shieldCount || 0

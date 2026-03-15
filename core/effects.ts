@@ -165,9 +165,9 @@ function applyDamageToUnit(
   if (unit.statusEffects?.includes('veil')) return state
 
   // シールド処理
-  let actualDamage = damage
+  let actualDamage = damage + (player.damageBoostAll || 0)
   let newShieldCount = unit.shieldCount || 0
-  if (newShieldCount > 0 && damage > 0) {
+  if (newShieldCount > 0 && actualDamage > 0) {
     actualDamage = 0
     newShieldCount = newShieldCount - 1
   }
@@ -255,13 +255,15 @@ export function resolveEffectByFunctionName(
   value: number,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
-  const { gameState, events } = context
+  const localEvents: GameEvent[] = []
+  const localContext: EffectContext = { ...context, events: localEvents }
+  const { gameState } = localContext
   let newState = { ...gameState }
 
   switch (functionName) {
     // ── マーカー系 ──
     case 'action_effect':
-      return { state: newState, events }
+      return { state: newState, events: localEvents }
 
     // ── 既存 ──
     case 'split_damage_all_enemy_units':
@@ -546,7 +548,7 @@ export function resolveEffectByFunctionName(
     // ── 新カードCore: while_on_field系 ──
     case 'while_on_field':
       // handled by engine tick, not here
-      return { state: newState, events }
+      return { state: newState, events: localEvents }
 
     // ── 新カードCore: 即時攻撃 ──
     case 'immediate_attack_self':
@@ -554,7 +556,7 @@ export function resolveEffectByFunctionName(
 
     default:
       console.warn(`Unknown effect function: ${functionName}`)
-      return { state: newState, events }
+      return { state: newState, events: localEvents }
   }
 }
 
@@ -1454,6 +1456,20 @@ function resolveDamageTarget(
   damage: number,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
+    body: JSON.stringify({
+      sessionId: 'b08703',
+      location: 'effects.ts:resolveDamageTarget',
+      message: 'Applying damage_target',
+      data: { damage, targetUnitId: context.targetUnit?.unit.id },
+      timestamp: Date.now(),
+      hypothesisId: 'D',
+    }),
+  }).catch(() => {})
+  // #endregion
   const { gameState, events, targetUnit } = context
   let newState = { ...gameState }
   if (!targetUnit) return { state: newState, events }
@@ -2416,6 +2432,22 @@ function resolveDiscardLowestMpHand(
     reason: 'card_played',
     timestamp: Date.now(),
   })
+
+  const updatedPlayer = newState.players[playerIndex]
+  if (updatedPlayer.deck.length > 0) {
+    const [drawnCard, ...remainingDeck] = updatedPlayer.deck
+    newState.players[playerIndex] = {
+      ...updatedPlayer,
+      deck: remainingDeck,
+      hand: [...updatedPlayer.hand, drawnCard],
+    }
+    events.push({
+      type: 'card_drawn',
+      playerId: updatedPlayer.playerId,
+      cardId: drawnCard,
+      timestamp: Date.now(),
+    })
+  }
   return { state: newState, events }
 }
 
@@ -2941,18 +2973,21 @@ function resolveDamageNonFrontOnDestroyBuffNearest(
   damage: number,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
-  const { gameState, events, sourceUnit, sourcePlayer } = context
+  const { gameState, events, sourceUnit, sourcePlayer, targetUnit } = context
   let newState = { ...gameState }
 
   const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
-  const opponent = newState.players[opponentIndex]
-  const frontLane = sourceUnit?.unit.lane
-  const candidates = frontLane !== undefined
-    ? opponent.units.filter((u) => u.lane !== frontLane)
-    : opponent.units
-  if (candidates.length === 0) return { state: newState, events }
-
-  const target = candidates[Math.floor(Math.random() * candidates.length)]
+  let target = targetUnit?.unit
+  if (!target) {
+    const opponent = newState.players[opponentIndex]
+    const frontLane = sourceUnit?.unit.lane
+    const candidates = frontLane !== undefined
+      ? opponent.units.filter((u) => u.lane !== frontLane)
+      : opponent.units
+    if (candidates.length === 0) return { state: newState, events }
+    target = candidates[Math.floor(Math.random() * candidates.length)]
+  }
+  if (sourceUnit && target.lane === sourceUnit.unit.lane) return { state: newState, events }
   const targetLane = target.lane
 
   newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
@@ -3229,10 +3264,7 @@ function resolveGrantEnemyDamageBoostAll(
 
   newState.players[opponentIndex] = {
     ...opponent,
-    units: opponent.units.map((u) => ({
-      ...u,
-      damageReduction: (u.damageReduction || 0) - value,
-    })),
+    damageBoostAll: (opponent.damageBoostAll || 0) + value,
   }
   return { state: newState, events }
 }
@@ -3246,12 +3278,11 @@ function resolveGrantNoCounterattackAllEnemy(
   const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
   const opponent = newState.players[opponentIndex]
 
-  // 停止状態にすることで反撃不可を表現（5秒間）
   newState.players[opponentIndex] = {
     ...opponent,
     units: opponent.units.map((u) => ({
       ...u,
-      haltTimer: Math.max(u.haltTimer || 0, 5000),
+      noCounterattack: true,
     })),
   }
   return { state: newState, events }
@@ -3263,30 +3294,32 @@ export function resolveEffect(
   effect: Effect,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
-  const { gameState, events } = context
+  const localEvents: GameEvent[] = []
+  const localContext: EffectContext = { ...context, events: localEvents }
+  const { gameState } = localContext
   let newState = { ...gameState }
 
   switch (effect.type) {
     case 'damage':
-      return resolveDamageEffect(effect, context)
+      return resolveDamageEffect(effect, localContext)
     case 'heal':
-      return resolveHealEffect(effect, context)
+      return resolveHealEffect(effect, localContext)
     case 'buff':
-      return resolveBuffEffect(effect, context)
+      return resolveBuffEffect(effect, localContext)
     case 'debuff':
-      return resolveDebuffEffect(effect, context)
+      return resolveDebuffEffect(effect, localContext)
     case 'status':
-      return resolveStatusEffect(effect, context)
+      return resolveStatusEffect(effect, localContext)
     case 'draw':
-      return resolveDrawEffect(effect, context)
+      return resolveDrawEffect(effect, localContext)
     case 'destroy':
-      return resolveDestroyEffect(effect, context)
+      return resolveDestroyEffect(effect, localContext)
     case 'mp_gain':
-      return resolveMpGainEffect(effect, context)
+      return resolveMpGainEffect(effect, localContext)
     case 'ap_gain':
-      return resolveApGainEffect(effect, context)
+      return resolveApGainEffect(effect, localContext)
     default:
-      return { state: newState, events }
+      return { state: newState, events: localEvents }
   }
 }
 

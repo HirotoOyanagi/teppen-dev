@@ -161,6 +161,14 @@ export default function GameBoard(props: GameBoardProps) {
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy'
   } | null>(null)
+  const [cardTargetMode, setCardTargetMode] = useState<{
+    playerId: string
+    cardId: string
+    lane?: number
+    fromExPocket?: boolean
+    freePlay?: boolean
+    targetSide: 'friendly' | 'enemy'
+  } | null>(null)
   const [abilityDragging, setAbilityDragging] = useState<{
     type: 'hero_art' | 'companion'
     targetSide: 'friendly' | 'enemy' | 'none'
@@ -288,6 +296,9 @@ export default function GameBoard(props: GameBoardProps) {
   const pendingEventsRef = useRef<import('@/core/types').GameEvent[]>([])
   const processEventsRef = useRef(processEvents)
   processEventsRef.current = processEvents
+  // React Strict Mode で updater が2回呼ばれても、AR終了入力は1回だけエンジンに渡す
+  const arEndInputRef = useRef<GameInput | null>(null)
+  const arEndResultRef = useRef<GameState | null>(null)
 
   useEffect(() => {
     if (!gameState || gameState.phase !== 'playing') return
@@ -347,9 +358,6 @@ export default function GameBoard(props: GameBoardProps) {
 
   // アクションカードが対象を必要とするか判定
   const requiresTarget = useCallback((cardDef: CardDefinition): boolean => {
-    if (cardDef.type !== 'action') return false
-    
-    // 効果関数にtarget:が指定されているかチェック
     if (cardDef.effectFunctions) {
       const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
       return tokens.some(t => t.startsWith('target:'))
@@ -419,9 +427,19 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }
 
-      // アクションカードで対象が必要な場合、targetが指定されているかチェック
-      if (cardDef.type === 'action' && requiresTarget(cardDef)) {
-        if (!target) return
+      if (requiresTarget(cardDef) && !target) {
+        const targetType = getTargetType(cardDef)
+        if (!targetType) return
+        if (cardDef.type === 'unit' && lane === undefined) return
+        setCardTargetMode({
+          playerId,
+          cardId,
+          lane,
+          fromExPocket,
+          freePlay,
+          targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+        })
+        return
       }
 
       const input: GameInput = {
@@ -454,7 +472,7 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }, 0)
     },
-    [gameState, cardMap, requiresTarget, processEvents]
+    [gameState, cardMap, getTargetType, processEvents, requiresTarget]
   )
 
   // 必殺技/おとも発動（ドラッグ終了時 or 直接呼び出し）
@@ -523,6 +541,18 @@ export default function GameBoard(props: GameBoardProps) {
   // ターゲット選択モードでのユニットクリック
   const handleAbilityTargetSelect = useCallback(
     (unitId: string) => {
+      if (cardTargetMode) {
+        handlePlayCard(
+          cardTargetMode.playerId,
+          cardTargetMode.cardId,
+          cardTargetMode.lane,
+          unitId,
+          cardTargetMode.fromExPocket,
+          cardTargetMode.freePlay
+        )
+        setCardTargetMode(null)
+        return
+      }
       if (!abilityTargetMode) return
       if (abilityTargetMode.type === 'hero_art') {
         handleHeroArt(unitId)
@@ -530,7 +560,7 @@ export default function GameBoard(props: GameBoardProps) {
         handleCompanion(unitId)
       }
     },
-    [abilityTargetMode, handleHeroArt, handleCompanion]
+    [abilityTargetMode, cardTargetMode, handleCompanion, handleHeroArt, handlePlayCard]
   )
 
   // アビリティドラッグ開始
@@ -605,7 +635,6 @@ export default function GameBoard(props: GameBoardProps) {
     setHoveredUnitId(null)
   }, [abilityDragging, hoveredUnitId, handleFireAbility])
 
-  // AR終了
   const handleEndActiveResponse = useCallback(
     (playerId: string) => {
       if (!gameState || !gameState.activeResponse.isActive) return
@@ -615,13 +644,21 @@ export default function GameBoard(props: GameBoardProps) {
         playerId,
         timestamp: Date.now(),
       }
+      arEndInputRef.current = input
+      arEndResultRef.current = null
 
       setGameState((prevState) => {
         if (!prevState) return prevState
-        const result = updateGameState(prevState, input, 0, cardMap)
+        const inputToUse = arEndInputRef.current
+        if (!inputToUse) {
+          return arEndResultRef.current ?? prevState
+        }
+        arEndInputRef.current = null
+        const result = updateGameState(prevState, inputToUse, 0, cardMap)
         if (result.events.length > 0) {
           pendingEventsRef.current.push(...result.events)
         }
+        arEndResultRef.current = result.state
         return result.state
       })
       setTimeout(() => {
@@ -1139,13 +1176,14 @@ export default function GameBoard(props: GameBoardProps) {
                         else unitRefs.current.delete(leftUnit.id)
                       }}
                       className={`transition-all ${
-                        dragging && dragging.cardDef.type === 'action' && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
+                        dragging && requiresTarget(dragging.cardDef) && hoveredUnitId === leftUnit.id
                           ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow]'
-                          : abilityDragging && abilityDragging.targetSide === 'friendly' && hoveredUnitId === leftUnit.id
+                        : abilityDragging && abilityDragging.targetSide === 'friendly' && hoveredUnitId === leftUnit.id
                             ? 'ring-4 ring-cyan-400 shadow-[0_0_20px_cyan]'
-                            : abilityDragging && abilityDragging.targetSide === 'friendly'
+                          : abilityDragging && abilityDragging.targetSide === 'friendly'
                               ? 'ring-2 ring-cyan-400/50 shadow-[0_0_8px_cyan]'
-                              : abilityTargetMode && abilityTargetMode.targetSide === 'friendly'
+                              : (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
+                                (cardTargetMode && cardTargetMode.targetSide === 'friendly')
                                 ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_cyan] cursor-pointer'
                                 : ''
                       }`}
@@ -1156,7 +1194,10 @@ export default function GameBoard(props: GameBoardProps) {
                         isField
                         cardMap={cardMap}
                         onClick={() => {
-                          if (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') {
+                          if (
+                            (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
+                            (cardTargetMode && cardTargetMode.targetSide === 'friendly')
+                          ) {
                             handleAbilityTargetSelect(leftUnit.id)
                           } else {
                             onCardTap(leftCardDef, 'left')
@@ -1171,7 +1212,8 @@ export default function GameBoard(props: GameBoardProps) {
 
                 {/* Right Slot (相手) */}
                 <div className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
-                  abilityTargetMode && abilityTargetMode.targetSide === 'enemy' && rightUnit
+                  ((abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
+                    (cardTargetMode && cardTargetMode.targetSide === 'enemy')) && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
                     : ''
                 }`}>
@@ -1184,10 +1226,11 @@ export default function GameBoard(props: GameBoardProps) {
                       }}
                       className={`transition-all ${
                         (abilityDragging && abilityDragging.targetSide === 'enemy' && hoveredUnitId === rightUnit.id) ||
-                        (dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'enemy_unit' && hoveredUnitId === rightUnit.id)
+                        (dragging && getTargetType(dragging.cardDef) === 'enemy_unit' && hoveredUnitId === rightUnit.id)
                           ? 'ring-4 ring-red-400 shadow-[0_0_20px_red]'
                           : (abilityDragging && abilityDragging.targetSide === 'enemy') ||
-                            (dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'enemy_unit')
+                            (dragging && getTargetType(dragging.cardDef) === 'enemy_unit') ||
+                            (cardTargetMode && cardTargetMode.targetSide === 'enemy')
                             ? 'ring-2 ring-red-400/50 shadow-[0_0_8px_red]'
                             : ''
                       }`}
@@ -1198,7 +1241,10 @@ export default function GameBoard(props: GameBoardProps) {
                       isField
                       cardMap={cardMap}
                       onClick={() => {
-                        if (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') {
+                        if (
+                          (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
+                          (cardTargetMode && cardTargetMode.targetSide === 'enemy')
+                        ) {
                           handleAbilityTargetSelect(rightUnit.id)
                         } else {
                           onCardTap(rightCardDef, 'right')

@@ -85,7 +85,8 @@ export interface Unit {
   deathEffects?: string[] // 死亡時の効果関数
   attackEffects?: string[] // 攻撃時の効果関数
   decimateEffects?: string[] // 撃破時の効果関数
-  resonateEffects?: string[] // 呼応時の効果関数
+  resonateEffects?: string[] // 呼応時の効果関数（手札からアクション使用時）
+  exResonateEffects?: string[] // EXポケットからアクション使用時の効果関数
   dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ
   // カード固有効果用
   heroHitEffects?: string[] // 敵ヒーローにダメージを与えた時の効果
@@ -113,6 +114,7 @@ export interface Unit {
   hpConditionEffects?: { condition: string; effects: string[] }[] // HP条件付き効果
   killerId?: string // このユニットを破壊したユニットのID（死亡時にセット）
   damageReduction?: number // ダメージ軽減値（ミラおとも用）
+  noCounterattack?: boolean // 反撃不可
 }
 
 // 場にいる間の効果定義
@@ -167,6 +169,7 @@ export interface PlayerState {
   heroArtGauge?: number // ヒーローアーツ用（後で拡張）
   graveyard: string[] // 墓地のカードID
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
+  damageBoostAll?: number // 自分のユニットが受けるダメージ増加
   exPocket: string[] // EXポケット（cardId文字列、@cost=等の修飾子付き）
   actionCardUsedCount?: number // バトル中アクションカード使用回数
   levelUpCount?: number // 味方ユニットレベルアップ回数
@@ -321,4 +324,3 @@ export type GameEvent =
       reason: 'hp_zero' | 'time_limit'
       timestamp: number
     }
-
