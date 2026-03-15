@@ -170,6 +170,74 @@ export function isFireSeedCountAtLeast(
   return getFireSeedUsedCount(state, playerId) >= min
 }
 
+/** 条件付き効果で使う条件ID → 評価関数。when_fire_seed_ge_3 なら fire_seed_ge_3 で参照 */
+const CONDITION_EVALUATORS: Record<
+  string,
+  (state: GameState, context: EffectContext) => boolean
+> = {
+  fire_seed_ge_3: (state, ctx) =>
+    isFireSeedCountAtLeast(state, ctx.sourcePlayer?.playerId ?? '', 3),
+  fire_seed_ge_5: (state, ctx) =>
+    isFireSeedCountAtLeast(state, ctx.sourcePlayer?.playerId ?? '', 5),
+}
+
+/** "damage_non_front_enemy:5" や "damage_front_unit_fire_seed_conditional:4:7:2" をパース */
+function parseEffectPart(part: string): {
+  name: string
+  value: number
+  valueStr?: string
+} {
+  const idx = part.indexOf(':')
+  if (idx === -1) {
+    return { name: part.trim().toLowerCase(), value: 0 }
+  }
+  const name = part.substring(0, idx).trim().toLowerCase()
+  const rest = part.substring(idx + 1).trim()
+  const firstNum = rest.split(':')[0] ?? ''
+  const value = parseInt(firstNum, 10)
+  return {
+    name,
+    value: Number.isNaN(value) ? 0 : value,
+    valueStr: rest || undefined,
+  }
+}
+
+/**
+ * when_条件:成立時効果|不成立時効果 を解決。
+ * 例: when_fire_seed_ge_3:damage_non_front_enemy:5|damage_front_unit:4
+ * → 火種3+なら damage_non_front_enemy:5、そうでなければ damage_front_unit:4
+ */
+function resolveWhenConditional(
+  functionName: string,
+  valueStr: string,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const conditionId = functionName.replace(/^when_/, '')
+  const evaluator = CONDITION_EVALUATORS[conditionId]
+  const met = evaluator
+    ? evaluator(context.gameState, context)
+    : false
+  const parts = valueStr.split('|').map((p) => p.trim())
+  const thenPart = parts[0] ?? ''
+  const elsePart = parts[1] ?? thenPart
+  const chosen = met ? thenPart : elsePart
+  const effectStrings = chosen.split(';').map((s) => s.trim()).filter(Boolean)
+  let state = context.gameState
+  const events = [...(context.events ?? [])]
+  for (const effectStr of effectStrings) {
+    const parsed = parseEffectPart(effectStr)
+    const result = resolveEffectByFunctionName(
+      parsed.name,
+      parsed.value,
+      { ...context, gameState: state, events },
+      parsed.valueStr
+    )
+    state = result.state
+    events.push(...result.events)
+  }
+  return { state, events }
+}
+
 /** ユニットにダメージを与え、破壊判定を行う共通処理 */
 function applyDamageToUnit(
   state: GameState,
@@ -324,11 +392,13 @@ function pickRandomEnemyUnit(opponent: PlayerState): Unit | undefined {
 
 /**
  * 関数名ベースで効果を解決する
+ * @param valueStr 複数値用（例: "4:7:2"）。条件付き効果のパラメータを文字列で渡す
  */
 export function resolveEffectByFunctionName(
   functionName: string,
   value: number,
-  context: EffectContext
+  context: EffectContext,
+  valueStr?: string
 ): { state: GameState; events: GameEvent[] } {
   const localEvents: GameEvent[] = []
   const localContext: EffectContext = { ...context, events: localEvents }
@@ -337,6 +407,10 @@ export function resolveEffectByFunctionName(
   const rawResult = ((): { state: GameState; events: GameEvent[] } => {
     const { gameState } = localContext
     let newState = { ...gameState }
+    // 条件分岐: when_条件:成立時効果|不成立時効果 → 成立時/不成立時の効果をそのまま発動（別効果にも対応）
+    if (functionName.startsWith('when_') && valueStr != null) {
+      return resolveWhenConditional(functionName, valueStr, context)
+    }
     switch (functionName) {
     // ── マーカー系 ──
     case 'action_effect':
@@ -584,7 +658,7 @@ export function resolveEffectByFunctionName(
     case 'damage_front_fire_seed_conditional':
       return resolveDamageFrontFireSeedConditional(value, context)
     case 'damage_front_unit_fire_seed_conditional':
-      return resolveDamageFrontUnitFireSeedConditional(value, context)
+      return resolveDamageFrontUnitFireSeedConditional(value, context, valueStr)
     case 'damage_target_on_destroy_buff_front':
       return resolveDamageTargetOnDestroyBuffFront(value, context)
     case 'damage_non_front_on_destroy_buff_nearest':
@@ -3018,11 +3092,18 @@ function resolveDamageFrontFireSeedConditional(
   return { state: newState, events }
 }
 
-/** 登場時：正面の敵に baseDamage。火種3枚以上使用時は代わりに7ダメ+敵ヒーロー2（ツインバレット用） */
+/**
+ * 正面の敵にダメージ。火種3枚以上使用時は代わりに別値（正面+ヒーロー）。
+ * valueStr が "base:condUnit:condHero" のときその値を使用、なければ baseDamage と 7,2 で後方互換。
+ */
 function resolveDamageFrontUnitFireSeedConditional(
   baseDamage: number,
-  context: EffectContext
+  context: EffectContext,
+  valueStr?: string
 ): { state: GameState; events: GameEvent[] } {
+  const parsed = parseConditionalDamageParams(valueStr, baseDamage, 7, 2)
+  const { base, condUnit, condHero } = parsed
+
   const { gameState, events, sourceUnit, sourcePlayer } = context
   let newState = { ...gameState }
   if (!sourceUnit) return { state: newState, events }
@@ -3034,12 +3115,34 @@ function resolveDamageFrontUnitFireSeedConditional(
   if (!frontUnit) return { state: newState, events }
 
   if (isFireSeedCountAtLeast(newState, sourcePlayer.playerId)) {
-    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, 7)
-    newState = applyDamageToHero(newState, events, opponentIndex, 2)
+    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, condUnit)
+    newState = applyDamageToHero(newState, events, opponentIndex, condHero)
   } else {
-    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, baseDamage)
+    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, base)
   }
   return { state: newState, events }
+}
+
+/** "4:7:2" → { base:4, condUnit:7, condHero:2 }。不足時は fallback を使用 */
+function parseConditionalDamageParams(
+  valueStr: string | undefined,
+  fallbackBase: number,
+  fallbackCondUnit: number,
+  fallbackCondHero: number
+): { base: number; condUnit: number; condHero: number } {
+  if (!valueStr || !valueStr.includes(':')) {
+    return {
+      base: fallbackBase,
+      condUnit: fallbackCondUnit,
+      condHero: fallbackCondHero,
+    }
+  }
+  const parts = valueStr.split(':').map((s) => parseInt(s.trim(), 10))
+  return {
+    base: Number.isNaN(parts[0]) ? fallbackBase : parts[0],
+    condUnit: Number.isNaN(parts[1]) ? fallbackCondUnit : parts[1],
+    condHero: Number.isNaN(parts[2]) ? fallbackCondHero : parts[2],
+  }
 }
 
 /** 敵ユニットにダメージ。破壊時：正面の味方ユニットに+3/+3 */

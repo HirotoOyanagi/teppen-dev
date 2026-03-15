@@ -34,6 +34,8 @@ function parseNumber(value: string): number {
 type EffectFunctionToken = {
   name: string
   value: number
+  /** 複数値用（例: "4:7:2"）。条件付き効果のパラメータをハードコードせず文字列で渡す */
+  valueStr?: string
 }
 
 type EffectFunctionTrigger =
@@ -73,16 +75,18 @@ function parseEffectFunctionTokens(effectFunctions: string | undefined): EffectF
 
     let name = part
     let value = 0
+    let valueStr: string | undefined
 
     if (colonIndex !== -1) {
       name = part.substring(0, colonIndex).trim()
-      const valueStr = part.substring(colonIndex + 1).trim()
-      value = parseNumber(valueStr)
+      const rest = part.substring(colonIndex + 1).trim()
+      valueStr = rest || undefined
+      value = parseNumber(rest.split(':')[0] ?? '')
     }
 
     const normalizedName = name.toLowerCase()
     if (normalizedName.length > 0) {
-      tokens.push({ name: normalizedName, value })
+      tokens.push({ name: normalizedName, value, valueStr })
     }
   }
 
@@ -161,6 +165,8 @@ function parseTriggeredEffectFunctionTokens(
     const baseName = baseNameMap[String(baseTokenParts.length > 0)]
     const valueText = baseTokenParts.length > 1 ? baseTokenParts[1] : ''
     const valueNumber = parseNumber(valueText)
+    const valueStr =
+      baseTokenParts.length > 1 ? baseTokenParts.slice(1).join(':') : undefined
 
     const finalTriggerMap: Record<string, EffectFunctionTrigger> = {
       true: trigger,
@@ -173,6 +179,7 @@ function parseTriggeredEffectFunctionTokens(
         name: baseName.toLowerCase(),
         value: valueNumber,
         trigger: finalTrigger,
+        valueStr,
       })
     }
   }
@@ -1112,7 +1119,8 @@ function processInput(
               const result = resolveEffectByFunctionName(
                 token.name,
                 token.value,
-                context
+                context,
+                token.valueStr
               )
               newState = result.state
               events.push(...result.events)
@@ -1532,7 +1540,12 @@ function processInput(
             sourcePlayer: newState.players[playerIndex],
             events,
           }
-          const result = resolveEffectByFunctionName(token.name, token.value, awakeningContext)
+          const result = resolveEffectByFunctionName(
+            token.name,
+            token.value,
+            awakeningContext,
+            token.valueStr
+          )
           newState = result.state
           events.push(...result.events)
           // sourceUnitの最新状態を反映
@@ -1728,7 +1741,8 @@ function processInput(
             const result = resolveEffectByFunctionName(
               token.name,
               token.value,
-              context
+              context,
+              token.valueStr
             )
             newState = result.state
             events.push(...result.events)
@@ -2319,7 +2333,12 @@ function resolveActionEffect(
             ...buildTargetContext(newState, playerId, stackItem.target),
             events,
           }
-          const result = resolveEffectByFunctionName(token.name, effectiveValue, context)
+          const result = resolveEffectByFunctionName(
+          token.name,
+          effectiveValue,
+          context,
+          token.valueStr
+        )
           newState = result.state
           events.push(...result.events)
         }
