@@ -85,6 +85,8 @@ export interface Unit {
   deathEffects?: string[] // 死亡時の効果関数
   attackEffects?: string[] // 攻撃時の効果関数
   decimateEffects?: string[] // 撃破時の効果関数
+  effectDamageDestroyEffects?: string[] // 効果ダメージで敵ユニットが破壊されたときの効果関数
+  actionDamageBoost?: number // 場にいる間、自身のアクションカードのダメージに加算（スポッター等）
   resonateEffects?: string[] // 呼応時の効果関数（手札からアクション使用時）
   exResonateEffects?: string[] // EXポケットからアクション使用時の効果関数
   dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ

@@ -255,6 +255,58 @@ function applyDamageToHero(
   return newState
 }
 
+/**
+ * 効果ダメージで敵ユニットが1体以上破壊された場合、sourcePlayer の全ユニットの
+ * effectDamageDestroyEffects を発動する。CSV「効果ダメージで敵ユニットが破壊されたとき」用。
+ */
+export function runEffectDamageDestroyTriggers(
+  prevState: GameState,
+  nextState: GameState,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const events: GameEvent[] = []
+  let state = nextState
+  const sourcePlayerId = context.sourcePlayer?.playerId
+  if (!sourcePlayerId) return { state, events }
+
+  const sourceIdx = findPlayerIndex(prevState, sourcePlayerId)
+  const opponentIdx = 1 - sourceIdx
+  if (sourceIdx === -1) return { state, events }
+
+  const prevCount = prevState.players[opponentIdx].units.length
+  const nextCount = state.players[opponentIdx].units.length
+  if (nextCount >= prevCount) return { state, events }
+
+  const sourcePlayer = state.players[sourceIdx]
+  for (const unit of sourcePlayer.units) {
+    if (unit.isSealed) continue
+    const effectList = unit.effectDamageDestroyEffects
+    if (!effectList || effectList.length === 0) continue
+    for (const effectStr of effectList) {
+      const parts = effectStr.split(':')
+      const funcName = parts[0]
+      const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+      const ctx: EffectContext = {
+        gameState: state,
+        cardMap: context.cardMap,
+        sourceUnit: {
+          unit,
+          statusEffects: new Set(),
+          temporaryBuffs: { attack: 0, hp: 0 },
+          counters: {},
+          flags: {},
+        },
+        sourcePlayer: state.players[sourceIdx],
+        events,
+      }
+      const result = resolveEffectByFunctionName(funcName, funcValue, ctx)
+      state = result.state
+      events.push(...result.events)
+    }
+  }
+  return { state, events }
+}
+
 /** 自身を除くランダムな味方ユニット1体を選ぶ */
 function pickRandomFriendlyUnit(player: PlayerState, excludeUnitId?: string): Unit | undefined {
   const candidates = player.units.filter((u) => u.id !== excludeUnitId)
@@ -280,10 +332,12 @@ export function resolveEffectByFunctionName(
 ): { state: GameState; events: GameEvent[] } {
   const localEvents: GameEvent[] = []
   const localContext: EffectContext = { ...context, events: localEvents }
-  const { gameState } = localContext
-  let newState = { ...gameState }
+  const stateBefore = context.gameState
 
-  switch (functionName) {
+  const rawResult = ((): { state: GameState; events: GameEvent[] } => {
+    const { gameState } = localContext
+    let newState = { ...gameState }
+    switch (functionName) {
     // ── マーカー系 ──
     case 'action_effect':
       return { state: newState, events: localEvents }
@@ -583,6 +637,22 @@ export function resolveEffectByFunctionName(
       console.warn(`Unknown effect function: ${functionName}`)
       return { state: newState, events: localEvents }
   }
+  })()
+
+  const triggerCtx: EffectContext = {
+    ...context,
+    gameState: rawResult.state,
+    sourcePlayer:
+      rawResult.state.players[findPlayerIndex(rawResult.state, context.sourcePlayer?.playerId ?? '')] ??
+      context.sourcePlayer,
+    events: rawResult.events,
+  }
+  const afterTrigger = runEffectDamageDestroyTriggers(
+    stateBefore,
+    rawResult.state,
+    triggerCtx
+  )
+  return { state: afterTrigger.state, events: afterTrigger.events }
 }
 
 // ─── ダメージ系 ───
@@ -2513,7 +2583,7 @@ function resolveReduceAttackTimerTarget(
 
 // ─── 新カードCore: ダメージ系 ───
 
-/** 正面以外の敵ユニット1体にダメージ */
+/** 正面以外の全ての敵ユニットにダメージ（マルク等） */
 function resolveDamageNonFrontEnemy(
   damage: number,
   context: EffectContext
@@ -2524,16 +2594,16 @@ function resolveDamageNonFrontEnemy(
   const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
   const opponent = newState.players[opponentIndex]
 
-  // 正面以外の敵ユニットを候補にする
+  // 正面以外の敵ユニット（sourceUnitのレーンと異なるレーンのみ）
   const frontLane = sourceUnit?.unit.lane
-  const candidates = frontLane !== undefined
-    ? opponent.units.filter((u) => u.lane !== frontLane)
-    : opponent.units
+  const candidates =
+    frontLane !== undefined
+      ? opponent.units.filter((u) => u.lane !== frontLane)
+      : opponent.units
 
-  if (candidates.length === 0) return { state: newState, events }
-  const target = candidates[Math.floor(Math.random() * candidates.length)]
-
-  newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
+  for (const target of candidates) {
+    newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
+  }
   return { state: newState, events }
 }
 

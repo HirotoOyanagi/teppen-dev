@@ -50,6 +50,7 @@ type EffectFunctionTrigger =
   | 'ex_resonate' // EXポケットからカード使用時
   | 'enemy_action' // 相手がアクションカードを使用した時
   | 'resonate_fire_seed' // 火種(cor_027)をアクションカードとして使用した時
+  | 'while_on_field' // 場にいる間（アクションダメージ+1等）
 
 type TriggeredEffectFunctionToken = EffectFunctionToken & {
   trigger: EffectFunctionTrigger
@@ -115,6 +116,7 @@ function parseTriggeredEffectFunctionTokens(
     ex_resonate: 'ex_resonate',
     enemy_action: 'enemy_action',
     resonate_fire_seed: 'resonate_fire_seed',
+    while_on_field: 'while_on_field',
   }
 
   const triggeredTokens: TriggeredEffectFunctionToken[] = []
@@ -1388,6 +1390,11 @@ function processInput(
           } else if (token.trigger === 'ex_resonate') {
             if (!newUnit.exResonateEffects) newUnit.exResonateEffects = []
             newUnit.exResonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'effect_damage_destroy') {
+            if (!newUnit.effectDamageDestroyEffects) newUnit.effectDamageDestroyEffects = []
+            newUnit.effectDamageDestroyEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'while_on_field' && token.name === 'action_damage_boost') {
+            newUnit.actionDamageBoost = (newUnit.actionDamageBoost ?? 0) + (token.value ?? 0)
           } else if (token.name === 'growth') {
             // growth:N → N MP分のグローポイントでレベルアップ
             newUnit.growthThreshold = token.value ?? 3
@@ -2162,6 +2169,37 @@ function resolveActiveResponse(
   return { state: newState, events }
 }
 
+/** アクションカードの効果で「value＝ダメージ量」として扱う関数名（スポッター等の+1加算対象） */
+const ACTION_DAMAGE_EFFECT_NAMES = new Set([
+  'damage_front_unit',
+  'damage_random_enemy',
+  'damage_all_units',
+  'damage_all_units_and_heroes',
+  'damage_enemy_hero',
+  'damage_all_enemy_units_each',
+  'damage_halted_enemies',
+  'pierce_damage_target',
+  'damage_lowest_hp_enemy',
+  'damage_self',
+  'damage_target',
+  'damage_non_front_enemy',
+  'split_damage_random_enemy',
+  'damage_target_conditional_low_hp',
+  'damage_split_by_action_count',
+  'damage_target_fire_seed_conditional',
+  'damage_target_ar_boost',
+  'damage_front_fire_seed_conditional',
+  'damage_front_unit_fire_seed_conditional',
+  'damage_target_on_destroy_buff_front',
+  'damage_non_front_on_destroy_buff_nearest',
+  'damage_target_on_destroy_grant_hero_attack',
+  'fire_seed_triple_activation',
+  'split_damage_by_fire_seed_count',
+  'damage_all_by_fire_seed_count',
+  'split_damage_on_destroy_hero_damage',
+  'split_damage_all_enemy_units',
+])
+
 /**
  * アクションカードの効果を解決
  */
@@ -2182,6 +2220,10 @@ function resolveActionEffect(
   if (functionTokens.length > 0) {
     const playerIndex = newState.players.findIndex((p) => p.playerId === playerId)
     if (playerIndex !== -1) {
+      const totalActionDamageBoost = newState.players[playerIndex].units.reduce(
+        (sum, u) => sum + (u.actionDamageBoost ?? 0),
+        0
+      )
       const invokeSkip: Record<string, boolean> = {
         rush: true,
         flight: true,
@@ -2267,6 +2309,9 @@ function resolveActionEffect(
             }),
           }).catch(() => {})
           // #endregion
+          const effectiveValue = ACTION_DAMAGE_EFFECT_NAMES.has(token.name)
+            ? token.value + totalActionDamageBoost
+            : token.value
           const context: EffectContext = {
             gameState: newState,
             cardMap: cardDefinitions,
@@ -2274,7 +2319,7 @@ function resolveActionEffect(
             ...buildTargetContext(newState, playerId, stackItem.target),
             events,
           }
-          const result = resolveEffectByFunctionName(token.name, token.value, context)
+          const result = resolveEffectByFunctionName(token.name, effectiveValue, context)
           newState = result.state
           events.push(...result.events)
         }
