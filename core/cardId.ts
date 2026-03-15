@@ -97,7 +97,8 @@ export function resolveCardDefinition(
   cardId: string
 ): CardDefinition | null {
   const meta = parseCardId(cardId)
-  const baseDef = cardMap.get(meta.baseId)
+  const baseDef =
+    cardMap.get(meta.baseId) ?? cardMap.get(meta.baseId.toLowerCase())
   if (!baseDef) {
     return null
   }

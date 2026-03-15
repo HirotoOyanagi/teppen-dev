@@ -147,6 +147,29 @@ function findUnitOwnerIndex(state: GameState, unitId: string): number {
   return -1
 }
 
+// ─── 火種（応用用共通） ───
+/** 火種カードのベースID（chainFireCount のキー等に使用）。他モジュールで火種条件を書くときに利用可 */
+export const FIRE_SEED_CARD_ID = 'cor_027'
+/** 「火種を3枚以上使っている」等の既定閾値。他カードで流用しやすいように共通化 */
+export const FIRE_SEED_THRESHOLD_DEFAULT = 3
+
+/** プレイヤーがバトル中に使用した火種の回数。新規「火種条件」効果を追加するときはこのヘルパーを使うと応用しやすい */
+export function getFireSeedUsedCount(state: GameState, playerId: string): number {
+  const pi = findPlayerIndex(state, playerId)
+  if (pi === -1) return 0
+  const player = state.players[pi]
+  return player.chainFireCount?.[FIRE_SEED_CARD_ID] ?? 0
+}
+
+/** 火種使用回数が閾値以上か。第3引数で閾値を変えられる（例: 5以上なら min=5）。省略時は FIRE_SEED_THRESHOLD_DEFAULT */
+export function isFireSeedCountAtLeast(
+  state: GameState,
+  playerId: string,
+  min: number = FIRE_SEED_THRESHOLD_DEFAULT
+): boolean {
+  return getFireSeedUsedCount(state, playerId) >= min
+}
+
 /** ユニットにダメージを与え、破壊判定を行う共通処理 */
 function applyDamageToUnit(
   state: GameState,
@@ -506,6 +529,8 @@ export function resolveEffectByFunctionName(
       return resolveDamageTargetArBoost(value, context)
     case 'damage_front_fire_seed_conditional':
       return resolveDamageFrontFireSeedConditional(value, context)
+    case 'damage_front_unit_fire_seed_conditional':
+      return resolveDamageFrontUnitFireSeedConditional(value, context)
     case 'damage_target_on_destroy_buff_front':
       return resolveDamageTargetOnDestroyBuffFront(value, context)
     case 'damage_non_front_on_destroy_buff_nearest':
@@ -2309,7 +2334,7 @@ function resolveSplitDamageAllEnemyUnits(
 
 // ─── 新カードCore: カード操作系 ───
 
-/** 火種(cor_027)をEXポケットに追加 */
+/** 火種をEXポケットに追加 */
 function resolveAddFireSeedToEx(
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
@@ -2320,7 +2345,7 @@ function resolveAddFireSeedToEx(
 
   newState.players[playerIndex] = {
     ...player,
-    exPocket: [...player.exPocket, 'cor_027'],
+    exPocket: [...player.exPocket, FIRE_SEED_CARD_ID],
   }
   return { state: newState, events }
 }
@@ -2341,7 +2366,7 @@ function resolveAddFlameBaptismToEx(
   return { state: newState, events }
 }
 
-/** デッキから火種(cor_027)を検索してEXポケットに追加 */
+/** デッキから火種を検索してEXポケットに追加 */
 function resolveSearchFireSeedToEx(
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
@@ -2350,7 +2375,7 @@ function resolveSearchFireSeedToEx(
   const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
   const player = newState.players[playerIndex]
 
-  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === 'cor_027')
+  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === FIRE_SEED_CARD_ID)
   if (deckIndex === -1) return { state: newState, events }
 
   const newDeck = [...player.deck]
@@ -2364,7 +2389,7 @@ function resolveSearchFireSeedToEx(
   return { state: newState, events }
 }
 
-/** デッキから火種(cor_027)を検索して手札に追加 */
+/** デッキから火種を検索して手札に追加 */
 function resolveSearchFireSeedToHand(
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
@@ -2373,7 +2398,7 @@ function resolveSearchFireSeedToHand(
   const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
   const player = newState.players[playerIndex]
 
-  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === 'cor_027')
+  const deckIndex = player.deck.findIndex((c) => c.split('@')[0] === FIRE_SEED_CARD_ID)
   if (deckIndex === -1) return { state: newState, events }
 
   const newDeck = [...player.deck]
@@ -2576,7 +2601,7 @@ function resolveDamageSplitByActionCount(
   return { state: newState, events }
 }
 
-/** 敵ユニットにダメージ（火種3枚以上使用時: 7ダメ+敵ヒーロー2ダメ、それ以外: 4ダメ） */
+/** 敵ユニットにダメージ（火種3枚以上使用時: 7ダメ+敵ヒーロー2ダメ、それ以外: baseDamage） */
 function resolveDamageTargetFireSeedConditional(
   baseDamage: number,
   context: EffectContext
@@ -2588,12 +2613,9 @@ function resolveDamageTargetFireSeedConditional(
   const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
   if (ownerIndex === -1) return { state: newState, events }
 
-  // 火種の使用回数をチェック（chainFireCountで追跡）
-  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
-  const player = newState.players[playerIndex]
-  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+  const fireSeedMet = isFireSeedCountAtLeast(newState, sourcePlayer.playerId)
 
-  if (fireSeedUsed >= 3) {
+  if (fireSeedMet) {
     // 7ダメ + 敵ヒーロー2ダメ
     newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, 7)
     const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
@@ -2914,11 +2936,7 @@ function resolveDamageFrontFireSeedConditional(
   let newState = { ...gameState }
   if (!sourceUnit) return { state: newState, events }
 
-  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
-  const player = newState.players[playerIndex]
-  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
-
-  if (fireSeedUsed < 3) return { state: newState, events }
+  if (!isFireSeedCountAtLeast(newState, sourcePlayer.playerId)) return { state: newState, events }
 
   const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
   const frontUnit = newState.players[opponentIndex].units.find(
@@ -2927,6 +2945,30 @@ function resolveDamageFrontFireSeedConditional(
   if (!frontUnit) return { state: newState, events }
 
   newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, damage)
+  return { state: newState, events }
+}
+
+/** 登場時：正面の敵に baseDamage。火種3枚以上使用時は代わりに7ダメ+敵ヒーロー2（ツインバレット用） */
+function resolveDamageFrontUnitFireSeedConditional(
+  baseDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find(
+    (u) => u.lane === sourceUnit.unit.lane
+  )
+  if (!frontUnit) return { state: newState, events }
+
+  if (isFireSeedCountAtLeast(newState, sourcePlayer.playerId)) {
+    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, 7)
+    newState = applyDamageToHero(newState, events, opponentIndex, 2)
+  } else {
+    newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, baseDamage)
+  }
   return { state: newState, events }
 }
 
@@ -3064,12 +3106,10 @@ function resolveFireSeedTripleActivation(
   const { gameState, events, targetUnit, sourcePlayer } = context
   let newState = { ...gameState }
 
+  if (!isFireSeedCountAtLeast(newState, sourcePlayer.playerId)) return { state: newState, events }
+
   const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
   const player = newState.players[playerIndex]
-  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
-
-  // 火種3枚以上使用条件
-  if (fireSeedUsed < 3) return { state: newState, events }
 
   // 敵ユニットにダメージ
   if (targetUnit) {
@@ -3085,7 +3125,7 @@ function resolveFireSeedTripleActivation(
   const newGraveyard = [...updatedPlayer.graveyard]
   let fireSeedsSent = 0
   for (let i = newExPocket.length - 1; i >= 0 && fireSeedsSent < 2; i--) {
-    if (newExPocket[i].split('@')[0] === 'cor_027') {
+    if (newExPocket[i].split('@')[0] === FIRE_SEED_CARD_ID) {
       newGraveyard.push(newExPocket[i])
       newExPocket.splice(i, 1)
       fireSeedsSent++
@@ -3115,9 +3155,7 @@ function resolveSplitDamageByFireSeedCount(
   const { gameState, events, sourcePlayer } = context
   let newState = { ...gameState }
 
-  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
-  const player = newState.players[playerIndex]
-  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+  const fireSeedUsed = getFireSeedUsedCount(newState, sourcePlayer.playerId)
   const totalDamage = fireSeedUsed * damagePerCount
 
   if (totalDamage <= 0) return { state: newState, events }
@@ -3142,9 +3180,7 @@ function resolveDamageAllByFireSeedCount(
   const { gameState, events, sourcePlayer } = context
   let newState = { ...gameState }
 
-  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
-  const player = newState.players[playerIndex]
-  const fireSeedUsed = player.chainFireCount?.['cor_027'] || 0
+  const fireSeedUsed = getFireSeedUsedCount(newState, sourcePlayer.playerId)
 
   if (fireSeedUsed <= 0) return { state: newState, events }
 

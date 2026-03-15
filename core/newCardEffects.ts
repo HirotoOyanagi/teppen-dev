@@ -23,8 +23,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_004 バーン: 攻撃時：ランダムな敵ユニットに振り分け4ダメージ
   cor_004: 'attack:split_damage_random_enemy:4',
 
-  // COR_005 ツインバレット: 登場時：敵ユニット1体に4ダメージ。「火種」を3枚以上使っていた場合、代わりに7ダメージを与え、敵ヒーローに2ダメージ与える。
-  cor_005: 'target:enemy_unit;play:damage_target_fire_seed_conditional:4',
+  // COR_005 ツインバレット: 登場時：正面の敵に4ダメージ。火種3枚以上使用時は代わりに7ダメ+敵ヒーロー2（条件付き・ターゲット選択不要）
+  cor_005: 'play:damage_front_unit_fire_seed_conditional:4',
 
   // COR_006 爆奏のヴァルド: 登場時：自身の使用したアクションカードの数、敵ユニットに1ダメージを割り振る。自身がEXポケットからカードを使うたび、敵リーダーに2ダメージ。
   cor_006: 'play:damage_split_by_action_count:1;ex_resonate:damage_enemy_hero:2',
