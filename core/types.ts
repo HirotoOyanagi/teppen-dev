@@ -89,6 +89,8 @@ export interface Unit {
   actionDamageBoost?: number // 場にいる間、自身のアクションカードのダメージに加算（スポッター等）
   resonateEffects?: string[] // 呼応時の効果関数（手札からアクション使用時）
   exResonateEffects?: string[] // EXポケットからアクション使用時の効果関数
+  resonateFireSeedEffects?: string[] // 火種を使用した時の効果関数
+  enemyActionEffects?: string[] // 相手がアクションカードを使用した時の効果関数
   dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ
   // カード固有効果用
   heroHitEffects?: string[] // 敵ヒーローにダメージを与えた時の効果

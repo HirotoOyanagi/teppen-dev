@@ -38,7 +38,7 @@ function applyDamageToUnit(
   }
 
   // ダメージ軽減処理
-  if (unit.damageReduction && unit.damageReduction > 0 && actualDamage > 0) {
+  if (unit.damageReduction && actualDamage > 0) {
     actualDamage = Math.max(0, actualDamage - unit.damageReduction)
   }
 

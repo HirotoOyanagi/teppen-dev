@@ -8,6 +8,12 @@ import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { resolveCardDefinition } from '@/core/cardId'
+import {
+  cardRequiresTargetSelection,
+  getCardTargetType,
+} from '@/core/cardTargeting'
+import { shouldEnterCardTargetMode } from '@/core/cardPlayFlow'
+import { applyTestModeSetup } from '@/core/testMode'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
@@ -264,29 +270,7 @@ export default function GameBoard(props: GameBoardProps) {
       cardMap
     )
 
-    // テスト用: AP100開始 & MP無限
-    initialState.players[0].ap = 100
-    initialState.players[0].mp = 10
-    initialState.players[0].maxMp = 10
-
-    // 検証用: 相手のフィールドにテストユニットを3体配置
-    const guyCardId = 'cor_001'
-    const guyCardDef = cardMap.get(guyCardId)
-    if (guyCardDef && guyCardDef.unitStats) {
-      const testUnits: typeof initialState.players[1]['units'] = [0, 1, 2].map((lane) => ({
-        id: `test_guy_${lane}_${Date.now()}`,
-        cardId: guyCardId,
-        hp: guyCardDef.unitStats!.hp,
-        maxHp: guyCardDef.unitStats!.hp,
-        attack: guyCardDef.unitStats!.attack,
-        attackGauge: 0, // Rush効果は別途処理が必要
-        attackInterval: guyCardDef.unitStats!.attackInterval,
-        lane: lane,
-      }))
-      initialState.players[1].units = testUnits
-    }
-
-    setGameState(initialState)
+    setGameState(applyTestModeSetup(initialState, cardMap))
   }, [cardMap, cardsLoading])
 
   // ゲームループ（refベースで重複防止）
@@ -356,29 +340,12 @@ export default function GameBoard(props: GameBoardProps) {
     }
   }, [gameState?.phase]) // phaseの変化のみで制御
 
-  // アクションカードが対象を必要とするか判定
   const requiresTarget = useCallback((cardDef: CardDefinition): boolean => {
-    if (cardDef.effectFunctions) {
-      const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
-      return tokens.some(t => t.startsWith('target:'))
-    }
-    
-    return false
+    return cardRequiresTargetSelection(cardDef)
   }, [])
 
-  // アクションカードの対象タイプを取得
   const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | 'enemy_unit' | null => {
-    if (cardDef.type !== 'action' || !cardDef.effectFunctions) return null
-
-    const tokens = cardDef.effectFunctions.split(';').map(t => t.trim())
-    const targetToken = tokens.find(t => t.startsWith('target:'))
-    if (!targetToken) return null
-
-    const targetType = targetToken.split(':')[1]?.trim()
-    if (targetType === 'friendly_unit') return 'friendly_unit'
-    if (targetType === 'friendly_hero') return 'friendly_hero'
-    if (targetType === 'enemy_unit') return 'enemy_unit'
-    return null
+    return getCardTargetType(cardDef)
   }, [])
 
   // カードプレイ（freePlay: テスト用で手札に無くてもプレイ可能）
@@ -427,8 +394,21 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }
 
+      const targetType = getTargetType(cardDef)
+
+      if (shouldEnterCardTargetMode(gameState, playerId, cardDef, target)) {
+        setCardTargetMode({
+          playerId,
+          cardId,
+          lane,
+          fromExPocket,
+          freePlay,
+          targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+        })
+        return
+      }
+
       if (requiresTarget(cardDef) && !target) {
-        const targetType = getTargetType(cardDef)
         if (!targetType) return
         if (cardDef.type === 'unit' && lane === undefined) return
         setCardTargetMode({

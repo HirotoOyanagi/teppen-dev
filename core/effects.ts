@@ -264,7 +264,7 @@ function applyDamageToUnit(
   }
 
   // ダメージ軽減処理（ミラおとも）
-  if (unit.damageReduction && unit.damageReduction > 0 && actualDamage > 0) {
+  if (unit.damageReduction && actualDamage > 0) {
     actualDamage = Math.max(0, actualDamage - unit.damageReduction)
   }
 
@@ -608,7 +608,7 @@ export function resolveEffectByFunctionName(
 
     // ── 複合効果 ──
     case 'grant_attack_effect':
-      return resolveGrantAttackEffect(value, context)
+      return resolveGrantAttackEffect(value, context, valueStr)
     case 'grant_combo_self_temp':
       return resolveGrantComboSelfTemp(context)
     case 'debuff_all_enemy_attack_temp':
@@ -649,6 +649,8 @@ export function resolveEffectByFunctionName(
       return resolveSplitDamageRandomEnemy(value, context)
     case 'damage_target_conditional_low_hp':
       return resolveDamageTargetConditionalLowHp(value, context)
+    case 'damage_front_unit_conditional_low_hp':
+      return resolveDamageFrontUnitConditionalLowHp(value, context)
     case 'damage_split_by_action_count':
       return resolveDamageSplitByActionCount(value, context)
     case 'damage_target_fire_seed_conditional':
@@ -1880,18 +1882,27 @@ function resolveGrantStatusTarget(
   status: string,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
-  const { gameState, events, targetUnit } = context
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
   let newState = { ...gameState }
-  if (!targetUnit) return { state: newState, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
 
-  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+  }
+  if (!targetId) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetId)
   if (ownerIndex === -1) return { state: newState, events }
 
   const player = newState.players[ownerIndex]
   newState.players[ownerIndex] = {
     ...player,
     units: player.units.map((u) => {
-      if (u.id !== targetUnit.unit.id) return u
+      if (u.id !== targetId) return u
       const effects = u.statusEffects || []
       if (effects.includes(status)) return u
       return { ...u, statusEffects: [...effects, status] }
@@ -2312,12 +2323,39 @@ function resolveHaltKiller(
 /** 攻撃時効果を付与 */
 function resolveGrantAttackEffect(
   _value: number,
-  context: EffectContext
+  context: EffectContext,
+  valueStr?: string
 ): { state: GameState; events: GameEvent[] } {
-  // _valueは使わず、contextのtargetを参照
-  // この関数はengine.tsから直接呼ばれるのでスタブ
-  const { gameState, events } = context
-  return { state: { ...gameState }, events }
+  const { gameState, events, targetUnit, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  let targetId: string | undefined
+
+  if (targetUnit) {
+    targetId = targetUnit.unit.id
+  } else {
+    const random = pickRandomFriendlyUnit(newState.players[playerIndex], sourceUnit?.unit.id)
+    targetId = random?.id
+  }
+
+  if (!targetId || !valueStr) {
+    return { state: newState, events }
+  }
+
+  newState.players[playerIndex] = {
+    ...newState.players[playerIndex],
+    units: newState.players[playerIndex].units.map((u) => {
+      if (u.id !== targetId) {
+        return u
+      }
+
+      const attackEffects = [...(u.attackEffects || [])]
+      attackEffects.push(valueStr)
+      return { ...u, attackEffects }
+    }),
+  }
+
+  return { state: newState, events }
 }
 
 /** 自身に連撃（1回攻撃するまで） */
@@ -2706,6 +2744,26 @@ function resolveDamageTargetConditionalLowHp(
   const actualDamage = targetUnit.unit.hp <= 3 ? 3 : baseDamage
 
   newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, actualDamage)
+  return { state: newState, events }
+}
+
+/** 正面の敵ユニットにダメージ（HP3以下なら3ダメ、それ以外1ダメ） */
+function resolveDamageFrontUnitConditionalLowHp(
+  baseDamage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find(
+    (unit) => unit.lane === sourceUnit.unit.lane
+  )
+  if (!frontUnit) return { state: newState, events }
+
+  const actualDamage = frontUnit.hp <= 3 ? 3 : baseDamage
+  newState = applyDamageToUnit(newState, events, opponentIndex, frontUnit.id, actualDamage)
   return { state: newState, events }
 }
 

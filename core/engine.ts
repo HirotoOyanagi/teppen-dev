@@ -1139,11 +1139,25 @@ function processInput(
       )
       if (resonatePlayerIndex !== -1) {
         const resonatePlayer = newState.players[resonatePlayerIndex]
+        const isFireSeedAction = input.cardId.split('@')[0] === 'cor_027'
         for (let i = 0; i < resonatePlayer.units.length; i++) {
           const unit = resonatePlayer.units[i]
           if (unit.isSealed) continue
-          const effectList = isFromExPocket ? unit.exResonateEffects : unit.resonateEffects
-          if (!effectList || effectList.length === 0) continue
+          const effectList: string[] = []
+
+          if (isFromExPocket) {
+            if (unit.exResonateEffects) {
+              effectList.push(...unit.exResonateEffects)
+            }
+          } else if (unit.resonateEffects) {
+            effectList.push(...unit.resonateEffects)
+          }
+
+          if (isFireSeedAction && unit.resonateFireSeedEffects) {
+            effectList.push(...unit.resonateFireSeedEffects)
+          }
+
+          if (effectList.length === 0) continue
           for (const effectStr of effectList) {
             const parts = effectStr.split(':')
             const funcName = parts[0]
@@ -1202,6 +1216,40 @@ function processInput(
                 }
               }
             }
+          }
+        }
+      }
+
+      const enemyActionPlayerIndex = newState.players.findIndex(
+        (p) => p.playerId !== input.playerId
+      )
+      if (enemyActionPlayerIndex !== -1) {
+        const enemyActionPlayer = newState.players[enemyActionPlayerIndex]
+        for (let i = 0; i < enemyActionPlayer.units.length; i++) {
+          const unit = enemyActionPlayer.units[i]
+          if (unit.isSealed) continue
+          const effectList = unit.enemyActionEffects || []
+          if (effectList.length === 0) continue
+          for (const effectStr of effectList) {
+            const parts = effectStr.split(':')
+            const funcName = parts[0]
+            const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+            const enemyActionContext: EffectContext = {
+              gameState: newState,
+              cardMap: cardDefinitions,
+              sourceUnit: {
+                unit,
+                statusEffects: new Set(),
+                temporaryBuffs: { attack: 0, hp: 0 },
+                counters: {},
+                flags: {},
+              },
+              sourcePlayer: enemyActionPlayer,
+              events,
+            }
+            const result = resolveEffectByFunctionName(funcName, funcValue, enemyActionContext)
+            newState = result.state
+            events.push(...result.events)
           }
         }
       }
@@ -1395,9 +1443,19 @@ function processInput(
           } else if (token.trigger === 'resonate') {
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
             newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'resonate_fire_seed') {
+            if (!newUnit.resonateFireSeedEffects) newUnit.resonateFireSeedEffects = []
+            newUnit.resonateFireSeedEffects.push(
+              token.value !== undefined ? `${token.name}:${token.value}` : token.name
+            )
           } else if (token.trigger === 'ex_resonate') {
             if (!newUnit.exResonateEffects) newUnit.exResonateEffects = []
             newUnit.exResonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+          } else if (token.trigger === 'enemy_action') {
+            if (!newUnit.enemyActionEffects) newUnit.enemyActionEffects = []
+            newUnit.enemyActionEffects.push(
+              token.value !== undefined ? `${token.name}:${token.value}` : token.name
+            )
           } else if (token.trigger === 'effect_damage_destroy') {
             if (!newUnit.effectDamageDestroyEffects) newUnit.effectDamageDestroyEffects = []
             newUnit.effectDamageDestroyEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
@@ -2410,7 +2468,7 @@ function executeUnitAttack(
     }
 
     // ダメージ軽減処理（ミラおとも）
-    if (victim.damageReduction && victim.damageReduction > 0 && actualDamage > 0) {
+    if (victim.damageReduction && actualDamage > 0) {
       actualDamage = Math.max(0, actualDamage - victim.damageReduction)
     }
 

@@ -9,6 +9,11 @@ import type { SanitizedGameState, SanitizedPlayerState } from '@/core/protocol'
 import { useCards } from '@/utils/useCards'
 import { useGameSocket } from '@/utils/useGameSocket'
 import { resolveCardDefinition } from '@/core/cardId'
+import {
+  cardRequiresTargetSelection,
+  getCardTargetType,
+} from '@/core/cardTargeting'
+import { shouldEnterCardTargetMode } from '@/core/cardPlayFlow'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
@@ -161,26 +166,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     }
   }, [connectionStatus, matchStatus.phase, playerId, heroId, deckCardIds, sendMessage])
 
-  // アクションカードが対象を必要とするか判定
   const requiresTarget = useCallback((cardDef: CardDefinition): boolean => {
-    if (cardDef.effectFunctions) {
-      const tokens = cardDef.effectFunctions.split(';').map((t) => t.trim())
-      return tokens.some((t) => t.startsWith('target:'))
-    }
-    return false
+    return cardRequiresTargetSelection(cardDef)
   }, [])
 
-  // アクションカードの対象タイプを取得
   const getTargetType = useCallback((cardDef: CardDefinition): 'friendly_unit' | 'friendly_hero' | 'enemy_unit' | null => {
-    if (!cardDef.effectFunctions) return null
-    const tokens = cardDef.effectFunctions.split(';').map((t) => t.trim())
-    const targetToken = tokens.find((t) => t.startsWith('target:'))
-    if (!targetToken) return null
-    const targetType = targetToken.split(':')[1]?.trim()
-    if (targetType === 'friendly_unit') return 'friendly_unit'
-    if (targetType === 'friendly_hero') return 'friendly_hero'
-    if (targetType === 'enemy_unit') return 'enemy_unit'
-    return null
+    return getCardTargetType(cardDef)
   }, [])
 
   // GameInputをサーバーに送信
@@ -218,8 +209,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         }
       }
 
+      const targetType = getTargetType(cardDef)
+
+      if (shouldEnterCardTargetMode(gameState, playerId, cardDef, target)) {
+        setCardTargetMode({
+          cardId,
+          lane,
+          targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+        })
+        return
+      }
+
       if (requiresTarget(cardDef) && !target) {
-        const targetType = getTargetType(cardDef)
         if (!targetType) return
         if (cardDef.type === 'unit' && lane === undefined) return
         setCardTargetMode({

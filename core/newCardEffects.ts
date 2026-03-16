@@ -12,7 +12,7 @@ export const newCardEffectFunctions: Record<string, string> = {
   // ── 赤ユニットカード ──
 
   // COR_001 イグニス: 登場時：自身のEXポケットに「火種」を1枚加える。自身がアクションカードを使ったとき、このユニットの攻撃力を＋1。
-  cor_001: 'play:add_fire_seed_to_ex;resonate:buff_self_attack:1',
+  cor_001: 'play:add_fire_seed_to_ex;resonate:buff_self_attack:1;ex_resonate:buff_self_attack:1',
 
   // COR_002 ライガ: プレイ時：もっともMPが少ない手札のカードを一枚墓地に送る。そうした場合、自身のEXポケットに「焔の洗礼」を1枚加える。自身がEXポケットからカードを使ったとき、ランダムな敵ユニット1体に2ダメージ。
   cor_002: 'play:discard_lowest_mp_hand;play:add_flame_baptism_to_ex;ex_resonate:damage_random_enemy:2',
@@ -25,7 +25,7 @@ export const newCardEffectFunctions: Record<string, string> = {
 
   // COR_005 ツインバレット: 登場時：敵ユニット1体に4ダメージ。「火種」を3枚以上使っていた場合、代わりに7ダメージを与え、敵ヒーローに2ダメージ与える。
   // 通常は正面4。火種3+なら正面7+敵ヒーロー2。
-  cor_005: 'play:when_fire_seed_ge_3:damage_front_unit:7;damage_enemy_hero:2|damage_front_unit:4',
+  cor_005: 'play:damage_front_unit_fire_seed_conditional:4:7:2',
 
   // COR_006 爆奏のヴァルド: 登場時：自身の使用したアクションカードの数、敵ユニットに1ダメージを割り振る。自身がEXポケットからカードを使うたび、敵リーダーに2ダメージ。
   cor_006: 'play:damage_split_by_action_count:1;ex_resonate:damage_enemy_hero:2',
@@ -42,14 +42,14 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_010 マルク: 登場時：正面以外の全ての敵ユニットに5ダメージ。
   cor_010: 'play:damage_non_front_enemy:5',
 
-  // COR_011 レグナ: 登場時：敵ユニット1体に3ダメージ。自身の効果ダメージで敵ユニットが破壊されるたび、ランダムな味方ユニット1体に+2/+2を付与する。
-  cor_011: 'target:enemy_unit;play:damage_target:3;effect_damage_destroy:buff_random_friendly_attack_hp:2',
+  // COR_011 レグナ: 登場時：ランダムな敵ユニット1体に3ダメージ。自身の効果ダメージで敵ユニットが破壊されるたび、ランダムな味方ユニット1体に+2/+2を付与する。
+  cor_011: 'play:damage_random_enemy:3;effect_damage_destroy:buff_random_friendly_attack_hp:2',
 
   // COR_012 煉獄の覇者 カイゼル: 登場時：敵リーダーに自信のユニットが受けるダメージをすべて+1するを付与する。ランダムな敵ユニット一体に7ダメージを与える。
   cor_012: 'play:grant_enemy_damage_boost_all:1;play:damage_random_enemy:7',
 
-  // COR_013 クーリエ: 登場時：味方ユニット1体に俊敏を付与する。
-  cor_013: 'target:friendly_unit;play:grant_agility_target',
+  // COR_013 クーリエ: 登場時：ランダムな味方ユニット1体に俊敏を付与する。
+  cor_013: 'play:grant_agility_target',
 
   // COR_014 トラッカー: 登場時：デッキから「火種」1枚を探してEXポケットに加える。
   cor_014: 'play:search_fire_seed_to_ex',
@@ -63,14 +63,14 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_017 ブレイカー: 「火種」を3枚以上使用していた場合、攻撃時:5ダメージを与えるを得る。俊敏
   cor_017: 'agility;attack:damage_front_fire_seed_conditional:5',
 
-  // COR_018 スキャッター: 登場時：敵ユニット1体に1ダメージ。対象のHPが3以下なら、代わりに3ダメージ。
-  cor_018: 'target:enemy_unit;play:damage_target_conditional_low_hp:1',
+  // COR_018 スキャッター: 登場時：正面の敵ユニット1体に1ダメージ。正面のユニットのHPが3以下なら、代わりに3ダメージ。
+  cor_018: 'play:damage_front_unit_conditional_low_hp:1',
 
   // COR_019 ダスター: 登場時：正面の敵ユニット1体に「そのユニットが受ける効果ダメージを+3する」を付与する。
   cor_019: 'play:grant_effect_damage_boost_front:3',
 
-  // COR_020 プロード: 登場時：味方ユニット1体に「攻撃時：正面のユニットに自身の攻撃力分のダメージ与える」を付与する。
-  cor_020: 'target:friendly_unit;play:grant_attack_effect:damage_front_unit_by_attack',
+  // COR_020 プロード: 登場時：ランダムな味方ユニット1体に「攻撃時：正面のユニットに自身の攻撃力分のダメージ与える」を付与する。
+  cor_020: 'play:grant_attack_effect:damage_front_unit_by_attack',
 
   // COR_021 シールド: 登場時：このユニットはアクションカードのダメージを受けない。
   cor_021: 'play:grant_action_damage_immunity_self',
@@ -78,11 +78,11 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_022 ブレード: 相手がアクションカードを使用した時、即時攻撃を行う
   cor_022: 'enemy_action:immediate_attack_self',
 
-  // COR_023 コマンダー: 登場時：味方ユニットすべてに+1攻撃力を付与する。さらに、現在のMPが5以上なら、ランダムな味方ユニット1体にさらに+1攻撃力を付与する。
-  cor_023: 'play:buff_all_friendly_attack:1;play:buff_random_friendly_attack_if_mp5:1',
+  // COR_023 コマンダー: 登場時：全ての味方ユニットに+1攻撃力を付与する。
+  cor_023: 'play:buff_all_friendly_attack:1',
 
-  // COR_024 アーマー: 登場時：味方ユニット1体に+2攻撃力を付与する。その後、そのユニットのHPが最大値なら、代わりに恒久的な+2攻撃力を付与する。
-  cor_024: 'target:friendly_unit;play:buff_target_attack:2',
+  // COR_024 アーマー: 登場時：ランダムな味方ユニット1体に+2攻撃力を付与する。
+  cor_024: 'play:buff_target_attack:2',
 
   // COR_025 ハンター: 登場時：俊敏。攻撃時：このユニットの攻撃力を+1する。
   cor_025: 'agility;attack:buff_self_attack:1',
