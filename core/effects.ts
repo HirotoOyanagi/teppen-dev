@@ -147,6 +147,24 @@ function findUnitOwnerIndex(state: GameState, unitId: string): number {
   return -1
 }
 
+function applyGrantedStatusToUnit(unit: Unit, status: string): Unit {
+  const effects = unit.statusEffects || []
+  if (effects.includes(status)) {
+    return unit
+  }
+
+  const updatedUnit: Unit = {
+    ...unit,
+    statusEffects: [...effects, status],
+  }
+
+  if (status === 'agility') {
+    updatedUnit.attackInterval = Math.max(500, Math.floor(unit.attackInterval / 2))
+  }
+
+  return updatedUnit
+}
+
 // ─── 火種（応用用共通） ───
 /** 火種カードのベースID（chainFireCount のキー等に使用）。他モジュールで火種条件を書くときに利用可 */
 export const FIRE_SEED_CARD_ID = 'cor_027'
@@ -1881,9 +1899,7 @@ function resolveGrantStatusSelf(
     ...player,
     units: player.units.map((u) => {
       if (u.id !== sourceUnit.unit.id) return u
-      const effects = u.statusEffects || []
-      if (effects.includes(status)) return u
-      return { ...u, statusEffects: [...effects, status] }
+      return applyGrantedStatusToUnit(u, status)
     }),
   }
   return { state: newState, events }
@@ -1915,9 +1931,7 @@ function resolveGrantStatusTarget(
     ...player,
     units: player.units.map((u) => {
       if (u.id !== targetId) return u
-      const effects = u.statusEffects || []
-      if (effects.includes(status)) return u
-      return { ...u, statusEffects: [...effects, status] }
+      return applyGrantedStatusToUnit(u, status)
     }),
   }
   return { state: newState, events }

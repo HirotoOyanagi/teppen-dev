@@ -389,6 +389,7 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       const ally = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
 
       expect(ally?.statusEffects).toContain('agility')
+      expect(ally?.attackInterval).toBe(5000)
     })
 
     it('COR_013 はテスト環境と同じ盤面でも対象選択なしで場に出せる', () => {
@@ -400,6 +401,7 @@ describe('新カードCore 赤カードの挙動テスト', () => {
 
       expect(playedUnit?.cardId).toBe('cor_013')
       expect(ally?.statusEffects).toContain('agility')
+      expect(ally?.attackInterval).toBe(5000)
     })
 
     it('COR_013 は対象の味方がいなくてもユニットとしては場に出る', () => {
