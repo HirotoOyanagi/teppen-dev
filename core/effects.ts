@@ -330,7 +330,8 @@ function applyDamageToHero(
 export function runEffectDamageDestroyTriggers(
   prevState: GameState,
   nextState: GameState,
-  context: EffectContext
+  context: EffectContext,
+  prevOpponentUnitIds?: Set<string>
 ): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = []
   let state = nextState
@@ -341,9 +342,12 @@ export function runEffectDamageDestroyTriggers(
   const opponentIdx = 1 - sourceIdx
   if (sourceIdx === -1) return { state, events }
 
-  const prevCount = prevState.players[opponentIdx].units.length
-  const nextCount = state.players[opponentIdx].units.length
-  if (nextCount >= prevCount) return { state, events }
+  const opponentUnitIdsBefore = prevOpponentUnitIds
+    ? new Set(prevOpponentUnitIds)
+    : new Set(prevState.players[opponentIdx].units.map((unit) => unit.id))
+  const nextOpponentUnitIds = new Set(state.players[opponentIdx].units.map((unit) => unit.id))
+  const destroyedUnitIds = [...opponentUnitIdsBefore].filter((unitId) => !nextOpponentUnitIds.has(unitId))
+  if (destroyedUnitIds.length === 0) return { state, events }
 
   const sourcePlayer = state.players[sourceIdx]
   for (const unit of sourcePlayer.units) {
@@ -403,6 +407,13 @@ export function resolveEffectByFunctionName(
   const localEvents: GameEvent[] = []
   const localContext: EffectContext = { ...context, events: localEvents }
   const stateBefore = context.gameState
+  const sourcePlayerId = context.sourcePlayer?.playerId
+  const sourcePlayerIndex = sourcePlayerId ? findPlayerIndex(stateBefore, sourcePlayerId) : -1
+  const opponentIndexBefore = sourcePlayerIndex === -1 ? -1 : 1 - sourcePlayerIndex
+  const prevOpponentUnitIds =
+    opponentIndexBefore === -1
+      ? undefined
+      : new Set(stateBefore.players[opponentIndexBefore].units.map((unit) => unit.id))
 
   const rawResult = ((): { state: GameState; events: GameEvent[] } => {
     const { gameState } = localContext
@@ -726,7 +737,8 @@ export function resolveEffectByFunctionName(
   const afterTrigger = runEffectDamageDestroyTriggers(
     stateBefore,
     rawResult.state,
-    triggerCtx
+    triggerCtx,
+    prevOpponentUnitIds
   )
   return { state: afterTrigger.state, events: afterTrigger.events }
 }

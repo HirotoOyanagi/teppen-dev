@@ -290,6 +290,18 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(unit?.effectDamageDestroyEffects).toContain('buff_self_attack_hp:1')
     })
 
+    it('COR_007 は登場時の効果ダメージで敵を破壊した時に自身へ +1/+1 する', () => {
+      gameState.players[1].units.push(createUnit('enemy_front', 0, 1, 2))
+
+      const result = playUnit(gameState, 'cor_007', 0)
+      const unit = getUnitInLane(result.state, 'player1', 0)
+
+      expect(getUnitInLane(result.state, 'player2', 0)).toBeUndefined()
+      expect(unit?.attack).toBe(3)
+      expect(unit?.hp).toBe(6)
+      expect(unit?.maxHp).toBe(6)
+    })
+
     it('COR_008 は攻撃時に正面3ダメージの効果を持つ', () => {
       const result = playUnit(gameState, 'cor_008', 0)
       const unit = getUnitInLane(result.state, 'player1', 0)
@@ -328,6 +340,22 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(getUnitInLane(result.state, 'player1', 0)?.effectDamageDestroyEffects).toContain(
         'buff_random_friendly_attack_hp:2'
       )
+    })
+
+    it('COR_011 は効果ダメージで敵を破壊すると他の味方1体に +2/+2 を付与する', () => {
+      gameState.players[0].units.push(createUnit('ally_target', 2, 4, 2))
+      gameState.players[1].units.push(createUnit('enemy_target', 1, 3, 2))
+
+      const result = playUnit(gameState, 'cor_011', 0)
+      const ally = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
+      const regna = getUnitInLane(result.state, 'player1', 0)
+
+      expect(result.state.players[1].units.find((unit) => unit.id === 'enemy_target')).toBeUndefined()
+      expect(regna?.attack).toBe(2)
+      expect(regna?.hp).toBe(7)
+      expect(ally?.attack).toBe(4)
+      expect(ally?.hp).toBe(6)
+      expect(ally?.maxHp).toBe(6)
     })
 
     it('COR_011 はテスト環境と同じ相手盤面でも対象選択なしで場に出てランダムな敵1体へ3ダメージを与える', () => {
