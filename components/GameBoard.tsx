@@ -153,8 +153,9 @@ export default function GameBoard(props: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
   const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
-  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean; fromTestPanel?: boolean } | null>(null)
+  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean; fromTestPanel?: boolean; testPlayerId?: 'player1' | 'player2' } | null>(null)
   const [testPanelOpen, setTestPanelOpen] = useState(true)
+  const [testPanelPlayerId, setTestPanelPlayerId] = useState<'player1' | 'player2'>('player1')
   /** テストパネル: 属性で絞り込み ''=全色, red/green/purple/black */
   const [testPanelAttribute, setTestPanelAttribute] = useState<'' | 'red' | 'green' | 'purple' | 'black'>('')
   /** テストパネル: 種別で絞り込み ''=全部, unit/action */
@@ -190,6 +191,7 @@ export default function GameBoard(props: GameBoardProps) {
   >([])
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
+  const opponentLaneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
@@ -722,10 +724,10 @@ export default function GameBoard(props: GameBoardProps) {
   // テストパネルからドラッグ開始（任意のカードを自由にプレイ用）
   const onTestPanelDragStart = useCallback((cardId: string, cardDef: CardDefinition, x: number, y: number) => {
     if (!gameState) return
-    setDragging({ cardId, cardDef, idx: -1, fromTestPanel: true })
+    setDragging({ cardId, cardDef, idx: -1, fromTestPanel: true, testPlayerId: testPanelPlayerId })
     setDragPos({ x, y })
     setDetailCard(null)
-  }, [gameState])
+  }, [gameState, testPanelPlayerId])
 
   // ドラッグ中
   const onDragMove = useCallback((x: number, y: number) => {
@@ -733,6 +735,9 @@ export default function GameBoard(props: GameBoardProps) {
     setDragPos({ x, y })
 
     const { cardDef } = dragging
+    const dragPlayerId = dragging.fromTestPanel ? dragging.testPlayerId || 'player1' : 'player1'
+    const dragPlayer = gameState?.players.find((player) => player.playerId === dragPlayerId)
+    const opponentPlayer = gameState?.players.find((player) => player.playerId !== dragPlayerId)
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
     const targetType = getTargetType(cardDef)
 
@@ -743,11 +748,9 @@ export default function GameBoard(props: GameBoardProps) {
         let foundUnitId: string | null = null
         unitRefs.current.forEach((ref, unitId) => {
           if (ref) {
-            const rect = ref.getBoundingClientRect()
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-              // 味方ユニットのみ対象にできる
-              const player = gameState?.players[0]
-              if (player?.units.some(u => u.id === unitId)) {
+              const rect = ref.getBoundingClientRect()
+              if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              if (dragPlayer?.units.some(u => u.id === unitId)) {
                 foundUnitId = unitId
               }
             }
@@ -760,11 +763,9 @@ export default function GameBoard(props: GameBoardProps) {
         let foundHeroId: string | null = null
         heroRefs.current.forEach((ref, heroId) => {
           if (ref) {
-            const rect = ref.getBoundingClientRect()
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-              // 味方ヒーローのみ対象にできる
-              const player = gameState?.players[0]
-              if (player?.playerId === heroId) {
+              const rect = ref.getBoundingClientRect()
+              if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+              if (dragPlayer?.playerId === heroId) {
                 foundHeroId = heroId
               }
             }
@@ -775,9 +776,8 @@ export default function GameBoard(props: GameBoardProps) {
       } else if (targetType === 'enemy_unit') {
         // 敵ユニットの上にいるかチェック
         let foundUnitId: string | null = null
-        const enemyPlayer = gameState?.players[1]
         unitRefs.current.forEach((ref, unitId) => {
-          if (ref && enemyPlayer?.units.some(u => u.id === unitId)) {
+          if (ref && opponentPlayer?.units.some(u => u.id === unitId)) {
             const rect = ref.getBoundingClientRect()
             if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
               foundUnitId = unitId
@@ -791,7 +791,8 @@ export default function GameBoard(props: GameBoardProps) {
     } else {
       // ユニットカードの場合はレーンの上にいるかチェック
       let foundLane: number | null = null
-      laneRefs.current.forEach((ref, lane) => {
+      const targetLaneRefs = dragPlayerId === 'player2' ? opponentLaneRefs.current : laneRefs.current
+      targetLaneRefs.forEach((ref, lane) => {
         if (ref) {
           const rect = ref.getBoundingClientRect()
           if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
@@ -815,6 +816,7 @@ export default function GameBoard(props: GameBoardProps) {
     }
 
     const { cardId, cardDef, fromExPocket, fromTestPanel } = dragging
+    const dragPlayerId = dragging.fromTestPanel ? dragging.testPlayerId || 'player1' : 'player1'
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
     const targetType = getTargetType(cardDef)
     const isFreePlay = fromTestPanel === true
@@ -822,24 +824,32 @@ export default function GameBoard(props: GameBoardProps) {
     // アクションカードで対象が必要な場合
     if (needsTarget) {
       if (targetType === 'friendly_unit' && hoveredUnitId) {
-        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
+        handlePlayCard(dragPlayerId, cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
       } else if (targetType === 'friendly_hero' && hoveredHeroId) {
-        handlePlayCard('player1', cardId, undefined, hoveredHeroId, fromExPocket, isFreePlay)
+        handlePlayCard(dragPlayerId, cardId, undefined, hoveredHeroId, fromExPocket, isFreePlay)
       } else if (targetType === 'enemy_unit' && hoveredUnitId) {
-        handlePlayCard('player1', cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
+        handlePlayCard(dragPlayerId, cardId, undefined, hoveredUnitId, fromExPocket, isFreePlay)
       }
     }
     // 対象不要のアクションカードはドロップ位置に関係なくプレイ
     else if (cardDef.type === 'action') {
-      handlePlayCard('player1', cardId, undefined, undefined, fromExPocket, isFreePlay)
+      handlePlayCard(dragPlayerId, cardId, undefined, undefined, fromExPocket, isFreePlay)
     }
     // ユニットカードはレーン上にドロップした場合のみプレイ
     else if (hoveredLane !== null) {
-      const player = gameState.players[0]
+      const player = gameState.players.find((statePlayer) => statePlayer.playerId === dragPlayerId)
+      if (!player) {
+        setDragging(null)
+        setHoveredLane(null)
+        setHoveredUnitId(null)
+        setHoveredHeroId(null)
+        setDetailCard(null)
+        return
+      }
       const existingUnit = player.units.find((u) => u.lane === hoveredLane)
       const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
       if (!existingUnit || (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))) {
-        handlePlayCard('player1', cardId, hoveredLane, undefined, fromExPocket, isFreePlay)
+        handlePlayCard(dragPlayerId, cardId, hoveredLane, undefined, fromExPocket, isFreePlay)
       }
     }
 
@@ -1141,9 +1151,9 @@ export default function GameBoard(props: GameBoardProps) {
                 <div
                   ref={(el) => { laneRefs.current[lane] = el }}
                   className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center transition-all rounded ${
-                    dragging && !leftUnit && hoveredLane === lane
+                    dragging && (dragging.fromTestPanel ? (dragging.testPlayerId || 'player1') === 'player1' : true) && !leftUnit && hoveredLane === lane
                       ? 'bg-cyan-400/30 border-2 border-cyan-400 shadow-[0_0_20px_cyan]'
-                      : dragging && !leftUnit
+                      : dragging && (dragging.fromTestPanel ? (dragging.testPlayerId || 'player1') === 'player1' : true) && !leftUnit
                         ? 'bg-cyan-400/10 border-2 border-cyan-400/30'
                         : ''
                   }`}
@@ -1191,7 +1201,15 @@ export default function GameBoard(props: GameBoardProps) {
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
+                <div
+                  ref={(el) => { opponentLaneRefs.current[lane] = el }}
+                  className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center transition-all rounded ${
+                  dragging && dragging.fromTestPanel && (dragging.testPlayerId || 'player1') === 'player2' && !rightUnit && hoveredLane === lane
+                    ? 'bg-red-400/30 border-2 border-red-400 shadow-[0_0_20px_red]'
+                    : dragging && dragging.fromTestPanel && (dragging.testPlayerId || 'player1') === 'player2' && !rightUnit
+                      ? 'bg-red-400/10 border-2 border-red-400/30'
+                      : ''
+                } ${
                   ((abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
                     (cardTargetMode && cardTargetMode.targetSide === 'enemy')) && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
@@ -1505,6 +1523,27 @@ export default function GameBoard(props: GameBoardProps) {
                 ))}
               </div>
               <div className="flex flex-wrap gap-1">
+                {([
+                  ['player1', '自分'],
+                  ['player2', '相手'],
+                ] as const).map(([playerId, label]) => (
+                  <button
+                    key={playerId}
+                    type="button"
+                    onClick={() => setTestPanelPlayerId(playerId)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
+                      testPanelPlayerId === playerId
+                        ? playerId === 'player1'
+                          ? 'border-cyan-400 bg-cyan-500/30 text-cyan-200'
+                          : 'border-red-400 bg-red-500/30 text-red-200'
+                        : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1 mt-2">
                 {(['', 'unit', 'action'] as const).map((t) => (
                   <button
                     key={t || 'all'}
