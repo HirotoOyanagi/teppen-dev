@@ -668,6 +668,8 @@ export function resolveEffectByFunctionName(
       return resolveShuffleDeck(context)
     case 'copy_graveyard_action_to_ex':
       return resolveCopyGraveyardActionToEx(context)
+    case 'copy_graveyard_action_to_ex_mp_minus_2':
+      return resolveCopyGraveyardActionToExMpMinus2(context)
     case 'grant_decimate_fire_seed_target':
       return resolveGrantDecimateFireSeedTarget(context)
 
@@ -3119,6 +3121,57 @@ function resolveCopyGraveyardActionToEx(
     ...player,
     exPocket: [...player.exPocket, chosen],
   }
+  return { state: newState, events }
+}
+
+/** 墓地の「残り焔の記憶」以外のアクション1枚をコピーし、MP-2（最小1）にしてEXポケットへ追加 */
+function resolveCopyGraveyardActionToExMpMinus2(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+
+  const actionCards = player.graveyard.filter((cid) => {
+    const baseId = cid.split('@')[0]
+    const def = cardMap.get(baseId)
+    if (!def) {
+      return false
+    }
+
+    if (def.type !== 'action') {
+      return false
+    }
+
+    if (baseId === 'cor_030') {
+      return false
+    }
+
+    return true
+  })
+
+  if (actionCards.length === 0) {
+    return { state: newState, events }
+  }
+
+  const chosen = actionCards[Math.floor(Math.random() * actionCards.length)]
+  const baseId = chosen.split('@')[0]
+  const def = cardMap.get(baseId)
+  if (!def) {
+    return { state: newState, events }
+  }
+
+  const reducedCost = def.cost - 2
+  const minimumCost = 1
+  const newCost = Math.max(minimumCost, reducedCost)
+  const copiedCardId = `${baseId}@cost=${newCost}`
+
+  newState.players[playerIndex] = {
+    ...player,
+    exPocket: [...player.exPocket, copiedCardId],
+  }
+
   return { state: newState, events }
 }
 

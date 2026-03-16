@@ -250,7 +250,7 @@ const expectedRedCardMappings: Record<string, string> = {
   cor_027: 'target:enemy_unit;damage_target:2',
   cor_028: 'target:friendly_unit;buff_target_attack:3;grant_decimate_fire_seed_target',
   cor_029: 'target:enemy_unit;damage_target_ar_boost:4',
-  cor_030: 'copy_graveyard_action_to_ex',
+  cor_030: 'copy_graveyard_action_to_ex_mp_minus_2',
   cor_031: 'target:friendly_unit;buff_target_attack:2;grant_unblockable_target',
   cor_032: 'add_fire_seed_to_ex;add_fire_seed_to_ex;damage_all_enemy_units_each:5;damage_enemy_hero:3',
   cor_033: 'target:enemy_unit;damage_target:5',

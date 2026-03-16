@@ -3,6 +3,7 @@ import path from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { loadCardsFromCsv } from '@/core/csvLoader'
+import { parseCardId } from '@/core/cardId'
 import { updateGameState } from '@/core/engine'
 import {
   applyTestModeSetup,
@@ -612,9 +613,36 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(result.state.players[1].hp).toBe(29)
     })
 
-    it('COR_030 は墓地のアクションカードをEXへコピーする', () => {
+    it('COR_030 は墓地の「残り焔」を除くアクションをMP-2（最小1）でEXポケットにコピーする', () => {
+      const originalGraveyard = ['cor_027', 'cor_030']
+      gameState.players[0].graveyard = [...originalGraveyard]
+
       const result = playActionAndResolve(gameState, 'cor_030')
-      expect(result.state.players[0].exPocket).toContain('cor_030')
+      const player = result.state.players[0]
+
+      expect(player.graveyard).toEqual(originalGraveyard)
+
+      const copied = player.exPocket.find((cid) => cid.split('@')[0] === 'cor_027')
+      expect(copied).toBeDefined()
+
+      if (!copied) {
+        return
+      }
+
+      const cardDef = cardMap.get('cor_027')
+      expect(cardDef).toBeDefined()
+      if (!cardDef) {
+        return
+      }
+
+      const meta = parseCardId(copied)
+      let effectiveCost = cardDef.cost
+      if (meta.costOverride !== null) {
+        effectiveCost = meta.costOverride
+      }
+
+      const expectedCost = Math.max(1, cardDef.cost - 2)
+      expect(effectiveCost).toBe(expectedCost)
     })
 
     it('COR_031 は対象に+2攻撃力とブロック不可を付与する', () => {

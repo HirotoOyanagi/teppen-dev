@@ -101,8 +101,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_029 灼熱の一閃: 敵ユニット1体に4ダメージ。アクティブレスポンス中に使った場合、代わりに6ダメージ。このカードの効果で敵ユニットを破壊した時、敵ヒーローに1ダメージ。
   cor_029: 'target:enemy_unit;damage_target_ar_boost:4',
 
-  // COR_030 残り焔の記憶: 自身の墓地のアクションカードを1枚選ぶ。そのカード名を記憶した「残響点火」を自身のEXポケットに1枚加える。このカードは記憶したカードと同じ効果を持つ。
-  cor_030: 'copy_graveyard_action_to_ex',
+  // COR_030 残り焔の記憶: 自身の墓地の「残り焔の記憶」を除くアクションカードを1枚コピーして、MP-2してEXポケットに加える。（MPの最小値は1）
+  cor_030: 'copy_graveyard_action_to_ex_mp_minus_2',
 
   // COR_031 無敵突破: 自身のユニット1体は敵ユニットにブロックされないを得る（一回のみ）。さらに+2攻撃力を得る。
   cor_031: 'target:friendly_unit;buff_target_attack:2;grant_unblockable_target',
