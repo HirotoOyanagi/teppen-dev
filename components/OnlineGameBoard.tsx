@@ -28,8 +28,47 @@ function toPlayerState(sp: SanitizedPlayerState): PlayerState {
   }
 }
 
+function getGrantedEffectLabels(unit?: Unit | null): string[] {
+  if (!unit) return []
+  const labels: string[] = []
+  const statusNameMap: Record<string, string> = {
+    rush: '速攻', flight: '空戦', shield: 'シールド', agility: '俊敏', mp_boost: 'MPブースト',
+    veil: 'ヴェール', combo: 'コンボ', heavy_pierce: '貫通', anti_air: '対空', revenge: 'リベンジ',
+    spillover: '波及', crush: 'クラッシュ', indestructible: '破壊不可',
+  }
+  const pushUnique = (label: string) => {
+    if (label && !labels.includes(label)) labels.push(label)
+  }
+  ;(unit.statusEffects || []).forEach((status) => pushUnique(statusNameMap[status] || status))
+  ;(unit.tempBuffs?.statusEffects || []).forEach((status) => pushUnique(`一時:${statusNameMap[status] || status}`))
+
+  if ((unit.shieldCount || 0) > 0) pushUnique(`シールド×${unit.shieldCount}`)
+  if (unit.isSealed) pushUnique('封印')
+  if ((unit.haltTimer || 0) > 0) pushUnique('停止')
+  if (unit.isAwakened) pushUnique('覚醒')
+  if ((unit.dotEffects?.length || 0) > 0) pushUnique('継続ダメージ')
+  if ((unit.actionDamageBoost || 0) > 0) pushUnique(`行動ダメージ+${unit.actionDamageBoost}`)
+  if ((unit.deathEffects?.length || 0) > 0) pushUnique('死亡時効果')
+  if ((unit.attackEffects?.length || 0) > 0) pushUnique('攻撃時効果')
+  if ((unit.decimateEffects?.length || 0) > 0) pushUnique('撃破時効果')
+  if ((unit.effectDamageDestroyEffects?.length || 0) > 0) pushUnique('効果撃破時効果')
+  if ((unit.resonateEffects?.length || 0) > 0) pushUnique('呼応')
+  if ((unit.exResonateEffects?.length || 0) > 0) pushUnique('EX呼応')
+  if ((unit.resonateFireSeedEffects?.length || 0) > 0) pushUnique('火種呼応')
+  if ((unit.enemyActionEffects?.length || 0) > 0) pushUnique('相手行動時効果')
+  if ((unit.heroHitEffects?.length || 0) > 0) pushUnique('ヒーロー命中時効果')
+  if ((unit.haltedEnemyDeathEffects?.length || 0) > 0) pushUnique('停止敵撃破時効果')
+  if ((unit.friendlyUnitEnterEffects?.length || 0) > 0) pushUnique('味方登場時効果')
+  if ((unit.whileOnFieldEffects?.length || 0) > 0) pushUnique('場にいる間効果')
+  if (unit.attackThreshold) pushUnique('攻撃力しきい値効果')
+  if (unit.hpThreshold) pushUnique('HPしきい値効果')
+  if (unit.questCondition || unit.questEffects) pushUnique('クエスト効果')
+  if ((unit.energyEffects?.length || 0) > 0) pushUnique('エナジー効果')
+  return labels
+}
+
 // カード詳細ツールチップ
-function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
+function CardTooltip({ card, side, onClose, unit }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void; unit?: Unit | null }) {
   const attributeColors: Record<string, string> = {
     red: 'border-red-500 bg-red-950/95',
     green: 'border-green-500 bg-green-950/95',
@@ -37,6 +76,7 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
     black: 'border-gray-500 bg-gray-950/95',
   }
   const positionClass = side === 'left' ? 'left-2 top-16' : 'right-2 top-16'
+  const grantedEffectLabels = getGrantedEffectLabels(unit)
 
   return (
     <div
@@ -57,6 +97,16 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
       )}
       {card.description && (
         <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">{card.description}</p>
+      )}
+      {grantedEffectLabels.length > 0 && (
+        <div className="mt-2 border-t border-white/20 pt-1">
+          <p className="text-[8px] text-gray-300 mb-1">付与効果</p>
+          <div className="flex flex-wrap gap-1">
+            {grantedEffectLabels.map((label) => (
+              <span key={label} className="px-1.5 py-0.5 rounded bg-black/40 text-[8px] text-cyan-200 leading-none">{label}</span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -123,7 +173,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     sendMessage,
   } = useGameSocket()
 
-  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
+  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right'; unit?: Unit | null } | null>(null)
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
@@ -819,7 +869,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         ) {
                           handleAbilityTargetSelect(leftUnit.id)
                         } else {
-                          setDetailCard({ card: leftCardDef!, side: 'left' })
+                          setDetailCard({ card: leftCardDef!, side: 'left', unit: leftUnit })
                         }
                       }} />
                     </div>
@@ -860,7 +910,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       ) {
                         handleAbilityTargetSelect(rightUnit.id)
                       } else {
-                        setDetailCard({ card: rightCardDef!, side: 'right' })
+                        setDetailCard({ card: rightCardDef!, side: 'right', unit: rightUnit })
                       }
                     }} />
                     </div>
@@ -956,7 +1006,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               <p className="text-yellow-400 text-lg ls:text-sm mt-4 ls:mt-1 animate-pulse">相手のマリガン完了を待っています...</p>
             )}
           </div>
-          {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+          {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
         </div>
       )}
 
@@ -987,7 +1037,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       )}
 
       {/* Card Detail Tooltip */}
-      {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+      {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
 
       {/* Dragging Card */}
       {dragging && <DraggingCard card={dragging.cardDef} position={dragPos} />}
