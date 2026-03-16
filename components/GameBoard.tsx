@@ -1534,12 +1534,24 @@ export default function GameBoard(props: GameBoardProps) {
                   onTouchStart={(e) => {
                     if (e.touches[0]) onTestPanelDragStart(id, def, e.touches[0].clientX, e.touches[0].clientY)
                   }}
-                  className={`w-20 cursor-grab active:cursor-grabbing rounded border flex flex-col items-center justify-center p-1 shrink-0 hover:scale-105 transition-transform ${
+                  className={`w-28 min-h-[7.5rem] cursor-grab active:cursor-grabbing rounded border flex flex-col p-2 shrink-0 hover:scale-105 transition-transform ${
                     attributeColors[def.attribute] ?? 'border-yellow-500/50 bg-black/80'
                   }`}
                 >
-                  <span className="text-[10px] font-bold opacity-90">{def.cost}</span>
-                  <span className="text-[9px] truncate w-full text-center leading-tight">{def.name}</span>
+                  <div className="flex items-start justify-between gap-2 w-full mb-1">
+                    <span className="text-[9px] font-bold leading-tight flex-1">{def.name}</span>
+                    <span className="text-[10px] font-bold opacity-90 shrink-0">{def.cost}</span>
+                  </div>
+                  <div className="text-[8px] text-white/70 leading-tight mb-1">
+                    {def.type === 'unit' && def.unitStats
+                      ? `${def.unitStats.attack}/${def.unitStats.hp}`
+                      : def.type === 'action'
+                        ? 'Action'
+                        : def.type}
+                  </div>
+                  <p className="text-[8px] leading-tight text-white/85 whitespace-pre-wrap break-words">
+                    {def.description || '効果テキストなし'}
+                  </p>
                 </div>
               ))}
             </div>
