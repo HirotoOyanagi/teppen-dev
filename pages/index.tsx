@@ -43,8 +43,12 @@ export default function TitlePage() {
         <div className={styles.videoContainer}>
           {/* 動画のプレースホルダー */}
           <div className={styles.videoPlaceholder}>
-            <h1 className={styles.title}>Chrono Reverse</h1>
-            <p className={styles.subtitle}>タップして開始</p>
+            <div className={styles.background} />
+            <div className={styles.overlay} />
+            <div className={styles.content}>
+              <h1 className={styles.title}>Chrono Reverse</h1>
+              <p className={styles.subtitle}>タップして開始</p>
+            </div>
           </div>
           {/* 実際の実装では以下のように動画を表示 */}
           {/* <video autoPlay loop muted className={styles.video}>
