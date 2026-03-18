@@ -687,16 +687,17 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(ally?.hp).toBe(8)
     })
 
-    it('COR_035 は撃破時に最も近い味方へ+2/+2を与える', () => {
-      gameState.players[0].units.push(createUnit('ally_near', 2, 5, 2))
+    it('COR_035 は撃破時にランダムな味方へ+2/+2を与える', () => {
+      gameState.players[0].units.push(createUnit('ally_a', 0, 5, 2))
+      gameState.players[0].units.push(createUnit('ally_b', 2, 5, 2))
       gameState.players[1].units.push(createUnit('enemy_target', 2, 6, 2))
 
       const result = playActionAndResolve(gameState, 'cor_035', 'enemy_target')
-      const ally = result.state.players[0].units.find((unit) => unit.id === 'ally_near')
+      const allies = result.state.players[0].units.filter((unit) => unit.id === 'ally_a' || unit.id === 'ally_b')
 
       expect(result.state.players[1].units.find((unit) => unit.id === 'enemy_target')).toBeUndefined()
-      expect(ally?.attack).toBe(4)
-      expect(ally?.hp).toBe(7)
+      const buffed = allies.filter((u) => u.attack === 4 && u.hp === 7 && u.maxHp === 7)
+      expect(buffed).toHaveLength(1)
     })
 
     it('COR_036 は合計9ダメージを振り分ける', () => {

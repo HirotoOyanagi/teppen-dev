@@ -698,6 +698,8 @@ export function resolveEffectByFunctionName(
       return resolveDamageTargetOnDestroyBuffFront(value, context)
     case 'damage_non_front_on_destroy_buff_nearest':
       return resolveDamageNonFrontOnDestroyBuffNearest(value, context)
+    case 'damage_target_on_destroy_buff_random_twice':
+      return resolveDamageTargetOnDestroyBuffRandomTwice(value, context)
     case 'damage_target_on_destroy_grant_hero_attack':
       return resolveDamageTargetOnDestroyGrantHeroAttack(value, context)
     case 'fire_seed_triple_activation':
@@ -3405,6 +3407,45 @@ function resolveDamageNonFrontOnDestroyBuffNearest(
       }
     }
   }
+  return { state: newState, events }
+}
+
+/** 敵ユニットにダメージ。破壊時：ランダムな味方ユニット1体に+1/+1を2回 */
+function resolveDamageTargetOnDestroyBuffRandomTwice(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+
+  const wasDestroyed = !newState.players[ownerIndex].units.some((u) => u.id === targetUnit.unit.id)
+  if (!wasDestroyed) {
+    return { state: newState, events }
+  }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const target = pickRandomFriendlyUnit(player)
+  if (!target) {
+    return { state: newState, events }
+  }
+
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((u) => {
+      if (u.id !== target.id) {
+        return u
+      }
+      return { ...u, attack: u.attack + 2, hp: u.hp + 2, maxHp: u.maxHp + 2 }
+    }),
+  }
+
   return { state: newState, events }
 }
 

@@ -255,7 +255,7 @@ const expectedRedCardMappings: Record<string, string> = {
   cor_032: 'add_fire_seed_to_ex;add_fire_seed_to_ex;damage_all_enemy_units_each:5;damage_enemy_hero:3',
   cor_033: 'target:enemy_unit;damage_target:5',
   cor_034: 'target:enemy_unit;damage_target_on_destroy_buff_front:6',
-  cor_035: 'target:enemy_unit;damage_non_front_on_destroy_buff_nearest:6',
+  cor_035: 'target:enemy_unit;damage_target_on_destroy_buff_random_twice:6',
   cor_036: 'split_damage_all_enemy_units:9',
   cor_037: 'target:enemy_unit;damage_target_on_destroy_grant_hero_attack:7',
   cor_038: 'target:enemy_unit;fire_seed_triple_activation:6',

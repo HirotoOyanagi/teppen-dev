@@ -116,8 +116,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_034 爆心撃: 敵ユニットに6ダメージ。破壊した場合、その正面の味方ユニット1体に+3/+3を付与。
   cor_034: 'target:enemy_unit;damage_target_on_destroy_buff_front:6',
 
-  // COR_035 死角狙撃: 正面ではない敵ユニット1体に6ダメージ。そのユニットを破壊した場合、最も近い味方ユニット1体に+1/+1を2回付与する。
-  cor_035: 'target:enemy_unit;damage_non_front_on_destroy_buff_nearest:6',
+  // COR_035 死角狙撃: 敵ユニット1体に6ダメージ。そのユニットを破壊した場合、ランダムな味方ユニット1体に+1/+1を2回付与する。
+  cor_035: 'target:enemy_unit;damage_target_on_destroy_buff_random_twice:6',
 
   // COR_036 散華の弾幕: ランダムなユニットに合計9ダメージを好きなように割り分ける。
   cor_036: 'split_damage_all_enemy_units:9',
