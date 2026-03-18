@@ -6,7 +6,7 @@ interface ManaBarProps {
   blueMp?: number
 }
 
-const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0 }) => {
+const ManaBarComponent: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0 }) => {
   const currentMpInt = Math.floor(mp)
   const currentProgress = (mp % 1) * 100
 
@@ -44,6 +44,8 @@ const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0 }) => {
     </div>
   )
 }
+
+const ManaBar = React.memo(ManaBarComponent)
 
 export default ManaBar
 

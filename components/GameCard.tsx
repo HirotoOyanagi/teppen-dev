@@ -113,7 +113,7 @@ function extractKeywords(params: {
 
 const LONG_PRESS_DURATION = 150 // 長押し判定時間（ミリ秒）
 
-const GameCard: React.FC<GameCardProps> = ({
+const GameCardComponent: React.FC<GameCardProps> = ({
   cardDef,
   unit,
   size = 'md',
@@ -180,16 +180,18 @@ const GameCard: React.FC<GameCardProps> = ({
   }, [unit, cardDef.unitStats, baseDef])
 
   // タッチ/マウス開始
-  const handlePressStart = useCallback((clientX: number, clientY: number) => {
-    isDraggingRef.current = false
-
-    if (onDragStart && canPlay) {
-      pressTimerRef.current = setTimeout(() => {
-        isDraggingRef.current = true
-        onDragStart(clientX, clientY)
-      }, LONG_PRESS_DURATION)
-    }
-  }, [onDragStart, canPlay])
+  const handlePressStart = useCallback(
+    (clientX: number, clientY: number) => {
+      isDraggingRef.current = false
+      if (onDragStart && canPlay) {
+        pressTimerRef.current = setTimeout(() => {
+          isDraggingRef.current = true
+          onDragStart(clientX, clientY)
+        }, LONG_PRESS_DURATION)
+      }
+    },
+    [onDragStart, canPlay]
+  )
 
   // タッチ/マウス終了
   const handlePressEnd = useCallback(() => {
@@ -197,8 +199,6 @@ const GameCard: React.FC<GameCardProps> = ({
       clearTimeout(pressTimerRef.current)
       pressTimerRef.current = null
     }
-
-    // ドラッグしなかった場合のみクリック処理（効果表示）
     if (!isDraggingRef.current && onClick) {
       onClick()
     }
@@ -259,7 +259,9 @@ const GameCard: React.FC<GameCardProps> = ({
         if (e.touches[0]) handlePressStart(e.touches[0].clientX, e.touches[0].clientY)
       }}
       onTouchEnd={handlePressEnd}
+      onTouchCancel={handlePressEnd}
       onContextMenu={(e) => e.preventDefault()}
+      style={{ touchAction: (onDragStart && canPlay) ? 'none' : undefined }}
       className={`relative ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''} ${
         (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
       }`}
@@ -419,4 +421,5 @@ const GameCard: React.FC<GameCardProps> = ({
   )
 }
 
+const GameCard = React.memo(GameCardComponent)
 export default GameCard

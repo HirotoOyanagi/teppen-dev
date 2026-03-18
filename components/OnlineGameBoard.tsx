@@ -536,6 +536,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     }
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches[0]) {
+        e.preventDefault()
         if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
         if (abilityDragging) onAbilityDragMove(e.touches[0].clientX, e.touches[0].clientY)
       }
@@ -547,13 +548,15 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleEnd)
-    window.addEventListener('touchmove', handleTouchMove)
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
     window.addEventListener('touchend', handleEnd)
+    window.addEventListener('touchcancel', handleEnd)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleEnd)
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleEnd)
+      window.removeEventListener('touchcancel', handleEnd)
     }
   }, [dragging, abilityDragging, onDragMove, onDragEnd, onAbilityDragMove, onAbilityDragEnd])
 
@@ -619,7 +622,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const getAttackProgress = (unit: Unit | null) => (unit ? Math.min(100, unit.attackGauge * 100) : 0)
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
+    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none touch-none">
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
       <div className="absolute inset-0 z-0 scanline pointer-events-none" />
 
@@ -878,9 +881,9 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
       </div>
 
-      {/* Footer Area */}
+      {/* Footer Area - touch-action: none で手札ドラッグ時のスクロールを防止 */}
       <div className="relative z-20 h-64 ls:h-32 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6 ls:pb-1">
-        <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
+        <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1 touch-none">
           {player.hand.map((cardId, i) => {
             // 相手の手札は空文字（表示しない）
             if (!cardId) return null

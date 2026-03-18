@@ -9,7 +9,7 @@ interface HeroPortraitProps {
   side: 'left' | 'right'
 }
 
-const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
+const HeroPortraitComponent: React.FC<HeroPortraitProps> = ({ player, side }) => {
   const isLeft = side === 'left'
   const hasModel = Boolean(player.hero.modelUrl)
   const [shake, setShake] = useState(false)
@@ -158,4 +158,5 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
   )
 }
 
+const HeroPortrait = React.memo(HeroPortraitComponent)
 export default HeroPortrait
