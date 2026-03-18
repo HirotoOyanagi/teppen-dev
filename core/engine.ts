@@ -2563,25 +2563,36 @@ function executeUnitAttack(
   }
 
   for (let hitIndex = 0; hitIndex < hitCount; hitIndex++) {
-    const currentTargetUnit = updatedOpponent.units.find((u) => u.lane === unit.lane)
-    // 空戦、対面なし、またはignoreBlocker(停止敵無視)の場合はヒーロー攻撃
+    const currentTargetUnit = updatedOpponent.units.find((u) => u.lane === updatedUnit.lane)
+    // 空戦、対面なし、またはブロックされない効果の場合はヒーロー攻撃
     const blockerIsHalted = currentTargetUnit && (currentTargetUnit.haltTimer ?? 0) > 0
-    const shouldAttackHero = attackerHasFlight || !currentTargetUnit || (unit.ignoreBlocker && blockerIsHalted)
+    const statusEffects = updatedUnit.statusEffects || []
+    const hasUnblockableOnce = statusEffects.includes('unblockable_once')
+    let shouldAttackHero = false
+    if (attackerHasFlight) {
+      shouldAttackHero = true
+    } else if (!currentTargetUnit) {
+      shouldAttackHero = true
+    } else if (hasUnblockableOnce) {
+      shouldAttackHero = true
+    } else if (updatedUnit.ignoreBlocker && blockerIsHalted) {
+      shouldAttackHero = true
+    }
 
     if (shouldAttackHero) {
       // ヒーロー攻撃
       events.push({
         type: 'unit_attack',
-        unitId: unit.id,
+        unitId: updatedUnit.id,
         targetId: updatedOpponent.playerId,
-        damage: unit.attack,
+        damage: updatedUnit.attack,
         timestamp: Date.now(),
       })
 
       // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
-      let actualDamage = unit.attack
+      let actualDamage = updatedUnit.attack
       let newShieldCount = updatedOpponent.shieldCount || 0
-      if (newShieldCount > 0 && unit.attack > 0) {
+      if (newShieldCount > 0 && updatedUnit.attack > 0) {
         actualDamage = 0
         newShieldCount = newShieldCount - 1
       }
@@ -2595,9 +2606,23 @@ function executeUnitAttack(
       })
       updatedOpponent = { ...updatedOpponent, hp: newHp, shieldCount: newShieldCount }
 
+      if (hasUnblockableOnce) {
+        const nextStatusEffects = statusEffects.filter((s) => s !== 'unblockable_once')
+        updatedUnit = { ...updatedUnit, statusEffects: nextStatusEffects }
+        updatedAttacker = {
+          ...updatedAttacker,
+          units: updatedAttacker.units.map((u) => {
+            if (u.id !== updatedUnit.id) {
+              return u
+            }
+            return updatedUnit
+          }),
+        }
+      }
+
       // 敵ヒーローにダメージを与えた時トリガー
-      if (actualDamage > 0 && !unit.isSealed) {
-        const config = cardSpecificEffects[unit.cardId.split('@')[0]]
+      if (actualDamage > 0 && !updatedUnit.isSealed) {
+        const config = cardSpecificEffects[updatedUnit.cardId.split('@')[0]]
         if (config?.heroHitEffects) {
           for (const effectStr of config.heroHitEffects) {
             const parts = effectStr.split(':')
@@ -2606,7 +2631,7 @@ function executeUnitAttack(
             const heroHitContext: EffectContext = {
               gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0 },
               cardMap: cardDefinitions,
-              sourceUnit: { unit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
+              sourceUnit: { unit: updatedUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
               sourcePlayer: attackerPlayer,
               events: [],
             }
@@ -2630,6 +2655,10 @@ function executeUnitAttack(
     }
 
     // 交戦（ユニット同士）
+    if (!currentTargetUnit) {
+      continue
+    }
+
     const target = currentTargetUnit
     events.push({
       type: 'unit_attack',

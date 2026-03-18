@@ -98,8 +98,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_028 焔の洗式: 自身のユニット1体に+3攻撃力を付与する。そのユニットがこのターン敵ユニットを撃破したとき、自身のEXポケットに「火種」を1枚加える。
   cor_028: 'target:friendly_unit;buff_target_attack:3;grant_decimate_fire_seed_target',
 
-  // COR_029 灼熱の一閃: 敵ユニット1体に4ダメージ。アクティブレスポンス中に使った場合、代わりに6ダメージ。このカードの効果で敵ユニットを破壊した時、敵ヒーローに1ダメージ。
-  cor_029: 'target:enemy_unit;damage_target_ar_boost:4',
+  // COR_029 灼熱一閃: 敵ユニット1体に6ダメージ。このカードの効果で敵ユニットを破壊した時、敵ヒーローに1ダメージ。
+  cor_029: 'target:enemy_unit;damage_target_on_destroy_hero_damage:6',
 
   // COR_030 残り焔の記憶: 自身の墓地の「残り焔の記憶」を除くアクションカードを1枚コピーして、MP-2してEXポケットに加える。（MPの最小値は1）
   cor_030: 'copy_graveyard_action_to_ex_mp_minus_2',

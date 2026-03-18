@@ -688,6 +688,8 @@ export function resolveEffectByFunctionName(
       return resolveDamageTargetFireSeedConditional(value, context)
     case 'damage_target_ar_boost':
       return resolveDamageTargetArBoost(value, context)
+    case 'damage_target_on_destroy_hero_damage':
+      return resolveDamageTargetOnDestroyHeroDamage(value, context)
     case 'damage_front_fire_seed_conditional':
       return resolveDamageFrontFireSeedConditional(value, context)
     case 'damage_front_unit_fire_seed_conditional':
@@ -2881,6 +2883,29 @@ function resolveDamageTargetArBoost(
   return { state: newState, events }
 }
 
+/** 敵ユニットにダメージ。破壊時：敵ヒーローに1ダメージ */
+function resolveDamageTargetOnDestroyHeroDamage(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+
+  const wasDestroyed = !newState.players[ownerIndex].units.some((u) => u.id === targetUnit.unit.id)
+  if (wasDestroyed) {
+    const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+    newState = applyDamageToHero(newState, events, opponentIndex, 1)
+  }
+
+  return { state: newState, events }
+}
+
 // ─── 新カードCore: バフ系 ───
 
 /** ランダム味方1体に+N/+N */
@@ -3027,7 +3052,7 @@ function resolveGrantActionDamageImmunitySelf(
   return { state: newState, events }
 }
 
-/** 対象にブロック不可を付与 */
+/** 対象にブロックされない（1回のみ）を付与 */
 function resolveGrantUnblockableTarget(
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
@@ -3047,11 +3072,20 @@ function resolveGrantUnblockableTarget(
   const ownerIndex = findUnitOwnerIndex(newState, targetId)
   if (ownerIndex === -1) return { state: newState, events }
 
+  const statusName = 'unblockable_once'
   newState.players[ownerIndex] = {
     ...newState.players[ownerIndex],
-    units: newState.players[ownerIndex].units.map((u) =>
-      u.id === targetId ? { ...u, ignoreBlocker: true } : u
-    ),
+    units: newState.players[ownerIndex].units.map((u) => {
+      if (u.id !== targetId) {
+        return u
+      }
+
+      const statusEffects = [...(u.statusEffects || [])]
+      if (!statusEffects.includes(statusName)) {
+        statusEffects.push(statusName)
+      }
+      return { ...u, statusEffects }
+    }),
   }
   return { state: newState, events }
 }

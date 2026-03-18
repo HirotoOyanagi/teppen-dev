@@ -604,7 +604,7 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(ally?.decimateEffects).toContain('add_fire_seed_to_ex')
     })
 
-    it('COR_029 はAR中6ダメージで撃破時に敵ヒーローへ1ダメージ', () => {
+    it('COR_029 は6ダメージで撃破時に敵ヒーローへ1ダメージ', () => {
       gameState.players[1].units.push(createUnit('enemy_target', 1, 6, 2))
 
       const result = playActionAndResolve(gameState, 'cor_029', 'enemy_target')
@@ -620,7 +620,9 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       const result = playActionAndResolve(gameState, 'cor_030')
       const player = result.state.players[0]
 
-      expect(player.graveyard).toEqual(originalGraveyard)
+      // アクションカードを使用した場合、使用したカード自身は墓地に送られる
+      expect(player.graveyard).toContain('cor_030')
+      expect(player.graveyard).toContain('cor_027')
 
       const copied = player.exPocket.find((cid) => cid.split('@')[0] === 'cor_027')
       expect(copied).toBeDefined()
@@ -652,7 +654,7 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       const ally = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
 
       expect(ally?.attack).toBe(4)
-      expect(ally?.ignoreBlocker).toBe(true)
+      expect(ally?.statusEffects).toContain('unblockable_once')
     })
 
     it('COR_032 は火種2枚追加・全体5ダメージ・敵ヒーロー3ダメージ', () => {
