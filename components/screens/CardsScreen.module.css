@@ -1,13 +1,20 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(90, 160, 255, 0.2) 0%, transparent 55%),
+    radial-gradient(circle at 85% 100%, rgba(255, 120, 60, 0.18) 0%, transparent 55%),
+    linear-gradient(160deg, #050713 0%, #050814 40%, #06040b 100%);
   padding-bottom: 80px;
+  color: #e9f0ff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .header {
   padding: 20px;
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
+  background: linear-gradient(90deg, rgba(10, 18, 36, 0.95), rgba(14, 26, 52, 0.98));
+  color: #f0f3ff;
+  border-bottom: 1px solid rgba(126, 189, 255, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
 }
 
 .header h1 {
@@ -28,18 +35,20 @@
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: white;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.12), rgba(12, 22, 46, 0.96));
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.95);
   transition: transform 0.2s, box-shadow 0.2s;
   text-align: left;
+  color: #eef4ff;
 }
 
 .menuButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.95), 0 0 18px rgba(120, 190, 255, 0.18);
 }
 
 .menuButton:active {
@@ -58,18 +67,19 @@
   font-size: 20px;
   font-weight: bold;
   margin: 0 0 4px 0;
-  color: #333;
+  color: #f8f4e8;
+  letter-spacing: 0.06em;
 }
 
 .buttonContent p {
   font-size: 14px;
-  color: #666;
+  color: #c0c7e5;
   margin: 0;
 }
 
 .buttonArrow {
   font-size: 24px;
-  color: #999;
+  color: #ffe8a3;
 }
 
 /* スマホ横画面対応 */

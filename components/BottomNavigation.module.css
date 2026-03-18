@@ -4,30 +4,37 @@
   left: 0;
   right: 0;
   display: flex;
-  background-color: #1a1a1a;
-  border-top: 1px solid #333;
+  background: radial-gradient(circle at 50% -40%, rgba(84, 180, 255, 0.2) 0%, transparent 55%),
+    linear-gradient(180deg, #05070b 0%, #050609 45%, #020307 100%);
+  border-top: 1px solid rgba(120, 180, 255, 0.35);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.9);
   z-index: 1000;
 }
 
 .navItem {
   flex: 1;
   padding: 12px;
-  background: none;
+  background: transparent;
   border: none;
-  color: #999;
-  font-size: 14px;
+  color: #8a9bb8;
+  font-size: 13px;
   cursor: pointer;
-  transition: color 0.2s, background-color 0.2s;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .navItem:hover {
-  background-color: #2a2a2a;
-  color: #fff;
+  background: radial-gradient(circle at 50% 0%, rgba(120, 180, 255, 0.12), transparent 60%);
+  color: #e6f1ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .navItem.active {
-  color: #4a9eff;
-  background-color: #2a2a2a;
+  color: #ffe8a3;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 216, 120, 0.18), transparent 65%);
+  box-shadow: inset 0 2px 0 rgba(255, 220, 140, 0.7);
 }
 
 /* スマホ横画面: 右サイドの縦ナビに変換 */

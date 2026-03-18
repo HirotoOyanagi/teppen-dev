@@ -1,13 +1,16 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(90, 160, 255, 0.2) 0%, transparent 55%),
+    radial-gradient(circle at 85% 100%, rgba(255, 120, 60, 0.18) 0%, transparent 55%),
+    linear-gradient(160deg, #050713 0%, #050814 40%, #06040b 100%);
   padding-bottom: 80px;
 }
 
 .header {
   padding: 20px;
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
+  background: linear-gradient(90deg, rgba(10, 18, 36, 0.95), rgba(14, 26, 52, 0.98));
+  color: #f0f3ff;
 }
 
 .header h1 {
@@ -22,20 +25,22 @@
 
 .comingSoon {
   text-align: center;
-  background: rgba(255, 255, 255, 0.9);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.12), rgba(12, 22, 46, 0.96));
   border-radius: 12px;
   padding: 60px 40px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.95);
 }
 
 .comingSoon h2 {
   font-size: 32px;
-  color: #333;
+  color: #f8f4e8;
   margin-bottom: 16px;
 }
 
 .comingSoon p {
   font-size: 18px;
-  color: #666;
+  color: #c0c7e5;
 }
 
 /* スマホ横画面対応 */
