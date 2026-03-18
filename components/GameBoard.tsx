@@ -231,14 +231,14 @@ export default function GameBoard(props: GameBoardProps) {
     }
   }, [])
 
-  // エフェクトの自動クリーンアップ（800ms後に消す）
+  // エフェクトの自動クリーンアップ（800ms後に消す、200ms間隔で軽量化）
   useEffect(() => {
     if (damageEffects.length === 0 && destroyEffects.length === 0) return
     const timer = setInterval(() => {
       const now = Date.now()
       setDamageEffects((prev) => prev.filter((e) => now - e.timestamp < 800))
       setDestroyEffects((prev) => prev.filter((e) => now - e.timestamp < 600))
-    }, 100)
+    }, 200)
     return () => clearInterval(timer)
   }, [damageEffects.length, destroyEffects.length])
 
@@ -874,6 +874,7 @@ export default function GameBoard(props: GameBoardProps) {
     }
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches[0]) {
+        e.preventDefault()
         if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
         if (abilityDragging) onAbilityDragMove(e.touches[0].clientX, e.touches[0].clientY)
       }
@@ -885,14 +886,16 @@ export default function GameBoard(props: GameBoardProps) {
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleEnd)
-    window.addEventListener('touchmove', handleTouchMove)
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
     window.addEventListener('touchend', handleEnd)
+    window.addEventListener('touchcancel', handleEnd)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleEnd)
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleEnd)
+      window.removeEventListener('touchcancel', handleEnd)
     }
   }, [dragging, abilityDragging, onDragMove, onDragEnd, onAbilityDragMove, onAbilityDragEnd])
 
