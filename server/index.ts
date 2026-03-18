@@ -15,9 +15,9 @@ import type { ClientMessage } from '../core/protocol'
 const PORT = parseInt(process.env.PORT || '8080', 10)
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',')
 
-// CSVからカードデータを読み込み
+// CSVからカードデータを読み込み（クライアントと同じファイルを使用）
 function loadCardDefinitions() {
-  const csvPath = resolve(process.cwd(), '../public/Teppen本番 - COR.csv')
+  const csvPath = resolve(process.cwd(), '../public/新カードCore - カードデータのスプレッドシート化.csv')
   const csvText = readFileSync(csvPath, 'utf-8')
   const cards = loadCardsFromCsv(csvText)
   return createCardMap(cards)
