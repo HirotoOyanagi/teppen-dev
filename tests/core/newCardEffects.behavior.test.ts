@@ -767,14 +767,28 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(result.state.players[1].units.find((unit) => unit.id === 'enemy_target')?.hp).toBe(2)
     })
 
-    it('COR_043 は2ダメージ後に対象へ効果ダメージ+2を付与する', () => {
+    it('COR_043 は2ダメージ後に対象へ「受けるダメージ+2(13秒)」を付与する', () => {
       gameState.players[1].units.push(createUnit('enemy_target', 1, 5, 2))
 
       const result = playActionAndResolve(gameState, 'cor_043', 'enemy_target')
       const enemy = result.state.players[1].units.find((unit) => unit.id === 'enemy_target')
 
       expect(enemy?.hp).toBe(3)
-      expect(enemy?.damageReduction).toBe(-2)
+      expect(enemy?.damageTakenBoost).toBe(2)
+      expect(enemy?.damageTakenBoostTimer).toBeGreaterThan(12000)
+    })
+
+    it('COR_043 の「受けるダメージ+2」は13秒で解除される', () => {
+      gameState.players[1].units.push(createUnit('enemy_target', 1, 5, 2))
+
+      const applied = playActionAndResolve(gameState, 'cor_043', 'enemy_target')
+      const before = applied.state.players[1].units.find((unit) => unit.id === 'enemy_target')
+      expect(before?.damageTakenBoost).toBe(2)
+
+      const after = advanceTime(applied.state, 13000)
+      const enemy = after.state.players[1].units.find((unit) => unit.id === 'enemy_target')
+      expect(enemy?.damageTakenBoostTimer).toBe(0)
+      expect(enemy?.damageTakenBoost).toBe(0)
     })
 
     it('COR_044 は全敵2ダメージと反撃不能を付与する', () => {

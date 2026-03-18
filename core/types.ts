@@ -119,6 +119,8 @@ export interface Unit {
   killerId?: string // このユニットを破壊したユニットのID（死亡時にセット）
   damageReduction?: number // ダメージ軽減値（ミラおとも用）
   noCounterattack?: boolean // 反撃不可
+  damageTakenBoost?: number // 受けるダメージ増加（+N）
+  damageTakenBoostTimer?: number // 残り時間（ms）
 }
 
 // 場にいる間の効果定義

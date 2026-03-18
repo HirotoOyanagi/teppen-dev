@@ -353,6 +353,22 @@ export function updateGameState(
       newState.players[pi] = { ...player, units: updatedUnits }
     }
 
+    // 一時効果: 受けるダメージ増加（例: COR_043）
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      const updatedUnits = player.units.map((u) => {
+        if ((u.damageTakenBoostTimer ?? 0) > 0) {
+          const newTimer = Math.max(0, (u.damageTakenBoostTimer || 0) - deltaTime)
+          if (newTimer <= 0) {
+            return { ...u, damageTakenBoostTimer: 0, damageTakenBoost: 0 }
+          }
+          return { ...u, damageTakenBoostTimer: newTimer }
+        }
+        return u
+      })
+      newState.players[pi] = { ...player, units: updatedUnits }
+    }
+
     // 成長システムはMPベースのため、タイマー処理は不要
     // ユニットプレイ時にグローポイントを加算する処理で実装
 
@@ -2481,7 +2497,7 @@ function executeUnitAttack(
     }
 
     // シールド処理：シールドがある場合はダメージを0にしてシールドを1減らす
-    let actualDamage = damage + (currentOpponent.damageBoostAll || 0)
+    let actualDamage = damage + (currentOpponent.damageBoostAll || 0) + (victim.damageTakenBoost || 0)
     let newShieldCount = victim.shieldCount || 0
     if (newShieldCount > 0 && actualDamage > 0) {
       actualDamage = 0

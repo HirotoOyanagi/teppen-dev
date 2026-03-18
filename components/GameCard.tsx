@@ -331,6 +331,19 @@ const GameCard: React.FC<GameCardProps> = ({
         </div>
       )}
 
+      {/* Timed Effects (e.g., COR_043) */}
+      {cardDef.type === 'unit' && unit && (unit.damageTakenBoostTimer || 0) > 0 && (
+        <div
+          className="absolute top-8 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60"
+          title={`受けるダメージ+${unit.damageTakenBoost || 0}（残り ${Math.ceil((unit.damageTakenBoostTimer || 0) / 1000)}秒）`}
+        >
+          <span className="text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">⏳</span>
+          <span className="text-[10px] font-orbitron font-black text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
+            {Math.ceil((unit.damageTakenBoostTimer || 0) / 1000)}
+          </span>
+        </div>
+      )}
+
       {/* アクションカードの表示 */}
       {cardDef.type === 'action' && !isField && (
         <div className="absolute bottom-1 left-1 right-1 z-10">

@@ -274,7 +274,7 @@ function applyDamageToUnit(
   if (unit.statusEffects?.includes('veil')) return state
 
   // シールド処理
-  let actualDamage = damage + (player.damageBoostAll || 0)
+  let actualDamage = damage + (player.damageBoostAll || 0) + (unit.damageTakenBoost || 0)
   let newShieldCount = unit.shieldCount || 0
   if (newShieldCount > 0 && actualDamage > 0) {
     actualDamage = 0
@@ -3031,13 +3031,22 @@ function resolveGrantEffectDamageBoostTarget(
   const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
   if (ownerIndex === -1) return { state: newState, events }
 
+  const durationMs = 13000
   newState.players[ownerIndex] = {
     ...newState.players[ownerIndex],
-    units: newState.players[ownerIndex].units.map((u) =>
-      u.id === targetUnit.unit.id
-        ? { ...u, damageReduction: (u.damageReduction || 0) - value }
-        : u
-    ),
+    units: newState.players[ownerIndex].units.map((u) => {
+      if (u.id !== targetUnit.unit.id) {
+        return u
+      }
+
+      const currentBoost = u.damageTakenBoost || 0
+      const nextBoost = currentBoost + value
+
+      const currentTimer = u.damageTakenBoostTimer || 0
+      const nextTimer = Math.max(currentTimer, durationMs)
+
+      return { ...u, damageTakenBoost: nextBoost, damageTakenBoostTimer: nextTimer }
+    }),
   }
   return { state: newState, events }
 }
