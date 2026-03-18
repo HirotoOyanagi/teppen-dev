@@ -1,6 +1,6 @@
-# TEPPEN 再実装プロジェクト
+# Chrono Reverse
 
-TEPPENの中核である「時間進行＋割り込み（Active Response）を持つ1vs1カードバトル」を、オリジナルIP・オリジナルカードで再実装するプロジェクトです。
+Chrono Reverse の中核である「時間進行＋割り込み（Active Response）を持つ1vs1カードバトル」を、オリジナルIP・オリジナルカードで再実装するプロジェクトです。
 
 ## 技術スタック
 

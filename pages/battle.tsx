@@ -88,7 +88,7 @@ export default function BattlePage() {
   return (
     <>
       <Head>
-        <title>TEPPEN - {isOnline ? 'オンラインバトル' : 'バトル'}</title>
+        <title>Chrono Reverse - {isOnline ? 'オンラインバトル' : 'バトル'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className="fixed inset-0 overflow-hidden">

@@ -36,14 +36,14 @@ export default function TitlePage() {
   return (
     <>
       <Head>
-        <title>TEPPEN - タイトル</title>
+        <title>Chrono Reverse - タイトル</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className={styles.container} onClick={handleClick}>
         <div className={styles.videoContainer}>
           {/* 動画のプレースホルダー */}
           <div className={styles.videoPlaceholder}>
-            <h1 className={styles.title}>TEPPEN</h1>
+            <h1 className={styles.title}>Chrono Reverse</h1>
             <p className={styles.subtitle}>タップして開始</p>
           </div>
           {/* 実際の実装では以下のように動画を表示 */}

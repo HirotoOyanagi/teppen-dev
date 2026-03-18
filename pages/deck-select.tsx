@@ -6,7 +6,7 @@ export default function DeckSelectPage() {
   return (
     <>
       <Head>
-        <title>TEPPEN - デッキ選択</title>
+        <title>Chrono Reverse - デッキ選択</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <NavigationProvider initial={{ name: 'deck-select' }}>
