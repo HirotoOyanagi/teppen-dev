@@ -297,8 +297,18 @@ function applyDamageToUnit(
       graveyard: [...player.graveyard, unit.cardId],
     }
     events.push({
+      type: 'unit_damage',
+      unitId: unit.id,
+      playerId: player.playerId,
+      lane: unit.lane,
+      damage: actualDamage,
+      timestamp: Date.now(),
+    })
+    events.push({
       type: 'unit_destroyed',
       unitId: unit.id,
+      playerId: player.playerId,
+      lane: unit.lane,
       timestamp: Date.now(),
     })
   } else {
@@ -308,6 +318,8 @@ function applyDamageToUnit(
     events.push({
       type: 'unit_damage',
       unitId: unit.id,
+      playerId: player.playerId,
+      lane: unit.lane,
       damage: actualDamage,
       timestamp: Date.now(),
     })

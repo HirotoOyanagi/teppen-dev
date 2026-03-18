@@ -181,6 +181,8 @@ describe('カード効果システム - 実装済み効果テスト', () => {
       expect(result.state.players[1].units.length).toBe(0)
       // 破壊イベントが発行される
       expect(result.events.some(e => e.type === 'unit_destroyed')).toBe(true)
+      // ダメージイベントも発行される（撃破時でもダメージ演出が必要）
+      expect(result.events.some(e => e.type === 'unit_damage')).toBe(true)
     })
   })
 

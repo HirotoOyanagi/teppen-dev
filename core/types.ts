@@ -272,12 +272,16 @@ export type GameEvent =
   | {
       type: 'unit_damage'
       unitId: string
+      playerId?: string
+      lane?: number
       damage: number
       timestamp: number
     }
   | {
       type: 'unit_destroyed'
       unitId: string
+      playerId?: string
+      lane?: number
       timestamp: number
     }
   | {

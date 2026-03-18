@@ -183,11 +183,11 @@ export default function GameBoard(props: GameBoardProps) {
   } | null>(null)
   // ダメージ数字エフェクト
   const [damageEffects, setDamageEffects] = useState<
-    { id: string; unitId: string; damage: number; timestamp: number }[]
+    { id: string; unitId: string; playerId?: string; lane?: number; damage: number; timestamp: number }[]
   >([])
   // 破壊エフェクト
   const [destroyEffects, setDestroyEffects] = useState<
-    { id: string; unitId: string; timestamp: number }[]
+    { id: string; unitId: string; playerId?: string; lane?: number; timestamp: number }[]
   >([])
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
@@ -206,6 +206,8 @@ export default function GameBoard(props: GameBoardProps) {
         newDamage.push({
           id: `dmg_${ev.unitId}_${now}_${Math.random()}`,
           unitId: ev.unitId,
+          playerId: ev.playerId,
+          lane: ev.lane,
           damage: ev.damage,
           timestamp: now,
         })
@@ -214,6 +216,8 @@ export default function GameBoard(props: GameBoardProps) {
         newDestroy.push({
           id: `dest_${ev.unitId}_${now}`,
           unitId: ev.unitId,
+          playerId: ev.playerId,
+          lane: ev.lane,
           timestamp: now,
         })
       }
@@ -1430,8 +1434,31 @@ export default function GameBoard(props: GameBoardProps) {
       {/* ダメージ数字エフェクト */}
       {damageEffects.map((effect) => {
         const ref = unitRefs.current.get(effect.unitId)
-        if (!ref) return null
-        const rect = ref.getBoundingClientRect()
+        const rectMap: Record<string, DOMRect | null> = { ref: null, lane: null }
+        if (ref) {
+          rectMap.ref = ref.getBoundingClientRect()
+        }
+
+        if (!rectMap.ref) {
+          const gs = gameState
+          const localPlayerId = gs?.players?.[0]?.playerId
+          const isLocal = effect.playerId && localPlayerId && effect.playerId === localPlayerId
+          const laneIndex = effect.lane
+          if (laneIndex === undefined || laneIndex === null) {
+            return null
+          }
+          const laneArray = isLocal ? laneRefs.current : opponentLaneRefs.current
+          const laneRef = laneArray[laneIndex]
+          if (!laneRef) {
+            return null
+          }
+          rectMap.lane = laneRef.getBoundingClientRect()
+        }
+
+        const rect = rectMap.ref || rectMap.lane
+        if (!rect) {
+          return null
+        }
         const elapsed = Date.now() - effect.timestamp
         const progress = Math.min(1, elapsed / 800)
         return (
@@ -1456,8 +1483,31 @@ export default function GameBoard(props: GameBoardProps) {
       {/* 破壊エフェクト */}
       {destroyEffects.map((effect) => {
         const ref = unitRefs.current.get(effect.unitId)
-        if (!ref) return null
-        const rect = ref.getBoundingClientRect()
+        const rectMap: Record<string, DOMRect | null> = { ref: null, lane: null }
+        if (ref) {
+          rectMap.ref = ref.getBoundingClientRect()
+        }
+
+        if (!rectMap.ref) {
+          const gs = gameState
+          const localPlayerId = gs?.players?.[0]?.playerId
+          const isLocal = effect.playerId && localPlayerId && effect.playerId === localPlayerId
+          const laneIndex = effect.lane
+          if (laneIndex === undefined || laneIndex === null) {
+            return null
+          }
+          const laneArray = isLocal ? laneRefs.current : opponentLaneRefs.current
+          const laneRef = laneArray[laneIndex]
+          if (!laneRef) {
+            return null
+          }
+          rectMap.lane = laneRef.getBoundingClientRect()
+        }
+
+        const rect = rectMap.ref || rectMap.lane
+        if (!rect) {
+          return null
+        }
         const elapsed = Date.now() - effect.timestamp
         const progress = Math.min(1, elapsed / 600)
         return (

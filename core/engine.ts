@@ -499,12 +499,33 @@ export function updateGameState(
                   units: newState.players[pi].units.filter((u) => u.id !== uid),
                   graveyard: [...newState.players[pi].graveyard, target.cardId],
                 }
-                events.push({ type: 'unit_destroyed', unitId: uid, timestamp: Date.now() })
+                events.push({
+                  type: 'unit_damage',
+                  unitId: uid,
+                  playerId: newState.players[pi].playerId,
+                  lane: target.lane,
+                  damage: dot.damage,
+                  timestamp: Date.now(),
+                })
+                events.push({
+                  type: 'unit_destroyed',
+                  unitId: uid,
+                  playerId: newState.players[pi].playerId,
+                  lane: target.lane,
+                  timestamp: Date.now(),
+                })
               } else {
                 const units = [...newState.players[pi].units]
                 units[unitIdx] = { ...target, hp: newHp }
                 newState.players[pi] = { ...newState.players[pi], units }
-                events.push({ type: 'unit_damage', unitId: uid, damage: dot.damage, timestamp: Date.now() })
+                events.push({
+                  type: 'unit_damage',
+                  unitId: uid,
+                  playerId: newState.players[pi].playerId,
+                  lane: target.lane,
+                  damage: dot.damage,
+                  timestamp: Date.now(),
+                })
               }
             }
             updatedDots.push({ ...dot, timer: 0 })
@@ -2477,8 +2498,18 @@ function executeUnitAttack(
 
     if (nextHp <= 0) {
       events.push({
+        type: 'unit_damage',
+        unitId: victim.id,
+        playerId: currentOpponent.playerId,
+        lane: victim.lane,
+        damage: damageDealt,
+        timestamp: Date.now(),
+      })
+      events.push({
         type: 'unit_destroyed',
         unitId: victim.id,
+        playerId: currentOpponent.playerId,
+        lane: victim.lane,
         timestamp: Date.now(),
       })
 
@@ -2548,6 +2579,8 @@ function executeUnitAttack(
     events.push({
       type: 'unit_damage',
       unitId: victim.id,
+      playerId: currentOpponent.playerId,
+      lane: victim.lane,
       damage: damageDealt,
       timestamp: Date.now(),
     })
@@ -2788,6 +2821,8 @@ function executeUnitAttack(
       events.push({
         type: 'unit_damage',
         unitId: unit.id,
+        playerId: attackerPlayer.playerId,
+        lane: unit.lane,
         damage: actualDamage,
         timestamp: Date.now(),
       })
