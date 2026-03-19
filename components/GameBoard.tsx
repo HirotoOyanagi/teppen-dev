@@ -120,7 +120,7 @@ const TICK_INTERVAL = 50 // 50ms
 function TimerDisplay({ gameStartTime }: { gameStartTime: number }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
-    const tick = () => setElapsed(Math.floor((Date.now() - gameStartTime) / 1000))
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - gameStartTime) / 1000)))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)

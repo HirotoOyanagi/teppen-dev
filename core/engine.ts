@@ -270,6 +270,7 @@ const GAME_CONFIG = {
   INITIAL_HAND_SIZE: 5,
   AP_PER_MP: 1, // MP1消費でAP1獲得
   MAX_AP: Infinity, // AP上限なし（無限蓄積）
+  GAME_START_DELAY_MS: 3000, // マリガン完了後、開始演出の待機時間（ms）
 } as const
 
 /**
@@ -303,8 +304,9 @@ export function updateGameState(
     return { state: newState, events }
   }
 
-  // Active Response中は時間停止（MP回復・攻撃ゲージ更新は停止）
-  if (!newState.activeResponse.isActive) {
+  // Active Response中は時間停止。gameStartTime前もMP・攻撃ゲージは停止（開始演出待ち）
+  const gameStarted = Date.now() >= newState.gameStartTime
+  if (!newState.activeResponse.isActive && gameStarted) {
     const getMpBoostPercent = (player: PlayerState): number => {
       let percent = 0
 
@@ -2188,9 +2190,10 @@ function processMulligan(
   newMulliganDone[playerIndex] = true
   newState.mulliganDone = newMulliganDone
 
-  // 両プレイヤーのマリガンが完了したらplayingフェーズへ遷移
+  // 両プレイヤーのマリガンが完了したらplayingフェーズへ遷移（開始演出用にgameStartTimeを遅延設定）
   if (newMulliganDone[0] && newMulliganDone[1]) {
     newState.phase = 'playing'
+    newState.gameStartTime = Date.now() + GAME_CONFIG.GAME_START_DELAY_MS
   }
 
   return { state: newState, events }

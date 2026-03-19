@@ -146,6 +146,14 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [, setCountdownTick] = useState(0)
+
+  // 開始演出中のカウントダウン表示更新用（1秒ごとに再描画）
+  useEffect(() => {
+    if (!gameState || gameState.phase !== 'playing' || Date.now() >= gameState.gameStartTime) return
+    const id = setInterval(() => setCountdownTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [gameState?.phase, gameState?.gameStartTime])
 
   // 接続 & マッチメイキング開始
   useEffect(() => {
@@ -957,6 +965,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             )}
           </div>
           {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+        </div>
+      )}
+
+      {/* 開始演出（マリガン完了後、数秒待ってからMP開始） */}
+      {gameState.phase === 'playing' && Date.now() < gameState.gameStartTime && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
+          <div className="text-5xl ls:text-3xl font-black text-yellow-400 tracking-widest animate-pulse">
+            BATTLE START
+          </div>
+          <div className="mt-4 ls:mt-2 text-white/80 text-lg ls:text-sm">
+            {Math.ceil((gameState.gameStartTime - Date.now()) / 1000)}...
+          </div>
         </div>
       )}
 
