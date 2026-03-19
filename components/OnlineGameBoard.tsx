@@ -917,7 +917,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             const isAR = gameState.activeResponse.isActive
             const effectiveCost = cardDef.cost
             const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
-            const isDragging = dragging && !dragging.fromExPocket && dragging.idx === i
+            const isDragging = !!(dragging && !dragging.fromExPocket && dragging.idx === i)
 
             return (
               <GameCard
