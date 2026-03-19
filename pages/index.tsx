@@ -8,13 +8,13 @@ export default function TitlePage() {
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    // gemestart.mp3の再生（存在しない場合はスキップ）
-    const bgm = new Audio('/sounds/gemestart.mp3')
+    const bgm = new Audio('/muzic/Clockwork of the Last Dawn (Loop).mp3')
     bgm.loop = true
     bgm.volume = 0.5
     setAudio(bgm)
-    // 実際の実装では、音声ファイルが存在する場合のみ再生
-    // bgm.play().catch(() => {})
+    bgm.play().catch(() => {
+      // 自動再生がブロックされた場合はユーザー操作時に再生
+    })
 
     return () => {
       bgm.pause()
@@ -22,13 +22,12 @@ export default function TitlePage() {
   }, [])
 
   const handleClick = () => {
-    // TEPPEN2音声の再生（存在しない場合はスキップ）
-    const sound = new Audio('/sounds/teppen2.mp3')
-    sound.volume = 0.7
-    // 実際の実装では、音声ファイルが存在する場合のみ再生
-    // sound.play().catch(() => {})
-    
+    if (audio && audio.paused) {
+      audio.play().catch(() => {})
+    }
+
     setTimeout(() => {
+      audio?.pause()
       router.push('/home')
     }, 500)
   }
@@ -46,8 +45,7 @@ export default function TitlePage() {
             <div className={styles.background} />
             <div className={styles.overlay} />
             <div className={styles.content}>
-              <h1 className={styles.title}>Chrono Reverse</h1>
-              <p className={styles.subtitle}>タップして開始</p>
+              <p className={styles.subtitle}>TOUCH TO START</p>
             </div>
           </div>
           {/* 実際の実装では以下のように動画を表示 */}
