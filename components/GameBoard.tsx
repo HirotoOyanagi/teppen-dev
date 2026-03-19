@@ -116,20 +116,20 @@ function DraggingAbility({ name, type, position }: { name: string; type: 'hero_a
 
 const TICK_INTERVAL = 50 // 50ms
 
-// 試合タイマー表示（参考画像: 4:40形式）
-function TimerDisplay({ gameStartTime }: { gameStartTime: number }) {
-  const [elapsed, setElapsed] = useState(0)
+// 試合タイマー表示（5分からカウントダウン）
+function TimerDisplay({ timeRemainingMs }: { timeRemainingMs: number }) {
+  const [remaining, setRemaining] = useState(timeRemainingMs)
   useEffect(() => {
-    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - gameStartTime) / 1000)))
-    tick()
-    const id = setInterval(tick, 1000)
+    setRemaining(timeRemainingMs)
+    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1000)), 1000)
     return () => clearInterval(id)
-  }, [gameStartTime])
-  const m = Math.floor(elapsed / 60)
-  const s = elapsed % 60
+  }, [timeRemainingMs])
+  const totalSec = Math.floor(remaining / 1000)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
   return (
     <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
-      <span className="font-orbitron font-bold text-xl ls:text-base text-yellow-300 tabular-nums">
+      <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${remaining <= 10 * 1000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
         {m}:{String(s).padStart(2, '0')}
       </span>
     </div>
@@ -919,9 +919,11 @@ export default function GameBoard(props: GameBoardProps) {
   // ゲーム終了チェック
   const gameOver = gameState.phase === 'ended'
   const winner = gameOver
-    ? gameState.players.find((p) => p.hp > 0)?.playerId === 'player1'
-      ? 'あなたの勝利！'
-      : '相手の勝利！'
+    ? gameState.gameEndedReason === 'draw'
+      ? '引き分け！'
+      : (gameState.gameEndedWinner ?? gameState.players.find((p) => p.hp > 0)?.playerId) === 'player1'
+        ? 'あなたの勝利！'
+        : '相手の勝利！'
     : null
 
   // レーンごとのユニットを取得
@@ -947,7 +949,7 @@ export default function GameBoard(props: GameBoardProps) {
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">BATTLE</span>
         </div>
         {gameState.phase === 'playing' && (
-          <TimerDisplay gameStartTime={gameState.gameStartTime} />
+          <TimerDisplay timeRemainingMs={gameState.timeRemainingMs ?? 5 * 60 * 1000} />
         )}
         {gameState.activeResponse.isActive && (
           <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">

@@ -55,6 +55,9 @@ export interface SanitizedGameState {
   players: [SanitizedPlayerState, SanitizedPlayerState]
   gameStartTime: number
   lastUpdateTime: number
+  timeRemainingMs: number
+  gameEndedWinner?: string
+  gameEndedReason?: 'hp_zero' | 'time_limit' | 'draw'
 }
 
 // === ヘルパー関数 ===
@@ -81,6 +84,9 @@ export function sanitizeGameState(
     ] as [SanitizedPlayerState, SanitizedPlayerState],
     gameStartTime: state.gameStartTime,
     lastUpdateTime: state.lastUpdateTime,
+    timeRemainingMs: state.timeRemainingMs,
+    gameEndedWinner: state.gameEndedWinner,
+    gameEndedReason: state.gameEndedReason,
   }
 }
 

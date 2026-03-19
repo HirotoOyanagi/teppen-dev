@@ -62,6 +62,7 @@ function createTestGameState(): GameState {
       timer: 0,
       passedPlayers: [],
     },
+    timeRemainingMs: 5 * 60 * 1000,
   }
 }
 

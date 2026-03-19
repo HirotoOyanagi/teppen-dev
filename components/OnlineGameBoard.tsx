@@ -618,9 +618,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
   const gameOver = gameState.phase === 'ended'
   const winner = gameOver
-    ? gameState.players.find((p) => p.hp > 0)?.playerId === playerId
-      ? 'あなたの勝利！'
-      : '相手の勝利！'
+    ? gameState.gameEndedReason === 'draw'
+      ? '引き分け！'
+      : (gameState.gameEndedWinner ?? gameState.players.find((p) => p.hp > 0)?.playerId) === playerId
+        ? 'あなたの勝利！'
+        : '相手の勝利！'
     : null
 
   const getUnitInLane = (units: Unit[], lane: number) => units.find((u) => u.lane === lane) || null
@@ -632,10 +634,17 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       <div className="absolute inset-0 z-0 scanline pointer-events-none" />
 
       {/* Header */}
-      <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-1">
+      <div className="relative z-10 w-full flex justify-center items-center gap-4 pt-4 ls:pt-1">
         <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">ONLINE BATTLE</span>
         </div>
+        {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
+          <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
+            <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${(gameState.timeRemainingMs ?? 0) <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
+              {Math.floor((gameState.timeRemainingMs ?? 0) / 60000)}:{String(Math.floor(((gameState.timeRemainingMs ?? 0) % 60000) / 1000)).padStart(2, '0')}
+            </span>
+          </div>
+        )}
         {gameState.activeResponse.isActive && (
           <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">
             <div className="text-white text-sm font-bold">

@@ -271,6 +271,7 @@ const GAME_CONFIG = {
   AP_PER_MP: 1, // MP1消費でAP1獲得
   MAX_AP: Infinity, // AP上限なし（無限蓄積）
   GAME_START_DELAY_MS: 3000, // マリガン完了後、開始演出の待機時間（ms）
+  GAME_DURATION_MS: 5 * 60 * 1000, // ゲーム時間（5分）。カウントダウンで0で時間切れ
 } as const
 
 /**
@@ -307,6 +308,31 @@ export function updateGameState(
   // Active Response中は時間停止。gameStartTime前もMP・攻撃ゲージは停止（開始演出待ち）
   const gameStarted = Date.now() >= newState.gameStartTime
   if (!newState.activeResponse.isActive && gameStarted) {
+    // タイマーカウントダウン
+    const newTimeRemaining = Math.max(0, (newState.timeRemainingMs ?? GAME_CONFIG.GAME_DURATION_MS) - deltaTime)
+    newState.timeRemainingMs = newTimeRemaining
+
+    // 時間切れ：残りHPが多い方が勝ち
+    if (newTimeRemaining <= 0) {
+      const p0 = newState.players[0]
+      const p1 = newState.players[1]
+      const hp0 = p0.hp
+      const hp1 = p1.hp
+      const timeUpWinner =
+        hp0 > hp1 ? p0.playerId : hp1 > hp0 ? p1.playerId : undefined
+      const timeUpReason: 'time_limit' | 'draw' = timeUpWinner ? 'time_limit' : 'draw'
+      events.push({
+        type: 'game_ended',
+        winner: timeUpWinner ?? '',
+        reason: timeUpReason,
+        timestamp: Date.now(),
+      })
+      newState.phase = 'ended'
+      newState.gameEndedWinner = timeUpWinner
+      newState.gameEndedReason = timeUpReason
+      return { state: newState, events }
+    }
+
     const getMpBoostPercent = (player: PlayerState): number => {
       let percent = 0
 
@@ -844,7 +870,7 @@ export function updateGameState(
             }
           }
 
-          // ゲーム終了チェック
+          // ゲーム終了チェック（体力0）
           if (attackResult.gameEnded) {
             events.push({
               type: 'game_ended',
@@ -853,6 +879,8 @@ export function updateGameState(
               timestamp: Date.now(),
             })
             newState.phase = 'ended'
+            newState.gameEndedWinner = playerUpdates[playerIndex].playerId
+            newState.gameEndedReason = 'hp_zero'
           }
         } else {
           // 攻撃ゲージのみ更新
@@ -2681,7 +2709,7 @@ function executeUnitAttack(
             const funcName = parts[0]
             const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
             const heroHitContext: EffectContext = {
-              gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0 },
+              gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0, timeRemainingMs: 5 * 60 * 1000 },
               cardMap: cardDefinitions,
               sourceUnit: { unit: updatedUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
               sourcePlayer: attackerPlayer,
@@ -2971,5 +2999,6 @@ export function createInitialGameState(
     randomSeed: Math.random() * 1000000,
     gameStartTime: Date.now(),
     lastUpdateTime: Date.now(),
+    timeRemainingMs: GAME_CONFIG.GAME_DURATION_MS,
   }
 }

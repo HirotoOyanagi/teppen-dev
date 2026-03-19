@@ -212,6 +212,12 @@ export interface GameState {
   randomSeed: number // リプレイ用の乱数シード
   gameStartTime: number
   lastUpdateTime: number
+  /** 残り時間（ミリ秒）。5分からカウントダウン。0で時間切れ */
+  timeRemainingMs: number
+  /** ゲーム終了時の勝者（time_up時はHPが多い方） */
+  gameEndedWinner?: string
+  /** ゲーム終了理由 */
+  gameEndedReason?: 'hp_zero' | 'time_limit' | 'draw'
 }
 
 // 入力イベント
@@ -331,6 +337,6 @@ export type GameEvent =
   | {
       type: 'game_ended'
       winner: string
-      reason: 'hp_zero' | 'time_limit'
+      reason: 'hp_zero' | 'time_limit' | 'draw'
       timestamp: number
     }
