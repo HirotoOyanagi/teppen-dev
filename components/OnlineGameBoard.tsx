@@ -124,7 +124,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   } = useGameSocket()
 
   const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
-  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number } | null>(null)
+  const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
   const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null)
@@ -137,6 +137,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     cardId: string
     lane?: number
     targetSide: 'friendly' | 'enemy'
+    fromExPocket?: boolean
   } | null>(null)
   const [abilityDragging, setAbilityDragging] = useState<{
     type: 'hero_art' | 'companion'
@@ -192,12 +193,17 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
   // カードプレイ
   const handlePlayCard = useCallback(
-    (cardId: string, lane?: number, target?: string) => {
+    (cardId: string, lane?: number, target?: string, fromExPocket?: boolean) => {
       if (!gameState) return
       const player = gameState.players[0] // 自分は常にplayers[0]
 
       const cardDef = resolveCardDefinition(cardMap, cardId)
-      if (!cardDef || !player.hand.includes(cardId)) return
+      if (!cardDef) return
+
+      const inHand = player.hand.includes(cardId)
+      const inExPocket = player.exPocket.includes(cardId)
+      if (!fromExPocket && !inHand) return
+      if (fromExPocket && !inExPocket) return
 
       // AR中はユニット不可
       if (gameState.activeResponse.isActive && cardDef.type === 'unit') return
@@ -224,6 +230,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           cardId,
           lane,
           targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+          fromExPocket,
         })
         return
       }
@@ -235,6 +242,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           cardId,
           lane,
           targetSide: targetType === 'enemy_unit' ? 'enemy' : 'friendly',
+          fromExPocket,
         })
         return
       }
@@ -245,6 +253,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         cardId,
         lane,
         target,
+        fromExPocket: fromExPocket ?? false,
         timestamp: Date.now(),
       })
     },
@@ -381,7 +390,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const handleAbilityTargetSelect = useCallback(
     (unitId: string) => {
       if (cardTargetMode) {
-        handlePlayCard(cardTargetMode.cardId, cardTargetMode.lane, unitId)
+        handlePlayCard(cardTargetMode.cardId, cardTargetMode.lane, unitId, cardTargetMode.fromExPocket)
         setCardTargetMode(null)
         return
       }
@@ -415,7 +424,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   )
 
   // ドラッグ系ハンドラ
-  const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number) => {
+  const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number, fromExPocket?: boolean) => {
     if (!gameState) return
     const player = gameState.players[0]
     const availableMp = player.mp + player.blueMp
@@ -423,7 +432,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     const effectiveCost = cardDef.cost
     const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
     if (!canPlay) return
-    setDragging({ cardId, cardDef, idx })
+    setDragging({ cardId, cardDef, idx, fromExPocket })
     setDragPos({ x, y })
     setDetailCard(null)
   }
@@ -504,26 +513,26 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       return
     }
 
-    const { cardId, cardDef } = dragging
+    const { cardId, cardDef, fromExPocket } = dragging
     const needsTarget = cardDef.type === 'action' && requiresTarget(cardDef)
     const targetType = getTargetType(cardDef)
 
     if (needsTarget) {
       if (targetType === 'friendly_unit' && hoveredUnitId) {
-        handlePlayCard(cardId, undefined, hoveredUnitId)
+        handlePlayCard(cardId, undefined, hoveredUnitId, fromExPocket)
       } else if (targetType === 'friendly_hero' && hoveredHeroId) {
-        handlePlayCard(cardId, undefined, hoveredHeroId)
+        handlePlayCard(cardId, undefined, hoveredHeroId, fromExPocket)
       } else if (targetType === 'enemy_unit' && hoveredUnitId) {
-        handlePlayCard(cardId, undefined, hoveredUnitId)
+        handlePlayCard(cardId, undefined, hoveredUnitId, fromExPocket)
       }
     } else if (cardDef.type === 'action') {
-      handlePlayCard(cardId)
+      handlePlayCard(cardId, undefined, undefined, fromExPocket)
     } else if (hoveredLane !== null) {
       const player = gameState.players[0]
       const existingUnit = player.units.find((u) => u.lane === hoveredLane)
       const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
       if (!existingUnit || (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))) {
-        handlePlayCard(cardId, hoveredLane)
+        handlePlayCard(cardId, hoveredLane, undefined, fromExPocket)
       }
     }
 
@@ -908,7 +917,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             const isAR = gameState.activeResponse.isActive
             const effectiveCost = cardDef.cost
             const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
-            const isDragging = dragging?.idx === i
+            const isDragging = dragging && !dragging.fromExPocket && dragging.idx === i
 
             return (
               <GameCard
@@ -922,6 +931,50 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               />
             )
           })}
+          {/* EXポケット（右側） */}
+          <div className="flex gap-1 items-end ml-2 ls:ml-1">
+            {[0, 1].map((slotIdx) => {
+              const exCard = player.exPocket[slotIdx]
+              if (!exCard) {
+                return (
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                    <span className="text-purple-500/40 text-[8px]">EX</span>
+                  </div>
+                )
+              }
+              const exCardDef = resolveCardDefinition(cardMap, exCard)
+              if (!exCardDef) {
+                return (
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                    <span className="text-purple-500/40 text-[8px]">EX</span>
+                  </div>
+                )
+              }
+              const availableMp = player.mp + player.blueMp
+              const isActiveResponse = gameState.activeResponse.isActive
+              const canPlay = availableMp >= exCardDef.cost && (exCardDef.type === 'action' || !isActiveResponse)
+              const isDragging = dragging?.fromExPocket && dragging.idx === slotIdx
+
+              return (
+                <div key={`ex_slot_${slotIdx}`} className="relative">
+                  <div className={`border-2 border-purple-500 rounded shadow-[0_0_8px_rgba(168,85,247,0.4)] ${isDragging ? 'opacity-30' : ''}`}>
+                    <GameCard
+                      cardDef={exCardDef}
+                      size="sm"
+                      cardMap={cardMap}
+                      onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
+                      onDragStart={(x, y) => onDragStart(exCard, exCardDef, slotIdx, x, y, true)}
+                      canPlay={canPlay}
+                      isDragging={isDragging}
+                    />
+                  </div>
+                  <div className="absolute -bottom-1 left-0 right-0 text-center">
+                    <span className="bg-purple-700/80 text-purple-200 text-[7px] px-1 rounded">EX</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* 相手の手札枚数表示 */}
