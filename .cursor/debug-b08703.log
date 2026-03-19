@@ -842,3 +842,121 @@
 {"sessionId":"b08703","location":"engine.ts:resolveActionEffect token","message":"Invoking effect by function name","data":{"cardId":"cor_032","funcName":"add_fire_seed_to_ex","funcValue":0},"timestamp":1773925010779,"hypothesisId":"C"}
 {"sessionId":"b08703","location":"engine.ts:resolveActionEffect token","message":"Invoking effect by function name","data":{"cardId":"cor_032","funcName":"damage_all_enemy_units_each","funcValue":5},"timestamp":1773925010779,"hypothesisId":"C"}
 {"sessionId":"b08703","location":"engine.ts:resolveActionEffect token","message":"Invoking effect by function name","data":{"cardId":"cor_032","funcName":"damage_enemy_hero","funcValue":3},"timestamp":1773925010780,"hypothesisId":"C"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112337,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112379,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112389,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112389,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112440,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112441,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112491,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112491,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112542,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112542,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112593,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112593,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112644,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112645,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112695,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112695,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112746,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112746,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112797,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112798,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112848,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112848,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112898,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112899,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926112949,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926112949,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113001,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113001,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113052,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113053,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113102,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113103,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113152,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113153,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113202,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113203,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113252,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113252,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113303,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113304,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113354,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113355,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113405,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113405,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113456,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113456,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113507,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113508,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113558,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113559,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113609,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113609,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113660,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113661,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113711,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113711,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113762,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113762,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113813,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113814,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113864,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113864,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113915,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113916,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926113966,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926113967,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114018,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114018,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114069,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114070,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114121,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114121,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114172,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114172,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114223,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114223,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114273,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114273,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114324,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114324,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114375,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114375,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114425,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114426,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114476,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114477,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114527,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114527,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114578,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114579,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114629,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114630,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114680,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114680,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114731,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114731,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114782,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114783,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114833,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114833,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114885,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114885,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114936,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114937,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926114987,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926114987,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115038,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115038,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115089,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115089,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115140,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115140,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115191,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115192,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115242,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115243,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:AR timer auto resolve","message":"AR resolve by timer expiry","data":{"stackLength":0},"timestamp":1773926115293,"hypothesisId":"A"}
+{"sessionId":"b08703","location":"engine.ts:resolveActiveResponse","message":"AR resolve started","data":{"stackLength":0,"stackCardIds":[]},"timestamp":1773926115294,"hypothesisId":"A"}
