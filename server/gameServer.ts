@@ -200,6 +200,41 @@ export class GameServer {
     const dt = now - room.lastUpdateTime
     room.lastUpdateTime = now
 
+    // #region agent debug log
+    fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b197ed' },
+      body: JSON.stringify({
+        sessionId: 'b197ed',
+        location: 'server/gameServer.ts:gameLoop',
+        message: 'tick before updateGameState (playing)',
+        hypothesisId: 'H_dt_accumulation',
+        runId: 'pre',
+        data: {
+          dt,
+          phase: room.gameState.phase,
+          gameStartTime: room.gameState.gameStartTime,
+          timeRemainingMs: room.gameState.timeRemainingMs,
+          currentTick: room.gameState.currentTick,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #region agent debug log (console)
+    console.log(
+      '[DEBUG][H_dt_accumulation] tick',
+      JSON.stringify({
+        dt,
+        phase: room.gameState.phase,
+        gameStartTime: room.gameState.gameStartTime,
+        timeRemainingMs: room.gameState.timeRemainingMs,
+        currentTick: room.gameState.currentTick,
+        activeResponse: room.gameState.activeResponse.isActive,
+      })
+    )
+    // #endregion
+    // #endregion
+
     const result = updateGameState(room.gameState, null, dt, this.cardMap)
     const stateChanged =
       result.state.currentTick !== room.gameState.currentTick ||
