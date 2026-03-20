@@ -22,6 +22,17 @@ import {
 } from './effects'
 import { cardSpecificEffects } from './cardSpecificEffects'
 import { resolveHeroArtEffect, resolveCompanionEffect } from './heroAbilities'
+import {
+  appendActiveResponseAction,
+  beginArResolution,
+  createActiveResponseStackItem,
+  passActiveResponsePriority,
+  payCardCost,
+  progressArResolution,
+  resolveArStack,
+  shouldResolveActiveResponse,
+  startActiveResponse,
+} from './activeResponse'
 
 /**
  * 数値をパース（空文字や無効値は0）
@@ -265,7 +276,6 @@ function parseGrowthLevelEffects(effectFunctions: string | undefined): Record<nu
 const GAME_CONFIG = {
   TICK_INTERVAL: 50, // 50ms
   MP_RECOVERY_RATE: 0.3, // 1秒あたりのMP回復量（10秒で3MP）
-  ACTIVE_RESPONSE_TIMER: 5000, // ARタイマー（5秒）
   INITIAL_HP: 30,
   INITIAL_HAND_SIZE: 5,
   AP_PER_MP: 1, // MP1消費でAP1獲得
@@ -899,34 +909,30 @@ export function updateGameState(
       PlayerState
     ]
   } else {
-    // Active Response中：ARタイマーのみ進行
-    newState.activeResponse.timer = Math.max(
-      0,
-      newState.activeResponse.timer - deltaTime
-    )
-
-    // ARタイマーが0になったら自動解決
-    if (newState.activeResponse.timer <= 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-        body: JSON.stringify({
-          sessionId: 'b08703',
-          location: 'engine.ts:AR timer auto resolve',
-          message: 'AR resolve by timer expiry',
-          data: { stackLength: newState.activeResponse.stack.length },
-          timestamp: Date.now(),
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {})
-      // #endregion
-      const resolveResult = resolveActiveResponse(
-        newState,
-        cardDefinitions
+    if (newState.activeResponse.status === 'building') {
+      newState.activeResponse.timer = Math.max(
+        0,
+        newState.activeResponse.timer - deltaTime
       )
-      newState = resolveResult.state
-      events.push(...resolveResult.events)
+
+      if (newState.activeResponse.timer <= 0) {
+        const resolveResult = beginArResolution(
+          newState,
+          cardDefinitions,
+          resolveActionEffect
+        )
+        newState = resolveResult.state
+        events.push(...resolveResult.events)
+      }
+    } else {
+      const progressResult = progressArResolution(
+        newState,
+        deltaTime,
+        cardDefinitions,
+        resolveActionEffect
+      )
+      newState = progressResult.state
+      events.push(...progressResult.events)
     }
   }
 
@@ -996,7 +1002,32 @@ function processInput(
     return processMulligan(newState, input, cardDefinitions)
   }
 
+  if (input.type === 'active_response_action') {
+    if (
+      !newState.activeResponse.isActive ||
+      newState.activeResponse.currentPlayerId !== input.playerId
+    ) {
+      return { state: newState, events }
+    }
+
+    return processInput(
+      newState,
+      {
+        type: 'play_card',
+        playerId: input.playerId,
+        cardId: input.cardId,
+        target: input.target,
+        timestamp: input.timestamp,
+      },
+      cardDefinitions
+    )
+  }
+
   if (input.type === 'play_card') {
+    if (newState.activeResponse.isActive && newState.activeResponse.status === 'resolving') {
+      return { state: newState, events }
+    }
+
     const player = newState.players.find((p) => p.playerId === input.playerId)
     if (!player) return { state: newState, events }
 
@@ -1018,9 +1049,15 @@ function processInput(
     // コスト計算: cardIdの@cost=はresolveCardDefinitionで反映済み
     const effectiveCost = cardDef.cost
 
-    // MPチェック（通常MP + 青MP）
-    const availableMp = player.mp + player.blueMp
-    if (availableMp < effectiveCost) return { state: newState, events }
+    const activeResponseWasActive = newState.activeResponse.isActive
+    const isActionInitiatingResponse =
+      cardDef.type === 'action' && !activeResponseWasActive
+
+    const paymentPlayer = isActionInitiatingResponse
+      ? { ...player, blueMp: 0 }
+      : player
+    const paymentResult = payCardCost(paymentPlayer, effectiveCost)
+    if (!paymentResult) return { state: newState, events }
 
     // テスト用 freePlay: 手札・デッキは変更しない
     const freePlay = (input as { freePlay?: boolean }).freePlay === true
@@ -1055,19 +1092,10 @@ function processInput(
     }
 
     // MP消費とAP獲得
-    // 青MPを先に消費し、残りを通常MPから消費
-    let remainingCost = effectiveCost
-    let newBlueMp = player.blueMp
-    let newMp = player.mp
-
-    if (newBlueMp >= remainingCost) {
-      newBlueMp -= remainingCost
-      remainingCost = 0
-    } else {
-      remainingCost -= newBlueMp
-      newBlueMp = 0
-    }
-    newMp -= remainingCost
+    const newMp = paymentResult.player.mp
+    const newBlueMp = isActionInitiatingResponse
+      ? player.blueMp
+      : paymentResult.player.blueMp
 
     const newAp = Math.min(
       player.ap + effectiveCost * GAME_CONFIG.AP_PER_MP,
@@ -1129,15 +1157,6 @@ function processInput(
 
       // アクションカードの場合はActive Responseに入る
       if (cardDef.type === 'action') {
-      const opponentIndex = 1 - playerIndex
-      const opponent = newState.players[opponentIndex]
-
-      // アクションを打たれた側と打った側が青MP2獲得（一時的なMP）
-      const blueMpGain = 2
-      newState.players[playerIndex] = {
-        ...newState.players[playerIndex],
-        blueMp: newState.players[playerIndex].blueMp + blueMpGain,
-      }
 
       // 呼応トリガー（resonate）：アクションカードを使用した時に発動
       const triggeredTokensForResonate = parseTriggeredEffectFunctionTokens(cardDef.effectFunctions)
@@ -1194,10 +1213,6 @@ function processInput(
             }
           }
         }
-      }
-      newState.players[opponentIndex] = {
-        ...opponent,
-        blueMp: opponent.blueMp + blueMpGain,
       }
 
       // 味方ユニットの呼応トリガー発動（手札＝resonate / EXポケット＝ex_resonate）
@@ -1321,31 +1336,26 @@ function processInput(
         }
       }
 
-      // 既にAR中ならスタックに追加、そうでなければAR開始
+      const stackItem = createActiveResponseStackItem(
+        input.playerId,
+        input.cardId,
+        input.timestamp,
+        input.target,
+        effectiveCost
+      )
+
       if (!newState.activeResponse.isActive) {
-        newState.activeResponse = {
-          isActive: true,
-          currentPlayerId: opponent.playerId, // アクション権限は相手に
-          stack: [],
-          timer: GAME_CONFIG.ACTIVE_RESPONSE_TIMER,
-          passedPlayers: [],
-        }
-
-        events.push({
-          type: 'active_response_started',
-          playerId: input.playerId,
-          cardId: input.cardId,
-          timestamp: input.timestamp,
-        })
+        const activeResponseResult = startActiveResponse(
+          newState,
+          input.playerId,
+          stackItem,
+          input.timestamp
+        )
+        newState = activeResponseResult.state
+        events.push(...activeResponseResult.events)
+      } else {
+        newState = appendActiveResponseAction(newState, input.playerId, stackItem)
       }
-
-      // ARスタックに追加
-      newState.activeResponse.stack.push({
-        playerId: input.playerId,
-        cardId: input.cardId,
-        timestamp: input.timestamp,
-        target: input.target,
-      })
     }
 
     // ユニットカードの場合は盤面に配置
@@ -1921,176 +1931,37 @@ function processInput(
   }
 
   if (input.type === 'end_active_response' || input.type === 'active_response_pass') {
+    if (newState.activeResponse.isActive && newState.activeResponse.status === 'resolving') {
+      return { state: newState, events }
+    }
+
     // Active Response終了処理
     if (newState.activeResponse.isActive) {
-      // パスしたプレイヤーを記録
-      if (input.type === 'active_response_pass') {
-        const currentPassed = newState.activeResponse.passedPlayers
-        if (!currentPassed.includes(input.playerId)) {
-          newState.activeResponse.passedPlayers.push(input.playerId)
-        }
+      if (newState.activeResponse.currentPlayerId !== input.playerId) {
+        return { state: newState, events }
+      }
 
-        // 両方がパスしたら解決
-        if (
-          newState.activeResponse.passedPlayers.length >= 2 ||
-          (newState.activeResponse.passedPlayers.length === 1 &&
-            newState.activeResponse.stack.length === 0)
-        ) {
-          const resolveResult = resolveActiveResponse(
+      if (input.type === 'active_response_pass') {
+        newState = passActiveResponsePriority(newState, input.playerId)
+
+        if (shouldResolveActiveResponse(newState)) {
+          const resolveResult = beginArResolution(
             newState,
-            cardDefinitions
+            cardDefinitions,
+            resolveActionEffect
           )
           newState = resolveResult.state
           events.push(...resolveResult.events)
-        } else {
-          // 相手にアクション権限を移す
-          const currentPlayerIndex = newState.players.findIndex(
-            (p) => p.playerId === newState.activeResponse.currentPlayerId
-          )
-          const opponentIndex = 1 - currentPlayerIndex
-          newState.activeResponse.currentPlayerId =
-            newState.players[opponentIndex].playerId
-          newState.activeResponse.passedPlayers = []
         }
       } else {
-        // 手動終了
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-          body: JSON.stringify({
-            sessionId: 'b08703',
-            location: 'engine.ts:end_active_response manual',
-            message: 'processInput end_active_response (manual)',
-            data: { stackLength: newState.activeResponse.stack.length },
-            timestamp: Date.now(),
-            hypothesisId: 'E',
-          }),
-        }).catch(() => {})
-        // #endregion
-        const resolveResult = resolveActiveResponse(newState, cardDefinitions)
+        const resolveResult = beginArResolution(
+          newState,
+          cardDefinitions,
+          resolveActionEffect
+        )
         newState = resolveResult.state
         events.push(...resolveResult.events)
       }
-    }
-  }
-
-  if (input.type === 'active_response_action') {
-    // AR中のアクションカードプレイ
-    if (
-      newState.activeResponse.isActive &&
-      newState.activeResponse.currentPlayerId === input.playerId
-    ) {
-      // 通常のplay_cardと同じ処理だが、ARスタックに追加
-      const player = newState.players.find((p) => p.playerId === input.playerId)
-      if (!player) return { state: newState, events }
-
-      const cardDef = cardDefinitions.get(input.cardId)
-      if (!cardDef || cardDef.type !== 'action') return { state: newState, events }
-
-      const effectiveCost = cardDef.cost
-
-      // MPチェック（通常MP + 青MP）
-      const availableMp = player.mp + player.blueMp
-      if (availableMp < effectiveCost) return { state: newState, events }
-
-      // 手札からカードを削除（同名カードが複数あるため、1枚だけ取り除く）
-      const newHand = removeOneCardFromHand(player.hand, input.cardId)
-
-      // カードをプレイしたらデッキから1枚引く
-      const newDeck = [...player.deck]
-      let drawnCardId: string | null = null
-      if (newDeck.length > 0) {
-        drawnCardId = newDeck[0]
-        newDeck.shift() // デッキから削除
-        newHand.push(drawnCardId) // 手札に追加
-
-        // カードドローイベント
-        events.push({
-          type: 'card_drawn',
-          playerId: input.playerId,
-          cardId: drawnCardId,
-          timestamp: input.timestamp,
-        })
-      }
-
-      // MP消費とAP獲得
-      // 青MPを先に消費し、残りを通常MPから消費
-      let remainingCost = effectiveCost
-      let newBlueMp = player.blueMp
-      let newMp = player.mp
-
-      if (newBlueMp >= remainingCost) {
-        newBlueMp -= remainingCost
-        remainingCost = 0
-      } else {
-        remainingCost -= newBlueMp
-        newBlueMp = 0
-      }
-      newMp -= remainingCost
-
-      const newAp = Math.min(
-        player.ap + effectiveCost * GAME_CONFIG.AP_PER_MP,
-        GAME_CONFIG.MAX_AP
-      )
-
-      const playerIndex = newState.players.findIndex(
-        (p) => p.playerId === input.playerId
-      )
-
-      const opponentIndex = 1 - playerIndex
-      const opponent = newState.players[opponentIndex]
-
-      // プレイヤー状態更新
-      newState.players[playerIndex] = {
-        ...player,
-        hand: newHand,
-        deck: newDeck,
-        mp: newMp,
-        blueMp: newBlueMp,
-        ap: newAp,
-        graveyard: [...player.graveyard, input.cardId],
-      }
-
-      // アクションカードを墓地に送る
-      events.push({
-        type: 'card_sent_to_graveyard',
-        playerId: input.playerId,
-        cardId: input.cardId,
-        reason: 'card_played',
-        timestamp: input.timestamp,
-      })
-
-      // アクションを打たれた側と打った側が青MP2獲得（一時的なMP）
-      const blueMpGain = 2
-      newState.players[playerIndex] = {
-        ...newState.players[playerIndex],
-        blueMp: newState.players[playerIndex].blueMp + blueMpGain,
-      }
-      newState.players[opponentIndex] = {
-        ...opponent,
-        blueMp: opponent.blueMp + blueMpGain,
-      }
-
-      // ARスタックに追加
-      newState.activeResponse.stack.push({
-        playerId: input.playerId,
-        cardId: input.cardId,
-        timestamp: input.timestamp,
-        target: input.target,
-      })
-
-      // アクション権限を相手に移す
-      newState.activeResponse.currentPlayerId = opponent.playerId
-      newState.activeResponse.passedPlayers = []
-      newState.activeResponse.timer = GAME_CONFIG.ACTIVE_RESPONSE_TIMER
-
-      events.push({
-        type: 'card_played',
-        playerId: input.playerId,
-        cardId: input.cardId,
-        timestamp: input.timestamp,
-      })
     }
   }
 
@@ -2230,83 +2101,13 @@ function processMulligan(
 /**
  * Active Responseを解決する
  * LIFO順（最後に出したものが先に解決）でスタックを処理
+ * core/activeResponse の resolveArStack を使用
  */
 function resolveActiveResponse(
   state: GameState,
   cardDefinitions: Map<string, CardDefinition>
 ): { state: GameState; events: GameEvent[] } {
-  const events: GameEvent[] = []
-  let newState = { ...state }
-
-  // LIFO順でスタックを解決（最後に出したものが先）
-  const resolvedStack = [...newState.activeResponse.stack].reverse()
-
-  events.push({
-    type: 'active_response_resolved',
-    stack: resolvedStack,
-    timestamp: Date.now(),
-  })
-
-  // スタック内のアクションを順に解決
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-    body: JSON.stringify({
-      sessionId: 'b08703',
-      location: 'engine.ts:resolveActiveResponse',
-      message: 'AR resolve started',
-      data: { stackLength: resolvedStack.length, stackCardIds: resolvedStack.map((s) => s.cardId) },
-      timestamp: Date.now(),
-      hypothesisId: 'A',
-    }),
-  }).catch(() => {})
-  // #endregion
-  for (const stackItem of resolvedStack) {
-    const cardDef = resolveCardDefinition(cardDefinitions, stackItem.cardId)
-    if (cardDef && cardDef.type === 'action') {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-        body: JSON.stringify({
-          sessionId: 'b08703',
-          location: 'engine.ts:resolveActionEffect call',
-          message: 'Resolving action effect for card',
-          data: { cardId: stackItem.cardId, playerId: stackItem.playerId },
-          timestamp: Date.now(),
-          hypothesisId: 'B',
-        }),
-      }).catch(() => {})
-      // #endregion
-      const effectResult = resolveActionEffect(
-        newState,
-        stackItem.playerId,
-        cardDef,
-        cardDefinitions,
-        stackItem
-      )
-      newState = effectResult.state
-      events.push(...effectResult.events)
-    }
-  }
-
-  // AR終了時に青MPを消失させる
-  newState.players = newState.players.map((player) => ({
-    ...player,
-    blueMp: 0,
-  })) as [PlayerState, PlayerState]
-
-  // AR終了
-  newState.activeResponse = {
-    isActive: false,
-    currentPlayerId: null,
-    stack: [],
-    timer: 0,
-    passedPlayers: [],
-  }
-
-  return { state: newState, events }
+  return resolveArStack(state, cardDefinitions, resolveActionEffect)
 }
 
 /** アクションカードの効果で「value＝ダメージ量」として扱う関数名（スポッター等の+1加算対象） */
@@ -2435,20 +2236,6 @@ function resolveActionEffect(
         const shouldInvoke = shouldInvokeMap.true
 
         if (shouldInvoke) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-            body: JSON.stringify({
-              sessionId: 'b08703',
-              location: 'engine.ts:resolveActionEffect token',
-              message: 'Invoking effect by function name',
-              data: { cardId: stackItem.cardId, funcName: token.name, funcValue: token.value },
-              timestamp: Date.now(),
-              hypothesisId: 'C',
-            }),
-          }).catch(() => {})
-          // #endregion
           const effectiveValue = ACTION_DAMAGE_EFFECT_NAMES.has(token.name)
             ? token.value + totalActionDamageBoost
             : token.value
@@ -2709,7 +2496,7 @@ function executeUnitAttack(
             const funcName = parts[0]
             const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
             const heroHitContext: EffectContext = {
-              gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, currentPlayerId: null, stack: [], timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0, timeRemainingMs: 5 * 60 * 1000 },
+              gameState: { gameId: '', currentTick: 0, phase: 'playing', mulliganDone: [true, true], activeResponse: { isActive: false, status: 'building', currentPlayerId: null, stack: [], resolvingStack: [], currentResolvingItem: null, timer: 0, passedPlayers: [] }, players: [attackerPlayer, updatedOpponent] as [PlayerState, PlayerState], randomSeed: 0, gameStartTime: 0, lastUpdateTime: 0, timeRemainingMs: 5 * 60 * 1000 },
               cardMap: cardDefinitions,
               sourceUnit: { unit: updatedUnit, statusEffects: new Set(), temporaryBuffs: { attack: 0, hp: 0 }, counters: {}, flags: {} },
               sourcePlayer: attackerPlayer,
@@ -2958,8 +2745,11 @@ export function createInitialGameState(
     phase: 'mulligan',
     activeResponse: {
       isActive: false,
+      status: 'building',
       currentPlayerId: null,
       stack: [],
+      resolvingStack: [],
+      currentResolvingItem: null,
       timer: 0,
       passedPlayers: [],
     },

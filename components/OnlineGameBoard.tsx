@@ -17,6 +17,9 @@ import { shouldEnterCardTargetMode } from '@/core/cardPlayFlow'
 import GameCard from './GameCard'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
+import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
+import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
+import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
 
 // SanitizedPlayerState → PlayerState互換に変換（HeroPortrait用）
 function toPlayerState(sp: SanitizedPlayerState): PlayerState {
@@ -208,9 +211,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       // AR中はユニット不可
       if (gameState.activeResponse.isActive && cardDef.type === 'unit') return
 
-      // MPチェック（デッキコスト軽減を適用）
-      const availableMp = player.mp + player.blueMp
       const effectiveCost = cardDef.cost
+      const availableMp = mpAvailableForCardPlay(player, gameState, cardDef)
       if (availableMp < effectiveCost) return
 
       // ユニットのレーンチェック
@@ -263,6 +265,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   // AR終了
   const handleEndActiveResponse = useCallback(() => {
     if (!gameState?.activeResponse.isActive) return
+    if (gameState.activeResponse.currentPlayerId !== playerId) return
     sendGameInput({
       type: 'end_active_response',
       playerId,
@@ -427,9 +430,9 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const onDragStart = (cardId: string, cardDef: CardDefinition, idx: number, x: number, y: number, fromExPocket?: boolean) => {
     if (!gameState) return
     const player = gameState.players[0]
-    const availableMp = player.mp + player.blueMp
     const isAR = gameState.activeResponse.isActive
     const effectiveCost = cardDef.cost
+    const availableMp = mpAvailableForCardPlay(player, gameState, cardDef)
     const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
     if (!canPlay) return
     setDragging({ cardId, cardDef, idx, fromExPocket })
@@ -654,20 +657,49 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             </span>
           </div>
         )}
-        {gameState.activeResponse.isActive && (
-          <div className="absolute top-4 right-4 bg-red-600/80 px-4 py-2 rounded">
-            <div className="text-white text-sm font-bold">
-              Active Response: {Math.ceil(gameState.activeResponse.timer / 1000)}秒
-            </div>
-            <button
-              onClick={handleEndActiveResponse}
-              className="mt-2 px-4 py-1 bg-yellow-500 text-black font-bold text-xs hover:bg-yellow-400 transition-colors"
-            >
-              AR終了
-            </button>
-          </div>
-        )}
       </div>
+
+      {gameState.activeResponse.isActive && (
+        <div className="relative z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/92 via-slate-950/95 to-black/92 border-b border-cyan-500/45 flex flex-wrap items-start gap-3 ls:gap-2 justify-between">
+          <ActiveResponseOpponentStrip
+            stack={gameState.activeResponse.stack}
+            opponentPlayerId={opponent.playerId}
+            cardMap={cardMap}
+            className="flex-1 min-w-0 max-w-[min(100%,42rem)]"
+          />
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
+              {gameState.activeResponse.status === 'building'
+                ? `アクティブレスポンス ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`
+                : `効果解決まで ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`}
+            </div>
+            {gameState.activeResponse.currentResolvingItem && (
+              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-right max-w-[14rem] leading-snug">
+                発動中:{' '}
+                {resolveCardDefinition(cardMap, gameState.activeResponse.currentResolvingItem.cardId)?.name ??
+                  gameState.activeResponse.currentResolvingItem.cardId}
+              </div>
+            )}
+            {gameState.activeResponse.status === 'building' &&
+              gameState.activeResponse.currentPlayerId === playerId && (
+                <button
+                  type="button"
+                  onClick={handleEndActiveResponse}
+                  className="px-3 py-1 ls:px-2 ls:py-0.5 bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 transition-colors rounded"
+                >
+                  応酬を終了
+                </button>
+              )}
+          </div>
+        </div>
+      )}
+
+      {gameState.activeResponse.isActive && gameState.activeResponse.status === 'resolving' && (
+        <ActiveResponseResolutionPreview
+          stackItem={gameState.activeResponse.currentResolvingItem}
+          cardMap={cardMap}
+        />
+      )}
 
       {/* Main Area */}
       <div className="relative z-10 flex-1 flex items-stretch">
@@ -913,9 +945,9 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             const cardDef = resolveCardDefinition(cardMap, cardId)
             if (!cardDef) return null
 
-            const availableMp = player.mp + player.blueMp
             const isAR = gameState.activeResponse.isActive
             const effectiveCost = cardDef.cost
+            const availableMp = mpAvailableForCardPlay(player, gameState, cardDef)
             const canPlay = availableMp >= effectiveCost && (cardDef.type === 'action' || !isAR)
             const isDragging = !!(dragging && !dragging.fromExPocket && dragging.idx === i)
 
@@ -950,8 +982,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   </div>
                 )
               }
-              const availableMp = player.mp + player.blueMp
               const isActiveResponse = gameState.activeResponse.isActive
+              const availableMp = mpAvailableForCardPlay(player, gameState, exCardDef)
               const canPlay = availableMp >= exCardDef.cost && (exCardDef.type === 'action' || !isActiveResponse)
               const isDragging = dragging?.fromExPocket && dragging.idx === slotIdx
 

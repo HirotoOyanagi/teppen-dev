@@ -17,8 +17,9 @@ const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0 }) => {
           <span className="font-orbitron font-bold text-lg ls:text-xs">{currentMpInt}</span>
         </div>
         {blueMp > 0 && (
-          <div className="w-8 h-8 ls:w-5 ls:h-5 bg-blue-600 border border-blue-400/50 hex-clip flex items-center justify-center">
-            <span className="font-orbitron font-bold text-sm ls:text-[8px] text-blue-200">+{blueMp}</span>
+          <div className="w-8 h-8 ls:w-5 ls:h-5 bg-blue-600 border border-blue-400/50 hex-clip flex flex-col items-center justify-center leading-none py-0.5">
+            <span className="font-orbitron font-bold text-[7px] ls:text-[5px] text-blue-100/90 tracking-tight">AMP</span>
+            <span className="font-orbitron font-bold text-sm ls:text-[8px] text-blue-100">{blueMp}</span>
           </div>
         )}
         <div className="flex gap-1 ls:gap-0.5 h-3 ls:h-2 items-end">

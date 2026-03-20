@@ -166,7 +166,7 @@ export interface PlayerState {
   maxHp: number
   mp: number
   maxMp: number
-  blueMp: number // 青MP（アクティブレスポンス中のみ有効、終了時に消失）
+  blueMp: number // AMP（アクティブレスポンス専用の一時MP・終了時に消失。maxMp を超えて蓄積しない）
   ap: number // 必殺技ゲージ（MP消費で増加）
   hero: Hero // 使用中のヒーロー
   hand: string[] // カードIDの配列
@@ -190,13 +190,17 @@ export interface ActiveResponseStack {
   cardId: string
   timestamp: number // ARに入った時刻
   target?: string // 対象（ユニットIDなど）
+  cost?: number // 積んだ時点の実コスト。リプレイ/検証用
 }
 
 // アクティブレスポンスの状態
 export interface ActiveResponseState {
   isActive: boolean
+  status: 'building' | 'resolving'
   currentPlayerId: string | null // 現在アクション権限を持っているプレイヤー
   stack: ActiveResponseStack[]
+  resolvingStack: ActiveResponseStack[]
+  currentResolvingItem: ActiveResponseStack | null
   timer: number // ARタイマー（ミリ秒）
   passedPlayers: string[] // パスしたプレイヤーID
 }
@@ -332,6 +336,18 @@ export type GameEvent =
   | {
       type: 'active_response_resolved'
       stack: ActiveResponseStack[]
+      timestamp: number
+    }
+  | {
+      type: 'active_response_resolution_started'
+      stack: ActiveResponseStack[]
+      currentItem: ActiveResponseStack | null
+      timestamp: number
+    }
+  | {
+      type: 'active_response_step_resolved'
+      stackItem: ActiveResponseStack
+      remainingStackLength: number
       timestamp: number
     }
   | {

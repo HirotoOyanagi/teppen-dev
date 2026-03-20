@@ -70,8 +70,11 @@ function createTestGameState(): GameState {
     players: [player1, player2],
     activeResponse: {
       isActive: false,
+      status: 'building',
       currentPlayerId: 'player1',
       stack: [],
+      resolvingStack: [],
+      currentResolvingItem: null,
       timer: 0,
       passedPlayers: [],
     },
@@ -179,6 +182,13 @@ function playActionAndResolve(
     )
 
     nextState = resolveResult.state
+
+    let guard = 0
+    while (nextState.activeResponse.isActive && guard < 20) {
+      const waitMs = Math.max(1, nextState.activeResponse.timer || 3000)
+      nextState = updateGameState(nextState, null, waitMs, cardMap).state
+      guard += 1
+    }
   }
 
   return { state: nextState }

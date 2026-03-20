@@ -58,8 +58,11 @@ function createTestGameState(): GameState {
     players: [player1, player2],
     activeResponse: {
       isActive: false,
+      status: 'building',
       currentPlayerId: 'player1',
       stack: [],
+      resolvingStack: [],
+      currentResolvingItem: null,
       timer: 0,
       passedPlayers: [],
     },
