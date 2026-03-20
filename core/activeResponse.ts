@@ -155,8 +155,11 @@ export function resolveArStack(
 
   newState.activeResponse = {
     isActive: false,
+    status: 'building',
     currentPlayerId: null,
     stack: [],
+    resolvingStack: [],
+    currentResolvingItem: null,
     timer: 0,
     passedPlayers: [],
   }
