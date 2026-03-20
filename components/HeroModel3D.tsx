@@ -1,4 +1,4 @@
-import React, { Suspense, useRef, useEffect } from 'react'
+import React, { Suspense, useRef, useEffect, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Canvas } from '@react-three/fiber'
 import { useGLTF, useAnimations, OrbitControls } from '@react-three/drei'
@@ -81,6 +81,8 @@ function BattleCamera() {
 function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className }: HeroModel3DProps) {
   const baseHeight = variant === 'battle' ? 340 : 180
   const showOrbit = variant === 'home'
+  const [canvasKey, setCanvasKey] = useState(0)
+  const lastLostAtRef = useRef<number>(0)
 
   return (
     <div
@@ -94,11 +96,24 @@ function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className
       }}
     >
       <Canvas
+        key={canvasKey}
         camera={{
           position: [0, variant === 'battle' ? 0.45 : 0, variant === 'battle' ? 2.2 : 2],
           fov: variant === 'battle' ? 46 : 42,
         }}
         gl={{ alpha: true, antialias: true }}
+        onCreated={({ gl }) => {
+          // WebGL contextが失われるとr3fの描画が止まることがあるため、
+          // その場合はCanvasを作り直してUIが固まらないようにする。
+          const domEl = gl.domElement
+          const onLost = () => {
+            const now = Date.now()
+            if (now - lastLostAtRef.current < 1000) return
+            lastLostAtRef.current = now
+            setCanvasKey((k) => k + 1)
+          }
+          domEl.addEventListener('webglcontextlost', onLost)
+        }}
       >
         {variant === 'battle' && <BattleCamera />}
         <ambientLight intensity={1} />

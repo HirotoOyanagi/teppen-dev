@@ -324,6 +324,38 @@ export function updateGameState(
 
     // 時間切れ：残りHPが多い方が勝ち
     if (newTimeRemaining <= 0) {
+      // #region agent debug log
+      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b197ed' },
+        body: JSON.stringify({
+          sessionId: 'b197ed',
+          location: 'core/engine.ts:updateGameState',
+          message: 'timeRemaining reached 0 (ended)',
+          hypothesisId: 'H_dt_accumulation',
+          runId: 'pre',
+          data: {
+            deltaTime,
+            timeRemainingBefore: newState.timeRemainingMs,
+            timeRemainingAfter: newTimeRemaining,
+            gameStartTime: newState.gameStartTime,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+      // #region agent debug log (console)
+      console.log(
+        '[DEBUG][H_dt_accumulation] timeRemaining reached 0 (ended)',
+        JSON.stringify({
+          deltaTime,
+          timeRemainingBefore: newState.timeRemainingMs,
+          timeRemainingAfter: newTimeRemaining,
+          gameStartTime: newState.gameStartTime,
+          now: Date.now(),
+        })
+      )
+      // #endregion
       const p0 = newState.players[0]
       const p1 = newState.players[1]
       const hp0 = p0.hp
@@ -2099,6 +2131,38 @@ function processMulligan(
   if (newMulliganDone[0] && newMulliganDone[1]) {
     newState.phase = 'playing'
     newState.gameStartTime = Date.now() + GAME_CONFIG.GAME_START_DELAY_MS
+
+    // #region agent debug log
+    fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b197ed' },
+      body: JSON.stringify({
+        sessionId: 'b197ed',
+        location: 'core/engine.ts:processMulligan',
+        message: 'mulligan done -> playing (set gameStartTime)',
+        hypothesisId: 'H_dt_accumulation',
+        runId: 'pre',
+        data: {
+          gameStartTime: newState.gameStartTime,
+          timeRemainingMs: newState.timeRemainingMs,
+          currentTick: newState.currentTick,
+          now: Date.now(),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #region agent debug log (console)
+    console.log(
+      '[DEBUG][H_dt_accumulation] mulligan done -> playing',
+      JSON.stringify({
+        gameStartTime: newState.gameStartTime,
+        timeRemainingMs: newState.timeRemainingMs,
+        currentTick: newState.currentTick,
+        now: Date.now(),
+      })
+    )
+    // #endregion
+    // #endregion
   }
 
   return { state: newState, events }

@@ -11,6 +11,7 @@ export type ClientMessage =
   | { type: 'find_match'; playerId: string; heroId: string; deckCardIds: string[] }
   | { type: 'cancel_match' }
   | { type: 'game_input'; input: GameInput }
+  | { type: 'game_tick' }
 
 // === サーバー → クライアント ===
 
