@@ -652,9 +652,28 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
         {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
           <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
-            <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${(gameState.timeRemainingMs ?? 0) <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
-              {Math.floor((gameState.timeRemainingMs ?? 0) / 60000)}:{String(Math.floor(((gameState.timeRemainingMs ?? 0) % 60000) / 1000)).padStart(2, '0')}
-            </span>
+            {/*
+              検証用: 残り時間(5分固定)から経過時間を算出して「0から増える」表示にする。
+              server側の進行が壊れているか（Vercel復帰時のdt暴発など）を視覚的に切り分ける。
+            */}
+            {(() => {
+              const GAME_DURATION_MS = 5 * 60 * 1000
+              const timeRemainingMs = gameState.timeRemainingMs ?? GAME_DURATION_MS
+              const elapsedMs = Math.max(0, GAME_DURATION_MS - timeRemainingMs)
+              const totalSec = Math.floor(elapsedMs / 1000)
+              const m = Math.floor(totalSec / 60)
+              const s = totalSec % 60
+              const isFinal10s = timeRemainingMs <= 10000
+              return (
+                <span
+                  className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${
+                    isFinal10s ? 'text-red-400 animate-pulse' : 'text-yellow-300'
+                  }`}
+                >
+                  {m}:{String(s).padStart(2, '0')}
+                </span>
+              )
+            })()}
           </div>
         )}
       </div>

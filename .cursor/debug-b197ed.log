@@ -596,3 +596,4 @@
 {"sessionId":"b197ed","location":"activeResponse.ts:progressArResolution","message":"progressArResolution entry","data":{"deltaTime":10,"timer":5,"status":"resolving"},"timestamp":1773996093778,"hypothesisId":"H1"}
 {"sessionId":"b197ed","location":"activeResponse.ts:progressArResolution","message":"resolveCurrentArStackItem call","data":{"remainingDeltaBefore":10,"cardId":"cor_032"},"timestamp":1773996093779,"hypothesisId":"H2"}
 {"sessionId":"b197ed","location":"engine.ts:resolveActionEffect","message":"damage_all_enemy_units_each invoked","data":{"cardId":"cor_032","tokenValue":5,"totalActionDamageBoost":0,"effectiveValue":5},"timestamp":1773996093779}
+{"sessionId":"b197ed","location":"core/engine.ts:processMulligan","message":"mulligan done -> playing (set gameStartTime)","hypothesisId":"H_dt_accumulation","runId":"pre","data":{"gameStartTime":1774025637857,"timeRemainingMs":300000,"currentTick":0,"now":1774025634857},"timestamp":1774025634857}

@@ -206,8 +206,18 @@ export class GameServer {
     let dt = now - room.lastUpdateTime
     // 念のため dt の暴発を抑制（サーバ側の遅延/停止で dt が極端に大きくなるケース対策）
     if (!Number.isFinite(dt) || dt < 0) dt = 0
-    const MAX_DT_MS = 1000
-    dt = Math.min(dt, MAX_DT_MS)
+
+    // サーバが長時間止まった（Vercelのスリープ/復帰など）場合、
+    // setInterval の復帰時に複数tickがまとめて走ってタイマーが急減しうるため、
+    // その間の進行は「凍結（dt=0）」扱いにする。
+    const LONG_PAUSE_THRESHOLD_MS = 5000
+    if (dt > LONG_PAUSE_THRESHOLD_MS) {
+      dt = 0
+    } else {
+      // 通常のズレはクリップする（暴発を最小化）
+      const MAX_DT_MS = 1000
+      dt = Math.min(dt, MAX_DT_MS)
+    }
     room.lastUpdateTime = now
 
     // #region agent debug log
