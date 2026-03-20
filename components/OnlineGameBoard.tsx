@@ -660,45 +660,209 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       </div>
 
       {gameState.activeResponse.isActive && (
-        <div className="relative z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/92 via-slate-950/95 to-black/92 border-b border-cyan-500/45 flex flex-wrap items-start gap-3 ls:gap-2 justify-between">
+        <div className="absolute inset-x-0 top-14 z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/95 via-slate-950/98 to-black/95 border-b border-cyan-500/45 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-lg">
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
             cardMap={cardMap}
-            className="flex-1 min-w-0 max-w-[min(100%,42rem)]"
+            className="min-w-0"
           />
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
               {gameState.activeResponse.status === 'building'
                 ? `アクティブレスポンス ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`
                 : `効果解決まで ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`}
             </div>
             {gameState.activeResponse.currentResolvingItem && (
-              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-right max-w-[14rem] leading-snug">
+              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
                 発動中:{' '}
                 {resolveCardDefinition(cardMap, gameState.activeResponse.currentResolvingItem.cardId)?.name ??
                   gameState.activeResponse.currentResolvingItem.cardId}
               </div>
             )}
-            {gameState.activeResponse.status === 'building' &&
-              gameState.activeResponse.currentPlayerId === playerId && (
-                <button
-                  type="button"
-                  onClick={handleEndActiveResponse}
-                  className="px-3 py-1 ls:px-2 ls:py-0.5 bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 transition-colors rounded"
-                >
-                  応酬を終了
-                </button>
-              )}
           </div>
+          <div className="min-w-0" />
         </div>
       )}
+
+      {/* アクティブレスポンス: 左下の解決ボタン */}
+      {gameState.activeResponse.isActive &&
+        gameState.activeResponse.status === 'building' &&
+        gameState.activeResponse.currentPlayerId === playerId && (
+          <button
+            type="button"
+            onClick={handleEndActiveResponse}
+            className="absolute bottom-28 ls:bottom-20 left-4 z-30 px-4 py-2 bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors rounded shadow-lg border-2 border-amber-400/80"
+          >
+            解決
+          </button>
+        )}
 
       {gameState.activeResponse.isActive && gameState.activeResponse.status === 'resolving' && (
         <ActiveResponseResolutionPreview
           stackItem={gameState.activeResponse.currentResolvingItem}
           cardMap={cardMap}
         />
+      )}
+
+      {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
+      {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
+        <div className="absolute bottom-20 ls:bottom-14 left-0 ls:left-0 z-25 flex gap-2 ls:gap-1 pl-1 ls:pl-0.5 pb-1">
+          {player.hero.heroArt && (
+            <div className="group relative flex items-center gap-1">
+              <button
+                onMouseDown={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost) {
+                    onAbilityDragStart('hero_art', e.clientX, e.clientY)
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
+                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
+                  }
+                }}
+                disabled={player.ap < player.hero.heroArt.cost}
+                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
+                    : 'border-gray-600 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-amber-700" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-xs font-bold px-1.5 rounded-tl">
+                  {player.hero.heroArt.cost}AP
+                </span>
+              </button>
+              <div
+                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'border-yellow-400 bg-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.6)]'
+                    : 'border-white/40 bg-black/60'
+                }`}
+              >
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-yellow-300 leading-none">
+                  {player.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-yellow-400/90 leading-none">
+                  {player.hero.heroArt.cost}
+                </span>
+              </div>
+              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
+                <div className="text-gray-300">{player.hero.heroArt.description}</div>
+                {player.hero.heroArt.requiresTarget && (
+                  <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
+                )}
+              </div>
+            </div>
+          )}
+          {player.hero.companion && (
+            <div className="group relative flex items-center gap-1">
+              <button
+                onMouseDown={(e) => {
+                  if (player.ap >= player.hero.companion!.cost) {
+                    onAbilityDragStart('companion', e.clientX, e.clientY)
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
+                    onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                  }
+                }}
+                disabled={player.ap < player.hero.companion.cost}
+                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                  player.ap >= player.hero.companion.cost
+                    ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
+                    : 'border-gray-600 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-700" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-xs font-bold px-1.5 rounded-tl">
+                  {player.hero.companion.cost}AP
+                </span>
+              </button>
+              <div
+                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                  player.ap >= player.hero.companion.cost
+                    ? 'border-cyan-400 bg-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                    : 'border-white/40 bg-black/60'
+                }`}
+              >
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-cyan-300 leading-none">
+                  {player.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-400/90 leading-none">
+                  {player.hero.companion.cost}
+                </span>
+              </div>
+              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
+                <div className="text-gray-300">{player.hero.companion.description}</div>
+                {player.hero.companion.requiresTarget && (
+                  <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 相手の必殺技・おとも（右上・表示のみ） */}
+      {gameState.phase === 'playing' && (opponent.hero.heroArt || opponent.hero.companion) && (
+        <div className="absolute top-14 right-0 ls:right-0 z-25 flex gap-2 ls:gap-1 pr-1 ls:pr-0.5 pt-1">
+          {opponent.hero.heroArt && (
+            <div className="group relative flex items-center gap-1">
+              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-yellow-500/60 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/80 to-amber-700/80" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
+                  {opponent.hero.heroArt.cost}AP
+                </span>
+              </div>
+              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-yellow-300/80 leading-none">
+                  {opponent.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-yellow-400/70 leading-none">
+                  {opponent.hero.heroArt.cost}
+                </span>
+              </div>
+              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+                <div className="font-bold text-yellow-400 mb-1">{opponent.hero.heroArt.name}</div>
+                <div className="text-gray-300">{opponent.hero.heroArt.description}</div>
+              </div>
+            </div>
+          )}
+          {opponent.hero.companion && (
+            <div className="group relative flex items-center gap-1">
+              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-cyan-500/60 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/80 to-blue-700/80" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
+                  {opponent.hero.companion.cost}AP
+                </span>
+              </div>
+              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-cyan-300/80 leading-none">
+                  {opponent.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-400/70 leading-none">
+                  {opponent.hero.companion.cost}
+                </span>
+              </div>
+              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+                <div className="font-bold text-cyan-400 mb-1">{opponent.hero.companion.name}</div>
+                <div className="text-gray-300">{opponent.hero.companion.description}</div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Main Area */}
@@ -717,71 +881,6 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           >
             <HeroPortrait player={toPlayerState(player)} side="left" />
           </div>
-          {/* 必殺技・おともボタン（ドラッグ or タップで発動、ホバーで効果表示） */}
-          {player.hero.heroArt && (
-            <div className="mt-2 flex flex-col gap-1 px-2">
-              <div className="group relative">
-                <button
-                  onMouseDown={(e) => {
-                    if (player.ap >= player.hero.heroArt!.cost) {
-                      onAbilityDragStart('hero_art', e.clientX, e.clientY)
-                    }
-                  }}
-                  onTouchStart={(e) => {
-                    if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
-                      onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
-                    }
-                  }}
-                  disabled={player.ap < player.hero.heroArt.cost}
-                  className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                    player.ap >= player.hero.heroArt.cost
-                      ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
-                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
-                </button>
-                <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
-                  <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
-                  <div className="text-gray-300">{player.hero.heroArt.description}</div>
-                  {player.hero.heroArt.requiresTarget && (
-                    <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
-                  )}
-                </div>
-              </div>
-              {player.hero.companion && (
-                <div className="group relative">
-                  <button
-                    onMouseDown={(e) => {
-                      if (player.ap >= player.hero.companion!.cost) {
-                        onAbilityDragStart('companion', e.clientX, e.clientY)
-                      }
-                    }}
-                    onTouchStart={(e) => {
-                      if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
-                        onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
-                      }
-                    }}
-                    disabled={player.ap < player.hero.companion.cost}
-                    className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                      player.ap >= player.hero.companion.cost
-                        ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {player.hero.companion.name} ({player.hero.companion.cost}AP)
-                  </button>
-                  <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
-                    <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
-                    <div className="text-gray-300">{player.hero.companion.description}</div>
-                    {player.hero.companion.requiresTarget && (
-                      <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           {abilityTargetMode && (
             <div className="mt-1 px-2">
               <div className="bg-yellow-500/20 border border-yellow-500/50 rounded px-2 py-1 text-[10px] text-yellow-300 text-center">

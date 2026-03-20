@@ -12,7 +12,7 @@ export const ACTIVE_RESPONSE_CONFIG = {
   TIMER_MS: 10000,
   AMP_GAIN_ON_START: 2,
   AMP_GAIN_PER_ACTION: 2,
-  RESOLVE_STEP_DELAY_MS: 3000,
+  RESOLVE_STEP_DELAY_MS: 1000,
 } as const
 
 export type PaymentResult = {

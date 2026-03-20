@@ -281,15 +281,30 @@ function applyDamageToUnit(
     newShieldCount = newShieldCount - 1
   }
 
-  // ダメージ軽減処理（ミラおとも）
+  // ダメージ軽減処理（ミラおとも）。damageReduction<0の場合は受けるダメージ増加（ダスター等）
   if (unit.damageReduction && actualDamage > 0) {
     actualDamage = Math.max(0, actualDamage - unit.damageReduction)
   }
 
+  // デバッグ: ベースダメージより増加している場合に原因をログ（開発時のみ）
+  if (actualDamage > damage) {
+    const boostAll = player.damageBoostAll || 0
+    const takenBoost = unit.damageTakenBoost || 0
+    const reduction = unit.damageReduction || 0
+    const sources: string[] = []
+    if (boostAll) sources.push(`damageBoostAll:+${boostAll}`)
+    if (takenBoost) sources.push(`damageTakenBoost:+${takenBoost}`)
+    if (reduction < 0) sources.push(`damageReduction:${reduction}(脆弱化)`)
+    if (sources.length > 0 && typeof console !== 'undefined') {
+      console.debug('[damage]', { base: damage, actual: actualDamage, sources: sources.join(', ') })
+    }
+  }
+
   const newHp = Math.max(0, unit.hp - actualDamage)
+  const destroyed = newHp <= 0
   const newState = { ...state }
 
-  if (newHp <= 0) {
+  if (destroyed) {
     // 破壊
     newState.players[playerIndex] = {
       ...player,
@@ -1675,20 +1690,6 @@ function resolveDamageTarget(
   damage: number,
   context: EffectContext
 ): { state: GameState; events: GameEvent[] } {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b08703' },
-    body: JSON.stringify({
-      sessionId: 'b08703',
-      location: 'effects.ts:resolveDamageTarget',
-      message: 'Applying damage_target',
-      data: { damage, targetUnitId: context.targetUnit?.unit.id },
-      timestamp: Date.now(),
-      hypothesisId: 'D',
-    }),
-  }).catch(() => {})
-  // #endregion
   const { gameState, events, targetUnit } = context
   let newState = { ...gameState }
   if (!targetUnit) return { state: newState, events }

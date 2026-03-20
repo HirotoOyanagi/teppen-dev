@@ -1068,6 +1068,11 @@ function processInput(
 
     if (freePlay) {
       newHand = [...player.hand]
+      // freePlayでもEXポケットからプレイした場合はカードを除去する
+      if (isFromExPocket) {
+        const exIdx = newExPocket.indexOf(input.cardId)
+        if (exIdx !== -1) newExPocket.splice(exIdx, 1)
+      }
     } else {
       if (isFromExPocket) {
         newHand = [...player.hand]

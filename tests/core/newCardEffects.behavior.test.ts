@@ -229,6 +229,8 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       const unit = getUnitInLane(result.state, 'player1', 0)
 
       expect(unit?.attack).toBe((unitBeforeAction?.attack ?? 0) + 1)
+      // EXポケットから使ったカードは減る
+      expect(result.state.players[0].exPocket).toHaveLength(0)
     })
 
     it('COR_002 は最低コスト手札を捨てて焔の洗式をEXへ加える', () => {
@@ -678,6 +680,17 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(result.state.players[1].units.find((unit) => unit.id === 'enemy_a')?.hp).toBe(3)
       expect(result.state.players[1].units.find((unit) => unit.id === 'enemy_b')?.hp).toBe(3)
       expect(result.state.players[1].hp).toBe(27)
+    })
+
+    it('COR_032 はダスターの脆弱化で7HPユニットが破壊される（5+3=8ダメージ）', () => {
+      gameState.players[1].units.push(createUnit('enemy_front', 0, 7, 2))
+      const withDuster = playUnit(gameState, 'cor_019', 0)
+      const before = withDuster.state.players[1].units.find((u) => u.id === 'enemy_front')
+      expect(before?.damageReduction).toBe(-3)
+
+      const result = playActionAndResolve(withDuster.state, 'cor_032')
+
+      expect(result.state.players[1].units.find((u) => u.id === 'enemy_front')).toBeUndefined()
     })
 
     it('COR_033 は敵ユニット1体に5ダメージ', () => {

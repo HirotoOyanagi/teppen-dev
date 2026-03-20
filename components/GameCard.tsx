@@ -331,7 +331,7 @@ const GameCard: React.FC<GameCardProps> = ({
         </div>
       )}
 
-      {/* Timed Effects (e.g., COR_043) */}
+      {/* Timed Effects (e.g., COR_043 戦慄の圧迫: 受けるダメージ+N) */}
       {cardDef.type === 'unit' && unit && (unit.damageTakenBoostTimer || 0) > 0 && (
         <div
           className="absolute top-8 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60"
@@ -340,6 +340,18 @@ const GameCard: React.FC<GameCardProps> = ({
           <span className="text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">⏳</span>
           <span className="text-[10px] font-orbitron font-black text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
             {Math.ceil((unit.damageTakenBoostTimer || 0) / 1000)}
+          </span>
+        </div>
+      )}
+
+      {/* 受けるダメージ増加（ダスター等: damageReduction<0で永続） */}
+      {cardDef.type === 'unit' && unit && (unit.damageReduction ?? 0) < 0 && (
+        <div
+          className="absolute top-8 right-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-900/80"
+          title={`受ける効果ダメージ+${-unit.damageReduction!}`}
+        >
+          <span className="text-[10px] font-orbitron font-black text-red-200 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
+            +{-unit.damageReduction!}DMG
           </span>
         </div>
       )}

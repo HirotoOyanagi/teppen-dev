@@ -43,7 +43,7 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
   return (
     <div
       className={`absolute ${positionClass} z-[100]
-        w-48 p-2 rounded border-2 shadow-lg backdrop-blur-sm
+        w-56 p-2 rounded border-2 shadow-lg backdrop-blur-sm
         ${attributeColors[card.attribute] || attributeColors.black}
         animate-in fade-in duration-100`}
       onClick={onClose}
@@ -66,7 +66,7 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
 
       {/* 効果テキスト */}
       {card.description && (
-        <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">
+        <p className="text-gray-200 text-sm leading-snug max-h-32 overflow-y-auto">
           {card.description}
         </p>
       )}
@@ -203,6 +203,8 @@ export default function GameBoard(props: GameBoardProps) {
     timestamp: number
   } | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
+  const gameStateRef = useRef<GameState | null>(null)
+  const lastProcessedFrameIdRef = useRef<number>(0)
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const opponentLaneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -256,8 +258,8 @@ export default function GameBoard(props: GameBoardProps) {
     if (damageEffects.length === 0 && destroyEffects.length === 0) return
     const timer = setInterval(() => {
       const now = Date.now()
-      setDamageEffects((prev) => prev.filter((e) => now - e.timestamp < 800))
-      setDestroyEffects((prev) => prev.filter((e) => now - e.timestamp < 600))
+      setDamageEffects((prev) => prev.filter((e) => now - e.timestamp < 900))
+      setDestroyEffects((prev) => prev.filter((e) => now - e.timestamp < 800))
     }, 100)
     return () => clearInterval(timer)
   }, [damageEffects.length, destroyEffects.length])
@@ -308,8 +310,14 @@ export default function GameBoard(props: GameBoardProps) {
     )
 
     const applied = testMode ? applyTestModeSetup(initialState, cardMap) : initialState
+    gameStateRef.current = applied
     setGameState(applied)
   }, [cardMap, cardsLoading, testMode])
+
+  // gameState と ref を同期（他ハンドラからの setState 用）
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
 
   // ゲームループ（refベースで重複防止）
   const animIdRef = useRef<number | null>(null)
@@ -331,53 +339,60 @@ export default function GameBoard(props: GameBoardProps) {
 
     const gameLoop = () => {
       const now = Date.now()
+      const frameId = Math.floor(now / 16)
+      if (lastProcessedFrameIdRef.current === frameId) {
+        animIdRef.current = requestAnimationFrame(gameLoop)
+        return
+      }
+      lastProcessedFrameIdRef.current = frameId
+
       const rawDt = now - lastTimeRef.current
       lastTimeRef.current = now
       // タブ非表示時などでdtが膨らむとMP回復が一気に発生するため上限を設ける
       const MAX_DT_MS = 100
       const dt = Math.min(rawDt, MAX_DT_MS)
 
-      setGameState((prevState) => {
-        if (!prevState || prevState.phase !== 'playing') return prevState
+      // ref から直接更新（React Strict Mode の updater 二重呼び出しを回避）
+      const prevState = gameStateRef.current
+      if (!prevState || prevState.phase !== 'playing') {
+        animIdRef.current = requestAnimationFrame(gameLoop)
+        return
+      }
 
-        let aiInput: GameInput | null = null
-        const gameStarted = Date.now() >= prevState.gameStartTime
-        if (!testMode && gameStarted) {
-          const ar = prevState.activeResponse
-          const isArBuilding = ar.isActive && ar.status === 'building'
-          const isAiTurnInAr = isArBuilding && ar.currentPlayerId === 'player2'
-          const intervalMs = isAiTurnInAr ? AI_AR_ACTION_INTERVAL_MS : AI_NORMAL_ACTION_INTERVAL_MS
-          const elapsed = now - lastAiActionTimeRef.current
-          if (elapsed >= intervalMs) {
-            lastAiActionTimeRef.current = now
-            aiInput = decideOpponentAi(prevState, cardMapRef.current)
-          }
+      let aiInput: GameInput | null = null
+      const gameStarted = Date.now() >= prevState.gameStartTime
+      if (!testMode && gameStarted) {
+        const ar = prevState.activeResponse
+        const isArBuilding = ar.isActive && ar.status === 'building'
+        const isAiTurnInAr = isArBuilding && ar.currentPlayerId === 'player2'
+        const intervalMs = isAiTurnInAr ? AI_AR_ACTION_INTERVAL_MS : AI_NORMAL_ACTION_INTERVAL_MS
+        const elapsed = now - lastAiActionTimeRef.current
+        if (elapsed >= intervalMs) {
+          lastAiActionTimeRef.current = now
+          aiInput = decideOpponentAi(prevState, cardMapRef.current)
         }
+      }
 
-        const result = updateGameState(
-          prevState,
-          aiInput,
-          dt,
-          cardMapRef.current
-        )
+      const result = updateGameState(
+        prevState,
+        aiInput,
+        dt,
+        cardMapRef.current
+      )
 
-        // イベントをRefに蓄積（setState内から直接他のsetStateは呼べないため）
-        if (result.events.length > 0) {
-          pendingEventsRef.current.push(...result.events)
-        }
+      if (result.events.length > 0) {
+        pendingEventsRef.current.push(...result.events)
+      }
 
-        const s = result.state
+      let s = result.state
+      if (testMode) {
         const p = s.players[0]
-        if (testMode) {
-          if (p.mp < p.maxMp) {
-            return {
-              ...s,
-              players: [{ ...p, mp: p.maxMp }, s.players[1]],
-            }
-          }
+        if (p.mp < p.maxMp) {
+          s = { ...s, players: [{ ...p, mp: p.maxMp }, s.players[1]] }
         }
-        return s
-      })
+      }
+      gameStateRef.current = s
+      setGameState(s)
 
       // Refに溜まったイベントを処理
       if (pendingEventsRef.current.length > 0) {
@@ -1022,45 +1037,209 @@ export default function GameBoard(props: GameBoardProps) {
       )}
 
       {gameState.activeResponse.isActive && (
-        <div className="relative z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/92 via-slate-950/95 to-black/92 border-b border-cyan-500/45 flex flex-wrap items-start gap-3 ls:gap-2 justify-between">
+        <div className="absolute inset-x-0 top-14 z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/95 via-slate-950/98 to-black/95 border-b border-cyan-500/45 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-lg">
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
             cardMap={cardMap}
-            className="flex-1 min-w-0 max-w-[min(100%,42rem)]"
+            className="min-w-0"
           />
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
               {gameState.activeResponse.status === 'building'
                 ? `アクティブレスポンス ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`
                 : `効果解決まで ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`}
             </div>
             {gameState.activeResponse.currentResolvingItem && (
-              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-right max-w-[14rem] leading-snug">
+              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
                 発動中:{' '}
                 {resolveCardDefinition(cardMap, gameState.activeResponse.currentResolvingItem.cardId)?.name ??
                   gameState.activeResponse.currentResolvingItem.cardId}
               </div>
             )}
-            {gameState.activeResponse.status === 'building' &&
-              gameState.activeResponse.currentPlayerId === 'player1' && (
-                <button
-                  type="button"
-                  onClick={() => handleEndActiveResponse('player1')}
-                  className="px-3 py-1 ls:px-2 ls:py-0.5 bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 transition-colors rounded"
-                >
-                  応酬を終了
-                </button>
-              )}
           </div>
+          <div className="min-w-0" />
         </div>
       )}
+
+      {/* アクティブレスポンス: 左下の解決ボタン */}
+      {gameState.activeResponse.isActive &&
+        gameState.activeResponse.status === 'building' &&
+        gameState.activeResponse.currentPlayerId === 'player1' && (
+          <button
+            type="button"
+            onClick={() => handleEndActiveResponse('player1')}
+            className="absolute bottom-28 ls:bottom-20 left-4 z-30 px-4 py-2 bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors rounded shadow-lg border-2 border-amber-400/80"
+          >
+            解決
+          </button>
+        )}
 
       {gameState.activeResponse.isActive && gameState.activeResponse.status === 'resolving' && (
         <ActiveResponseResolutionPreview
           stackItem={gameState.activeResponse.currentResolvingItem}
           cardMap={cardMap}
         />
+      )}
+
+      {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
+      {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
+        <div className="absolute bottom-20 ls:bottom-14 left-0 ls:left-0 z-25 flex gap-2 ls:gap-1 pl-1 ls:pl-0.5 pb-1">
+          {player.hero.heroArt && (
+            <div className="group relative flex items-center gap-1">
+              <button
+                onMouseDown={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost) {
+                    onAbilityDragStart('hero_art', e.clientX, e.clientY)
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
+                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
+                  }
+                }}
+                disabled={player.ap < player.hero.heroArt.cost}
+                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
+                    : 'border-gray-600 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-amber-700" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-xs font-bold px-1.5 rounded-tl">
+                  {player.hero.heroArt.cost}AP
+                </span>
+              </button>
+              <div
+                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                  player.ap >= player.hero.heroArt.cost
+                    ? 'border-yellow-400 bg-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.6)]'
+                    : 'border-white/40 bg-black/60'
+                }`}
+              >
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-yellow-300 leading-none">
+                  {player.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-yellow-400/90 leading-none">
+                  {player.hero.heroArt.cost}
+                </span>
+              </div>
+              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
+                <div className="text-gray-300">{player.hero.heroArt.description}</div>
+                {player.hero.heroArt.requiresTarget && (
+                  <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
+                )}
+              </div>
+            </div>
+          )}
+          {player.hero.companion && (
+            <div className="group relative flex items-center gap-1">
+              <button
+                onMouseDown={(e) => {
+                  if (player.ap >= player.hero.companion!.cost) {
+                    onAbilityDragStart('companion', e.clientX, e.clientY)
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
+                    onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
+                  }
+                }}
+                disabled={player.ap < player.hero.companion.cost}
+                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                  player.ap >= player.hero.companion.cost
+                    ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
+                    : 'border-gray-600 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-700" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-xs font-bold px-1.5 rounded-tl">
+                  {player.hero.companion.cost}AP
+                </span>
+              </button>
+              <div
+                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                  player.ap >= player.hero.companion.cost
+                    ? 'border-cyan-400 bg-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                    : 'border-white/40 bg-black/60'
+                }`}
+              >
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-cyan-300 leading-none">
+                  {player.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-400/90 leading-none">
+                  {player.hero.companion.cost}
+                </span>
+              </div>
+              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+                <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
+                <div className="text-gray-300">{player.hero.companion.description}</div>
+                {player.hero.companion.requiresTarget && (
+                  <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 相手の必殺技・おとも（右上・表示のみ） */}
+      {gameState.phase === 'playing' && (opponent.hero.heroArt || opponent.hero.companion) && (
+        <div className="absolute top-14 right-0 ls:right-0 z-25 flex gap-2 ls:gap-1 pr-1 ls:pr-0.5 pt-1">
+          {opponent.hero.heroArt && (
+            <div className="group relative flex items-center gap-1">
+              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-yellow-500/60 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/80 to-amber-700/80" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
+                  {opponent.hero.heroArt.cost}AP
+                </span>
+              </div>
+              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-yellow-300/80 leading-none">
+                  {opponent.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-yellow-400/70 leading-none">
+                  {opponent.hero.heroArt.cost}
+                </span>
+              </div>
+              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+                <div className="font-bold text-yellow-400 mb-1">{opponent.hero.heroArt.name}</div>
+                <div className="text-gray-300">{opponent.hero.heroArt.description}</div>
+              </div>
+            </div>
+          )}
+          {opponent.hero.companion && (
+            <div className="group relative flex items-center gap-1">
+              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-cyan-500/60 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/80 to-blue-700/80" />
+                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
+                  {opponent.hero.companion.cost}AP
+                </span>
+              </div>
+              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+                <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
+                <span className="font-orbitron font-bold text-xs ls:text-[10px] text-cyan-300/80 leading-none">
+                  {opponent.ap}
+                </span>
+                <span className="text-[5px] text-white/50">/</span>
+                <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-400/70 leading-none">
+                  {opponent.hero.companion.cost}
+                </span>
+              </div>
+              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+                <div className="font-bold text-cyan-400 mb-1">{opponent.hero.companion.name}</div>
+                <div className="text-gray-300">{opponent.hero.companion.description}</div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Main Area - ヒーローに3Dモデルがある場合、左パネルを広げて配置 */}
@@ -1081,71 +1260,6 @@ export default function GameBoard(props: GameBoardProps) {
           >
             <HeroPortrait player={player} side="left" />
           </div>
-          {/* 必殺技・おともボタン（ドラッグ or タップで発動、ホバーで効果表示） */}
-          {player.hero.heroArt && (
-            <div className="mt-2 ls:mt-1 flex flex-col gap-1 px-2 ls:px-1">
-              <div className="group relative">
-                <button
-                  onMouseDown={(e) => {
-                    if (player.ap >= player.hero.heroArt!.cost) {
-                      onAbilityDragStart('hero_art', e.clientX, e.clientY)
-                    }
-                  }}
-                  onTouchStart={(e) => {
-                    if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
-                      onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
-                    }
-                  }}
-                  disabled={player.ap < player.hero.heroArt.cost}
-                  className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                    player.ap >= player.hero.heroArt.cost
-                      ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse cursor-grab'
-                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {player.hero.heroArt.name} ({player.hero.heroArt.cost}AP)
-                </button>
-                <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
-                  <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
-                  <div className="text-gray-300">{player.hero.heroArt.description}</div>
-                  {player.hero.heroArt.requiresTarget && (
-                    <div className="text-yellow-500/70 mt-1">* 対象選択が必要</div>
-                  )}
-                </div>
-              </div>
-              {player.hero.companion && (
-                <div className="group relative">
-                  <button
-                    onMouseDown={(e) => {
-                      if (player.ap >= player.hero.companion!.cost) {
-                        onAbilityDragStart('companion', e.clientX, e.clientY)
-                      }
-                    }}
-                    onTouchStart={(e) => {
-                      if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
-                        onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
-                      }
-                    }}
-                    disabled={player.ap < player.hero.companion.cost}
-                    className={`w-full px-2 py-1 text-[10px] font-bold rounded transition-all truncate ${
-                      player.ap >= player.hero.companion.cost
-                        ? 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)] cursor-grab'
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {player.hero.companion.name} ({player.hero.companion.cost}AP)
-                  </button>
-                  <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
-                    <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
-                    <div className="text-gray-300">{player.hero.companion.description}</div>
-                    {player.hero.companion.requiresTarget && (
-                      <div className="text-cyan-500/70 mt-1">* 対象選択が必要</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           {/* ターゲット選択モード表示 */}
           {abilityTargetMode && (
             <div className="mt-1 px-2">
@@ -1368,6 +1482,8 @@ export default function GameBoard(props: GameBoardProps) {
           <div className="flex-1 min-h-0 overflow-hidden">
             <HeroPortrait player={opponent} side="right" />
           </div>
+          {/* 左パネルの墓地・ターゲット選択と高さを揃えてHP位置を一致させる */}
+          <div className="mt-2 h-14 shrink-0 ls:h-12" aria-hidden="true" />
         </div>
       </div>
 
@@ -1568,19 +1684,22 @@ export default function GameBoard(props: GameBoardProps) {
           return null
         }
         const elapsed = Date.now() - effect.timestamp
-        const progress = Math.min(1, elapsed / 800)
+        const progress = Math.min(1, elapsed / 900)
+        const scaleIn = progress < 0.2 ? 0.5 + (progress / 0.2) * 2 : Math.min(1.2, 2.5 - progress * 1.5)
+        const bounceY = progress < 0.15 ? -20 * Math.sin((progress / 0.15) * Math.PI) : 0
         return (
           <div
             key={effect.id}
             className="fixed z-[300] pointer-events-none font-orbitron font-black"
             style={{
               left: rect.left + rect.width / 2,
-              top: rect.top + rect.height * 0.3 - progress * 40,
-              transform: 'translateX(-50%)',
-              opacity: 1 - progress,
-              fontSize: '28px',
-              color: '#ff4444',
-              textShadow: '0 0 8px rgba(255,0,0,0.8), 0 2px 4px rgba(0,0,0,1)',
+              top: rect.top + rect.height * 0.25 - progress * 50 + bounceY,
+              transform: `translateX(-50%) scale(${scaleIn})`,
+              opacity: 1 - progress * 1.2,
+              fontSize: '36px',
+              color: '#ff2222',
+              textShadow: '0 0 12px rgba(255,0,0,1), 0 0 24px rgba(255,0,0,0.8), 0 2px 4px rgba(0,0,0,1)',
+              filter: 'drop-shadow(0 0 8px rgba(255,100,100,0.9))',
             }}
           >
             -{effect.damage}
@@ -1617,29 +1736,50 @@ export default function GameBoard(props: GameBoardProps) {
           return null
         }
         const elapsed = Date.now() - effect.timestamp
-        const progress = Math.min(1, elapsed / 600)
+        const progress = Math.min(1, elapsed / 800)
+        const explosionScale = 0.3 + progress * 2.2
+        const ringScale = 0.5 + progress * 2
         return (
           <div
             key={effect.id}
-            className="fixed z-[300] pointer-events-none"
+            className="fixed z-[300] pointer-events-none w-32 h-32"
             style={{
-              left: rect.left + rect.width / 2,
-              top: rect.top + rect.height / 2,
-              transform: `translate(-50%, -50%) scale(${0.5 + progress * 1.5})`,
-              opacity: 1 - progress,
+              left: rect.left + rect.width / 2 - 64,
+              top: rect.top + rect.height / 2 - 64,
             }}
           >
             <div
-              className="w-24 h-24 rounded-full"
+              className="absolute rounded-full"
               style={{
-                background: `radial-gradient(circle, rgba(255,100,0,${0.8 - progress * 0.8}) 0%, rgba(255,0,0,${0.4 - progress * 0.4}) 50%, transparent 70%)`,
-                boxShadow: `0 0 ${30 + progress * 20}px rgba(255,50,0,${0.6 - progress * 0.6})`,
+                width: 80,
+                height: 80,
+                left: 64,
+                top: 64,
+                transform: `translate(-50%, -50%) scale(${explosionScale})`,
+                background: `radial-gradient(circle, rgba(255,150,0,${0.9 - progress * 0.9}) 0%, rgba(255,50,0,${0.6 - progress * 0.6}) 40%, rgba(255,0,0,${0.3 - progress * 0.3}) 70%, transparent 100%)`,
+                boxShadow: `0 0 ${40 + progress * 40}px rgba(255,80,0,${0.8 - progress * 0.8}), 0 0 ${80 + progress * 60}px rgba(255,50,0,${0.5 - progress * 0.5})`,
               }}
             />
-            <div className="absolute inset-0 flex items-center justify-center font-orbitron font-black text-yellow-300 text-sm"
+            <div
+              className="absolute rounded-full border-2 border-orange-400/80"
               style={{
-                textShadow: '0 0 10px rgba(255,200,0,0.8), 0 0 20px rgba(255,100,0,0.5)',
-                opacity: 1 - progress * 1.5,
+                width: 60,
+                height: 60,
+                left: 64,
+                top: 64,
+                transform: `translate(-50%, -50%) scale(${ringScale})`,
+                opacity: 0.8 - progress,
+                boxShadow: '0 0 20px rgba(255,150,0,0.6)',
+              }}
+            />
+            <div
+              className="absolute inset-0 flex items-center justify-center font-orbitron font-black text-yellow-300"
+              style={{
+                fontSize: '14px',
+                letterSpacing: '0.15em',
+                textShadow: '0 0 12px rgba(255,220,0,1), 0 0 24px rgba(255,150,0,0.8), 0 2px 4px rgba(0,0,0,1)',
+                opacity: 1 - progress * 1.2,
+                transform: `scale(${0.8 + (1 - progress) * 0.6})`,
               }}
             >
               DESTROY
