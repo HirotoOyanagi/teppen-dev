@@ -44,6 +44,53 @@ export class GameServer {
       case 'game_input':
         this.handleGameInput(ws, message.input)
         break
+      case 'game_tick':
+        this.handleGameTick(ws)
+        break
+    }
+  }
+
+  /**
+   * サーバ常駐(setInterval)が期待できない環境(Vercel等)でも
+   * 時間/ゲージが進むよう、クライアントから定期的に送られる進行要求。
+   */
+  private handleGameTick(ws: WebSocket): void {
+    const roomId = this.wsToRoom.get(ws)
+    if (!roomId) return
+
+    const room = this.rooms.get(roomId)
+    if (!room) return
+
+    // ended/mulliganでも lastUpdateTime を更新して dt の暴発を防ぐ
+    const now = Date.now()
+    let dt = now - room.lastUpdateTime
+    if (!Number.isFinite(dt) || dt < 0) dt = 0
+
+    const LONG_PAUSE_THRESHOLD_MS = 5000
+    if (dt > LONG_PAUSE_THRESHOLD_MS) {
+      dt = 0
+    } else {
+      const MAX_DT_MS = 1000
+      dt = Math.min(dt, MAX_DT_MS)
+    }
+    room.lastUpdateTime = now
+
+    // stopped: mulligan/activeResponseなど core側の phase gating に任せる
+    const result = updateGameState(room.gameState, null, dt, this.cardMap)
+    const stateChanged =
+      result.state.currentTick !== room.gameState.currentTick ||
+      result.events.length > 0 ||
+      // timeRemainingMs だけが変わるケースもあり得るので送信判定に含める
+      result.state.timeRemainingMs !== room.gameState.timeRemainingMs
+
+    room.gameState = result.state
+
+    if (result.events.length > 0) {
+      this.broadcastToRoom(room, { type: 'game_event', events: result.events })
+    }
+
+    if (stateChanged) {
+      this.broadcastGameState(room)
     }
   }
 

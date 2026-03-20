@@ -159,6 +159,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     return () => clearInterval(id)
   }, [gameState?.phase, gameState?.gameStartTime])
 
+  // Vercelなどでサーバ常駐が期待できない場合でも進行するための定期tick送信。
+  // サーバ側が(dt)で時間を進めるため、クライアントが一定間隔で `game_tick` を投げる。
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return
+    if (!gameState || gameState.phase === 'ended') return
+    const HEARTBEAT_INTERVAL_MS = 1000
+    // 最初の1回は即送って dt の暴発/遅延を減らす
+    sendMessage({ type: 'game_tick' })
+    const id = setInterval(() => sendMessage({ type: 'game_tick' }), HEARTBEAT_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [connectionStatus, gameState?.phase, sendMessage])
+
   // 接続 & マッチメイキング開始
   useEffect(() => {
     if (cardsLoading) return
