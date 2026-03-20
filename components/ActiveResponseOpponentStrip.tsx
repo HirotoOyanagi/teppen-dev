@@ -35,6 +35,7 @@ function OpponentActionCardFace({
 type ActiveResponseOpponentStripProps = {
   stack: ActiveResponseStack[]
   opponentPlayerId: string
+  opponentBlueMp?: number
   cardMap: Map<string, CardDefinition>
   className?: string
 }
@@ -47,6 +48,7 @@ const EMPTY_STACK_MESSAGE = '相手はまだアクションを積んでいませ
 export default function ActiveResponseOpponentStrip({
   stack,
   opponentPlayerId,
+  opponentBlueMp = 0,
   cardMap,
   className = '',
 }: ActiveResponseOpponentStripProps) {
@@ -109,6 +111,10 @@ export default function ActiveResponseOpponentStrip({
           aria-label="相手"
         >
           相手
+        </span>
+        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ls:text-[8px] font-bold bg-blue-600/80 border border-blue-400/50 text-blue-100">
+          <span>AMP</span>
+          <span className="tabular-nums">{opponentBlueMp}</span>
         </span>
         <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_cyan]" aria-hidden />
         <span>アクティブレスポンス（上：プレイ順 出N／解決は後から先 解M）</span>

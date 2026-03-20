@@ -150,6 +150,59 @@ function getOpponentHero(playerHeroId: string): Hero {
   return candidates[Math.floor(Math.random() * candidates.length)] || HEROES[0]
 }
 
+/** 相手AI用：アクション多めのデッキを生成（30枚） */
+function createActionHeavyOpponentDeck(
+  cardMap: Map<string, CardDefinition>,
+  heroAttribute: string
+): string[] {
+  const actions: CardDefinition[] = []
+  const units: CardDefinition[] = []
+  for (const card of cardMap.values()) {
+    if (card.attribute !== heroAttribute) continue
+    const typeMap: Record<string, (c: CardDefinition) => void> = {
+      action: (c) => actions.push(c),
+      unit: (c) => units.push(c),
+    }
+    const push = typeMap[card.type]
+    if (push) push(card)
+  }
+
+  const pickWithLimit = (
+    list: CardDefinition[],
+    count: number,
+    maxPerCard: Record<string, number>
+  ): string[] => {
+    const result: string[] = []
+    const used = new Map<string, number>()
+    for (const card of list) {
+      if (result.length >= count) break
+      const limit = maxPerCard[card.rarity ?? 'normal'] ?? 3
+      const n = used.get(card.id) ?? 0
+      if (n < limit) {
+        result.push(card.id)
+        used.set(card.id, n + 1)
+      }
+    }
+    return result
+  }
+
+  const maxPerRarity: Record<string, number> = { legend: 1, normal: 3 }
+  const byCost = (a: CardDefinition, b: CardDefinition) => a.cost - b.cost
+  const actionIds = pickWithLimit([...actions].sort(byCost), 18, maxPerRarity)
+  const unitIds = pickWithLimit([...units].sort(byCost), 12, maxPerRarity)
+  let deck = [...actionIds, ...unitIds]
+  if (deck.length < 30) {
+    const pool = [...actions, ...units].sort((a, b) => a.cost - b.cost)
+    for (const card of pool) {
+      if (deck.length >= 30) break
+      const limit = maxPerRarity[card.rarity ?? 'normal'] ?? 3
+      const count = deck.filter((id) => id === card.id).length
+      if (count < limit) deck.push(card.id)
+    }
+  }
+  return deck.slice(0, 30)
+}
+
 interface GameBoardProps {
   onMulliganComplete?: () => void
   /** テスト環境: 横に全カードパネルを出し、任意のカードをドラッグでプレイ可能 */
@@ -294,16 +347,16 @@ export default function GameBoard(props: GameBoardProps) {
 
     // プレイヤーのヒーローを取得
     const playerHero = HEROES.find((h) => h.id === savedDeck.heroId) || HEROES[0]
+    const opponentHero = getOpponentHero(playerHero.id)
 
-    // 相手のデッキはランダムに生成（実際の実装では対戦相手のデッキを使用）
-    const allCards = Array.from(cardMap.values())
-    const opponentDeck = allCards.slice(10, 40).map((c) => c.id)
+    // 相手のデッキはアクション多めに生成（AIが積極的にアクションを返すため）
+    const opponentDeck = createActionHeavyOpponentDeck(cardMap, opponentHero.attribute)
 
     const initialState = createInitialGameState(
       'player1',
       'player2',
       playerHero,
-      getOpponentHero(playerHero.id),
+      opponentHero,
       savedDeck.cardIds,
       opponentDeck,
       cardMap
@@ -1041,6 +1094,7 @@ export default function GameBoard(props: GameBoardProps) {
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
+            opponentBlueMp={opponent.blueMp}
             cardMap={cardMap}
             className="min-w-0"
           />
@@ -1560,7 +1614,7 @@ export default function GameBoard(props: GameBoardProps) {
             })}
           </div>
         </div>
-        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} />
+        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} showAmpSlot={gameState.activeResponse.isActive} />
       </div>
 
       {/* マリガンオーバーレイ */}

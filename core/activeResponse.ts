@@ -10,8 +10,10 @@ import { resolveCardDefinition } from './cardId'
 
 export const ACTIVE_RESPONSE_CONFIG = {
   TIMER_MS: 10000,
+  /** AR開始時のみ、お互いに付与 */
   AMP_GAIN_ON_START: 2,
-  AMP_GAIN_PER_ACTION: 2,
+  /** AR中はAMPが最大2まで */
+  MAX_AMP_DURING_AR: 2,
   RESOLVE_STEP_DELAY_MS: 1000,
 } as const
 
@@ -315,9 +317,10 @@ export function startActiveResponse(
   }
   const opponentIndex = 1 - initiatorIndex
 
+  // AR開始時のみ、お互いにAMP付与
   const players = [...state.players] as [PlayerState, PlayerState]
-  players[0] = grantAmp(players[0], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_ON_START)
-  players[1] = grantAmp(players[1], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_ON_START)
+  players[initiatorIndex] = grantAmp(players[initiatorIndex], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_ON_START)
+  players[opponentIndex] = grantAmp(players[opponentIndex], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_ON_START)
 
   const activeResponse: ActiveResponseState = {
     isActive: true,
@@ -352,8 +355,7 @@ export function appendActiveResponseAction(
   const opponentIndex = 1 - actingPlayerIndex
   const players = [...state.players] as [PlayerState, PlayerState]
 
-  players[0] = grantAmp(players[0], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_PER_ACTION)
-  players[1] = grantAmp(players[1], ACTIVE_RESPONSE_CONFIG.AMP_GAIN_PER_ACTION)
+  // AMP付与はAR開始時のみ。追加アクションでは付与しない
 
   return {
     ...state,
@@ -431,9 +433,13 @@ export function clearActiveResponse(state: GameState): GameState {
 }
 
 function grantAmp(player: PlayerState, amount: number): PlayerState {
+  const capped = Math.min(
+    ACTIVE_RESPONSE_CONFIG.MAX_AMP_DURING_AR,
+    player.blueMp + amount
+  )
   return {
     ...player,
-    blueMp: Math.min(player.maxMp, player.blueMp + amount),
+    blueMp: capped,
   }
 }
 

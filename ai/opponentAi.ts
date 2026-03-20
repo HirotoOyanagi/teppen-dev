@@ -15,10 +15,10 @@ import {
 const AI_PLAYER_ID = 'player2'
 
 /** 通常プレイ時のAI行動間隔（ミリ秒） */
-export const AI_NORMAL_ACTION_INTERVAL_MS = 1400
+export const AI_NORMAL_ACTION_INTERVAL_MS = 1200
 
-/** AR中のAI応答間隔（ミリ秒） */
-export const AI_AR_ACTION_INTERVAL_MS = 600
+/** AR中のAI応答間隔（ミリ秒）※積極的にアクションを返すため短め */
+export const AI_AR_ACTION_INTERVAL_MS = 400
 
 /**
  * ゲーム状態からAIの次の行動を決定する（pure function）
@@ -49,18 +49,18 @@ export function decideOpponentAi(
     }
   }
 
-  // 通常プレイ → ユニット / アクション / 必殺技 / おとも
+  // 通常プレイ → アクションを優先して積極的に返す、次にユニット / 必殺技 / おとも
   const heroArtInput = tryHeroArt(state, player, opponent, cardMap)
   if (heroArtInput) return heroArtInput
 
   const companionInput = tryCompanion(state, player, opponent, cardMap)
   if (companionInput) return companionInput
 
-  const unitInput = tryPlayUnit(state, player, opponent, cardMap)
-  if (unitInput) return unitInput
-
   const actionInput = tryPlayAction(state, player, opponent, cardMap)
   if (actionInput) return actionInput
+
+  const unitInput = tryPlayUnit(state, player, opponent, cardMap)
+  if (unitInput) return unitInput
 
   return null
 }
@@ -71,13 +71,16 @@ function tryPlayActionInAr(
   opponent: { units: { id: string }[] },
   cardMap: Map<string, CardDefinition>
 ): GameInput | null {
-  const sources: { cardId: string; fromExPocket: boolean }[] = []
+  const sources: { cardId: string; fromExPocket: boolean; cost: number }[] = []
   for (const cardId of player.hand) {
-    sources.push({ cardId, fromExPocket: false })
+    const def = resolveCardDefinition(cardMap, cardId)
+    if (def?.type === 'action') sources.push({ cardId, fromExPocket: false, cost: def.cost })
   }
   for (const cardId of player.exPocket) {
-    sources.push({ cardId, fromExPocket: true })
+    const def = resolveCardDefinition(cardMap, cardId)
+    if (def?.type === 'action') sources.push({ cardId, fromExPocket: true, cost: def.cost })
   }
+  sources.sort((a, b) => a.cost - b.cost)
 
   for (const { cardId, fromExPocket } of sources) {
     const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -94,6 +97,7 @@ function tryPlayActionInAr(
         type: 'active_response_action',
         playerId: AI_PLAYER_ID,
         cardId,
+        fromExPocket: fromExPocket || undefined,
         timestamp: Date.now(),
       }
     }
@@ -110,6 +114,7 @@ function tryPlayActionInAr(
       playerId: AI_PLAYER_ID,
       cardId,
       target,
+      fromExPocket: fromExPocket || undefined,
       timestamp: Date.now(),
     }
   }
@@ -228,13 +233,16 @@ function tryPlayAction(
 ): GameInput | null {
   if (state.activeResponse.isActive) return null
 
-  const sources: { cardId: string; fromExPocket: boolean }[] = []
+  const sources: { cardId: string; fromExPocket: boolean; cost: number }[] = []
   for (const cardId of player.hand) {
-    sources.push({ cardId, fromExPocket: false })
+    const def = resolveCardDefinition(cardMap, cardId)
+    if (def?.type === 'action') sources.push({ cardId, fromExPocket: false, cost: def.cost })
   }
   for (const cardId of player.exPocket) {
-    sources.push({ cardId, fromExPocket: true })
+    const def = resolveCardDefinition(cardMap, cardId)
+    if (def?.type === 'action') sources.push({ cardId, fromExPocket: true, cost: def.cost })
   }
+  sources.sort((a, b) => a.cost - b.cost)
 
   for (const { cardId, fromExPocket } of sources) {
     const cardDef = resolveCardDefinition(cardMap, cardId)

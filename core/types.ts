@@ -264,6 +264,7 @@ export type GameInput =
       playerId: string
       cardId: string
       target?: string
+      fromExPocket?: boolean
       timestamp: number
     }
   | {

@@ -664,6 +664,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
+            opponentBlueMp={opponent.blueMp}
             cardMap={cardMap}
             className="min-w-0"
           />
@@ -1113,7 +1114,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           相手の手札: {opponent.hand.length}枚
         </div>
 
-        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} />
+        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} showAmpSlot={gameState.activeResponse.isActive} />
       </div>
 
       {/* マリガンオーバーレイ */}

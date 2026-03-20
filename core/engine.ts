@@ -1017,6 +1017,7 @@ function processInput(
         playerId: input.playerId,
         cardId: input.cardId,
         target: input.target,
+        fromExPocket: input.fromExPocket,
         timestamp: input.timestamp,
       },
       cardDefinitions

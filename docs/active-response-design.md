@@ -92,12 +92,12 @@ interface ActiveResponseState {
 3. `currentPlayerId = 相手の playerId`
 4. `stack = [{ playerId, cardId, timestamp, target }]`
 5. `timer = ACTIVE_RESPONSE_TIMER`
-6. プレイヤーに AMP 付与（ACTIVE_RESPONSE_AMP_GAIN）
+6. 相手のみ AMP 付与（アクションを打ったプレイヤーには付与しない）
 
 ### AR 中
 
 1. `currentPlayerId` のプレイヤーのみアクション可能
-2. アクションプレイ時: AMP を先に消費、残りを通常 MP から消費
+2. アクションプレイ時: AMP を先に消費、残りを通常 MP から消費。**相手のみ** AMP 付与（打った本人には付与しない）
 3. パス時: `passedPlayers` に追加、権限を相手に移す
 4. タイマーは毎 tick で減算（AR 中はゲーム時間は停止）
 
