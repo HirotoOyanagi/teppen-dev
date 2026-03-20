@@ -1058,3 +1058,9 @@
 {"sessionId":"b08703","location":"engine.ts:end_active_response manual","message":"processInput end_active_response (manual)","data":{"stackLength":1},"timestamp":1773976338224,"hypothesisId":"E"}
 {"sessionId":"b08703","location":"engine.ts:resolveActionEffect token","message":"Invoking effect by function name","data":{"cardId":"cor_043","funcName":"damage_target","funcValue":2},"timestamp":1773976338224,"hypothesisId":"C"}
 {"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"enemy_target"},"timestamp":1773976338224,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"unit_1773978745906_0.5968961144292947"},"timestamp":1773978754525,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"unit_1773978745906_0.5968961144292947"},"timestamp":1773978754525,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"unit_1773978921996_0.10361563750183211"},"timestamp":1773978931526,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"unit_1773978949509_0.31890792229547216"},"timestamp":1773978958166,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":5,"targetUnitId":"unit_1773978961266_0.6685423486680404"},"timestamp":1773978972206,"hypothesisId":"D"}
+{"sessionId":"b08703","location":"effects.ts:resolveDamageTarget","message":"Applying damage_target","data":{"damage":2,"targetUnitId":"unit_1773979519255_0.11644054279330862"},"timestamp":1773979530658,"hypothesisId":"D"}

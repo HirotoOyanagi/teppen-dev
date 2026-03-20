@@ -85,7 +85,7 @@ export default function MatchmakingScreen() {
             className="px-12 py-6 ls:px-6 ls:py-3 bg-gradient-to-r from-gray-700 to-gray-600 text-white font-bold text-xl ls:text-base hover:from-gray-600 hover:to-gray-500 transition-all rounded-lg"
           >
             オフライン対戦
-            <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">CPUと対戦</span>
+            <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">AIと対戦</span>
           </button>
 
           <button

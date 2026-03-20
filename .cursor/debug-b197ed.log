@@ -1,0 +1,10 @@
+{"sessionId":"b197ed","location":"battle.tsx:mode","message":"Battle mode","data":{"isTest":false},"timestamp":1773979000957,"hypothesisId":"H1"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979000975,"hypothesisId":"H2"}
+{"sessionId":"b197ed","location":"battle.tsx:mode","message":"Battle mode","data":{"isTest":false},"timestamp":1773979010462,"hypothesisId":"H1"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979010475,"hypothesisId":"H2"}
+{"sessionId":"b197ed","location":"battle.tsx:mode","message":"Battle mode","data":{"isTest":false},"timestamp":1773979049974,"hypothesisId":"H1"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979049993,"hypothesisId":"H2"}
+{"sessionId":"b197ed","location":"battle.tsx:mode","message":"Battle mode","data":{"isTest":false},"timestamp":1773979083574,"hypothesisId":"H1"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979083588,"hypothesisId":"H2"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979456269,"hypothesisId":"H2"}
+{"sessionId":"b197ed","location":"GameBoard.tsx:init","message":"Initial state","data":{"testMode":false,"playerMp":4,"playerMaxMp":10},"timestamp":1773979462940,"hypothesisId":"H2"}

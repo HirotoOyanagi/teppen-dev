@@ -20,6 +20,11 @@ import ManaBar from './ManaBar'
 import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
 import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
 import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
+import {
+  decideOpponentAi,
+  AI_NORMAL_ACTION_INTERVAL_MS,
+  AI_AR_ACTION_INTERVAL_MS,
+} from '@/ai/opponentAi'
 
 // カード詳細ツールチップ（HPの上に表示）
 function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
@@ -192,13 +197,18 @@ export default function GameBoard(props: GameBoardProps) {
   const [destroyEffects, setDestroyEffects] = useState<
     { id: string; unitId: string; playerId?: string; lane?: number; timestamp: number }[]
   >([])
+  /** 相手がアクションカードを使用したときに表示するカード効果（相手側の説明UI） */
+  const [opponentPlayedActionCard, setOpponentPlayedActionCard] = useState<{
+    card: CardDefinition
+    timestamp: number
+  } | null>(null)
   const lastTimeRef = useRef<number>(Date.now())
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const opponentLaneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
-  // イベント処理: ダメージ数字 / 破壊エフェクトを追加
+  // イベント処理: ダメージ数字 / 破壊エフェクト / 相手アクションカード説明を追加
   const processEvents = useCallback((events: import('@/core/types').GameEvent[]) => {
     const now = Date.now()
     const newDamage: typeof damageEffects = []
@@ -224,6 +234,13 @@ export default function GameBoard(props: GameBoardProps) {
           timestamp: now,
         })
       }
+      if (ev.type === 'card_played' && ev.playerId === 'player2') {
+        const cardDef = resolveCardDefinition(cardMap, ev.cardId)
+        if (cardDef?.type === 'action') {
+          setOpponentPlayedActionCard({ card: cardDef, timestamp: now })
+          setDetailCard((prev) => (prev?.side === 'right' ? null : prev))
+        }
+      }
     }
 
     if (newDamage.length > 0) {
@@ -232,7 +249,7 @@ export default function GameBoard(props: GameBoardProps) {
     if (newDestroy.length > 0) {
       setDestroyEffects((prev) => [...prev, ...newDestroy])
     }
-  }, [])
+  }, [cardMap])
 
   // エフェクトの自動クリーンアップ（800ms後に消す）
   useEffect(() => {
@@ -244,6 +261,17 @@ export default function GameBoard(props: GameBoardProps) {
     }, 100)
     return () => clearInterval(timer)
   }, [damageEffects.length, destroyEffects.length])
+
+  // 相手アクションカード説明の自動非表示（3秒後）
+  const OPPONENT_ACTION_DISPLAY_MS = 3000
+  useEffect(() => {
+    if (!opponentPlayedActionCard) return
+    const timer = setTimeout(
+      () => setOpponentPlayedActionCard(null),
+      OPPONENT_ACTION_DISPLAY_MS
+    )
+    return () => clearTimeout(timer)
+  }, [opponentPlayedActionCard])
 
   // ゲーム初期化
   useEffect(() => {
@@ -279,8 +307,9 @@ export default function GameBoard(props: GameBoardProps) {
       cardMap
     )
 
-    setGameState(applyTestModeSetup(initialState, cardMap))
-  }, [cardMap, cardsLoading])
+    const applied = testMode ? applyTestModeSetup(initialState, cardMap) : initialState
+    setGameState(applied)
+  }, [cardMap, cardsLoading, testMode])
 
   // ゲームループ（refベースで重複防止）
   const animIdRef = useRef<number | null>(null)
@@ -292,6 +321,7 @@ export default function GameBoard(props: GameBoardProps) {
   // React Strict Mode で updater が2回呼ばれても、AR終了入力は1回だけエンジンに渡す
   const arEndInputRef = useRef<GameInput | null>(null)
   const arEndResultRef = useRef<GameState | null>(null)
+  const lastAiActionTimeRef = useRef<number>(0)
 
   useEffect(() => {
     if (!gameState || gameState.phase !== 'playing') return
@@ -301,15 +331,32 @@ export default function GameBoard(props: GameBoardProps) {
 
     const gameLoop = () => {
       const now = Date.now()
-      const dt = now - lastTimeRef.current
+      const rawDt = now - lastTimeRef.current
       lastTimeRef.current = now
+      // タブ非表示時などでdtが膨らむとMP回復が一気に発生するため上限を設ける
+      const MAX_DT_MS = 100
+      const dt = Math.min(rawDt, MAX_DT_MS)
 
       setGameState((prevState) => {
         if (!prevState || prevState.phase !== 'playing') return prevState
 
+        let aiInput: GameInput | null = null
+        const gameStarted = Date.now() >= prevState.gameStartTime
+        if (!testMode && gameStarted) {
+          const ar = prevState.activeResponse
+          const isArBuilding = ar.isActive && ar.status === 'building'
+          const isAiTurnInAr = isArBuilding && ar.currentPlayerId === 'player2'
+          const intervalMs = isAiTurnInAr ? AI_AR_ACTION_INTERVAL_MS : AI_NORMAL_ACTION_INTERVAL_MS
+          const elapsed = now - lastAiActionTimeRef.current
+          if (elapsed >= intervalMs) {
+            lastAiActionTimeRef.current = now
+            aiInput = decideOpponentAi(prevState, cardMapRef.current)
+          }
+        }
+
         const result = updateGameState(
           prevState,
-          null,
+          aiInput,
           dt,
           cardMapRef.current
         )
@@ -319,13 +366,14 @@ export default function GameBoard(props: GameBoardProps) {
           pendingEventsRef.current.push(...result.events)
         }
 
-        // テスト用: MP減らない（毎フレーム最大値に補充）
         const s = result.state
         const p = s.players[0]
-        if (p.mp < p.maxMp) {
-          return {
-            ...s,
-            players: [{ ...p, mp: p.maxMp }, s.players[1]],
+        if (testMode) {
+          if (p.mp < p.maxMp) {
+            return {
+              ...s,
+              players: [{ ...p, mp: p.maxMp }, s.players[1]],
+            }
           }
         }
         return s
@@ -448,10 +496,14 @@ export default function GameBoard(props: GameBoardProps) {
         if (result.events.length > 0) {
           pendingEventsRef.current.push(...result.events)
         }
-        // テスト用: MP減らない
         const s = result.state
-        const p = s.players[0]
-        return { ...s, players: [{ ...p, mp: p.maxMp }, s.players[1]] }
+        if (testMode) {
+          const p = s.players[0]
+          if (p.mp < p.maxMp) {
+            return { ...s, players: [{ ...p, mp: p.maxMp }, s.players[1]] }
+          }
+        }
+        return s
       })
       // Refに溜まったイベントを処理
       setTimeout(() => {
@@ -461,7 +513,7 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }, 0)
     },
-    [gameState, cardMap, getTargetType, processEvents, requiresTarget]
+    [gameState, cardMap, getTargetType, processEvents, requiresTarget, testMode]
   )
 
   // 必殺技/おとも発動（ドラッグ終了時 or 直接呼び出し）
@@ -952,10 +1004,22 @@ export default function GameBoard(props: GameBoardProps) {
         <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">BATTLE</span>
         </div>
-        {gameState.phase === 'playing' && (
+        {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
           <TimerDisplay timeRemainingMs={gameState.timeRemainingMs ?? 5 * 60 * 1000} />
         )}
       </div>
+
+      {/* 開始演出（マリガン完了後、3秒待ってからバトル開始・オンライン対戦と同様） */}
+      {gameState.phase === 'playing' && Date.now() < gameState.gameStartTime && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
+          <div className="text-5xl ls:text-3xl font-black text-yellow-400 tracking-widest animate-pulse">
+            BATTLE START
+          </div>
+          <div className="mt-4 ls:mt-2 text-white/80 text-lg ls:text-sm">
+            {Math.ceil((gameState.gameStartTime - Date.now()) / 1000)}...
+          </div>
+        </div>
+      )}
 
       {gameState.activeResponse.isActive && (
         <div className="relative z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/92 via-slate-950/95 to-black/92 border-b border-cyan-500/45 flex flex-wrap items-start gap-3 ls:gap-2 justify-between">
@@ -1454,6 +1518,15 @@ export default function GameBoard(props: GameBoardProps) {
       {/* Card Detail Tooltip */}
       {detailCard && !dragging && (
         <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+      )}
+
+      {/* 相手がアクションカードを使用したときの効果説明（相手側の説明UI） */}
+      {opponentPlayedActionCard && (
+        <CardTooltip
+          card={opponentPlayedActionCard.card}
+          side="right"
+          onClose={() => setOpponentPlayedActionCard(null)}
+        />
       )}
 
       {/* Dragging Card */}
