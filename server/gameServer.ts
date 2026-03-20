@@ -193,11 +193,21 @@ export class GameServer {
         // ゲーム終了後少し待ってからルーム破棄
         clearInterval(room.intervalId)
       }
+      // NOTE:
+      // mulligan中は updateGameState() を呼ばないが、
+      // room.lastUpdateTime を更新しないと、playing開始直後の dt が巨大化して
+      // timeRemainingMs が一気に 0 まで減ってしまうことがある。
+      // 環境差（特にVercelの遅延/スリープ）でも破綻しにくくするため、ここで更新する。
+      room.lastUpdateTime = Date.now()
       return
     }
 
     const now = Date.now()
-    const dt = now - room.lastUpdateTime
+    let dt = now - room.lastUpdateTime
+    // 念のため dt の暴発を抑制（サーバ側の遅延/停止で dt が極端に大きくなるケース対策）
+    if (!Number.isFinite(dt) || dt < 0) dt = 0
+    const MAX_DT_MS = 1000
+    dt = Math.min(dt, MAX_DT_MS)
     room.lastUpdateTime = now
 
     // #region agent debug log
