@@ -21,6 +21,32 @@ import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
 import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
 import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
 
+const DEFAULT_MATCH_MS = 5 * 60 * 1000
+
+function finiteOr(value: number | undefined, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  return fallback
+}
+
+/** 直近の game_state 受信時刻を基準に、サーバー時刻に近い値を推定（serverNowMs が無いときは lastUpdateTime を使う） */
+function getSyncedServerNowMs(gs: SanitizedGameState, lastSyncAtMs: number): number {
+  const base = finiteOr(gs.serverNowMs, finiteOr(gs.lastUpdateTime, Date.now()))
+  const delta = Date.now() - lastSyncAtMs
+  return finiteOr(base + delta, Date.now())
+}
+
+/**
+ * ヘッダー用の残りミリ秒（サーバーが送った値のみ。クライアント補間は WS 更新と競って 4:59/5:00 が交互に出るため行わない）
+ */
+function getHeaderTimerMsFromServer(gs: SanitizedGameState): number {
+  if (gs.activeResponse.isActive) {
+    return finiteOr(gs.activeResponse.timer, 0)
+  }
+  return finiteOr(gs.timeRemainingMs, DEFAULT_MATCH_MS)
+}
+
 // SanitizedPlayerState → PlayerState互換に変換（HeroPortrait用）
 function toPlayerState(sp: SanitizedPlayerState): PlayerState {
   return {
@@ -193,6 +219,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     connectionStatus,
     matchStatus,
     gameState,
+    lastGameStateReceivedAtRef,
     opponentDisconnected,
     errorMessage,
     connect,
@@ -228,15 +255,6 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const [, setCountdownTick] = useState(0)
-
-  // 開始演出中のカウントダウン表示更新用（1秒ごとに再描画）
-  useEffect(() => {
-    if (!gameState || gameState.phase !== 'playing' || Date.now() >= gameState.gameStartTime) return
-    const id = setInterval(() => setCountdownTick((t) => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [gameState?.phase, gameState?.gameStartTime])
-
   // 接続 & マッチメイキング開始
   useEffect(() => {
     if (cardsLoading) return
@@ -656,7 +674,6 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   }, [dragging, abilityDragging, onDragMove, onDragEnd, onAbilityDragMove, onAbilityDragEnd])
 
   // === ローディング & マッチング画面 ===
-
   if (cardsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white font-orbitron">
@@ -718,6 +735,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const getUnitInLane = (units: Unit[], lane: number) => units.find((u) => u.lane === lane) || null
   const getAttackProgress = (unit: Unit | null) => (unit ? Math.min(100, unit.attackGauge * 100) : 0)
 
+  const syncedServerNowMs = getSyncedServerNowMs(gameState, lastGameStateReceivedAtRef.current)
+  const displayHeaderTimerMs = finiteOr(getHeaderTimerMsFromServer(gameState), 0)
+  const gameStartForUi = finiteOr(gameState.gameStartTime, syncedServerNowMs)
+  const mainBattleStarted = syncedServerNowMs >= gameStartForUi
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
@@ -728,13 +750,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">ONLINE BATTLE</span>
         </div>
-        {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
+        {gameState.phase === 'playing' && mainBattleStarted && (
           <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
             <span
-              className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${(gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}
+              className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${displayHeaderTimerMs <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}
             >
-              {Math.floor(((gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) ?? 0) / 60000)}:
-              {String(Math.floor((((gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) ?? 0) % 60000) / 1000)).padStart(2, '0')}
+              {Math.floor(displayHeaderTimerMs / 60000)}:
+              {String(Math.floor((displayHeaderTimerMs % 60000) / 1000)).padStart(2, '0')}
             </span>
           </div>
         )}
@@ -1278,13 +1300,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       )}
 
       {/* 開始演出（マリガン完了後、数秒待ってからMP開始） */}
-      {gameState.phase === 'playing' && Date.now() < gameState.gameStartTime && (
+      {gameState.phase === 'playing' && !mainBattleStarted && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
           <div className="text-5xl ls:text-3xl font-black text-yellow-400 tracking-widest animate-pulse">
             BATTLE START
           </div>
           <div className="mt-4 ls:mt-2 text-white/80 text-lg ls:text-sm">
-            {Math.ceil((gameState.gameStartTime - Date.now()) / 1000)}...
+            {Math.max(0, Math.ceil((gameStartForUi - syncedServerNowMs) / 1000))}...
           </div>
         </div>
       )}

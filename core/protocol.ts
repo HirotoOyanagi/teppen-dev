@@ -56,6 +56,8 @@ export interface SanitizedGameState {
   gameStartTime: number
   lastUpdateTime: number
   timeRemainingMs: number
+  /** 配信直前のサーバー時刻（クライアントの壁時計と gameStartTime の比較ずれ対策） */
+  serverNowMs?: number
   gameEndedWinner?: string
   gameEndedReason?: 'hp_zero' | 'time_limit' | 'draw'
 }

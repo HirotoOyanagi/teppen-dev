@@ -11,6 +11,8 @@ import { HEROES } from '../core/heroes'
 import { Matchmaking, type WaitingPlayer } from './matchmaking'
 
 const TICK_INTERVAL = 50 // 50msごとにゲーム更新
+/** タブ非アクティブ・ホストのスロットリングで dt が膨らむとタイマーが一気に進むため、オフラインと同様に上限 */
+const MAX_DT_MS = 100
 
 interface GameRoom {
   gameId: string
@@ -197,7 +199,8 @@ export class GameServer {
     }
 
     const now = Date.now()
-    const dt = now - room.lastUpdateTime
+    const rawDt = now - room.lastUpdateTime
+    const dt = Math.min(Math.max(rawDt, 0), MAX_DT_MS)
     room.lastUpdateTime = now
 
     const result = updateGameState(room.gameState, null, dt, this.cardMap)
@@ -219,15 +222,18 @@ export class GameServer {
   }
 
   private broadcastGameState(room: GameRoom): void {
+    const serverNowMs = Date.now()
+    const s0 = sanitizeGameState(room.gameState, 0)
+    const s1 = sanitizeGameState(room.gameState, 1)
     // Player 0視点
     this.sendMessage(room.players[0], {
       type: 'game_state',
-      state: sanitizeGameState(room.gameState, 0),
+      state: { ...s0, serverNowMs },
     })
     // Player 1視点
     this.sendMessage(room.players[1], {
       type: 'game_state',
-      state: sanitizeGameState(room.gameState, 1),
+      state: { ...s1, serverNowMs },
     })
   }
 

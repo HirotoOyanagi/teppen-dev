@@ -4,11 +4,13 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { MutableRefObject } from 'react'
 import type { ClientMessage, ServerMessage, SanitizedGameState } from '@/core/protocol'
 import type { GameEvent, Hero } from '@/core/types'
 
 const MAX_RETRIES = 3
 const RETRY_DELAY = 2000
+const DEFAULT_MATCH_MS = 5 * 60 * 1000
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -17,10 +19,64 @@ export type MatchStatus =
   | { phase: 'waiting' }
   | { phase: 'found'; gameId: string; playerIndex: 0 | 1; opponentHero: Hero }
 
+function isFiniteNumber(value: number | null | undefined): value is number {
+  if (typeof value !== 'number') {
+    return false
+  }
+  return Number.isFinite(value)
+}
+
+function normalizeIncomingGameState(
+  state: SanitizedGameState,
+  previousState: SanitizedGameState | null,
+  fallbackTimeRemainingRef: MutableRefObject<number | null>
+): SanitizedGameState {
+  const rawTimeRemainingMs = state.timeRemainingMs
+  if (isFiniteNumber(rawTimeRemainingMs)) {
+    fallbackTimeRemainingRef.current = rawTimeRemainingMs
+    return state
+  }
+
+  let derivedTimeRemainingMs = fallbackTimeRemainingRef.current
+  if (!isFiniteNumber(derivedTimeRemainingMs)) {
+    derivedTimeRemainingMs = DEFAULT_MATCH_MS
+  }
+
+  if (!previousState) {
+    fallbackTimeRemainingRef.current = derivedTimeRemainingMs
+    return { ...state, timeRemainingMs: derivedTimeRemainingMs }
+  }
+
+  if (state.phase !== 'playing') {
+    fallbackTimeRemainingRef.current = derivedTimeRemainingMs
+    return { ...state, timeRemainingMs: derivedTimeRemainingMs }
+  }
+
+  if (previousState.phase !== 'playing') {
+    fallbackTimeRemainingRef.current = derivedTimeRemainingMs
+    return { ...state, timeRemainingMs: derivedTimeRemainingMs }
+  }
+
+  let deltaMs = 0
+  if (isFiniteNumber(previousState.lastUpdateTime) && isFiniteNumber(state.lastUpdateTime)) {
+    deltaMs = Math.max(0, state.lastUpdateTime - previousState.lastUpdateTime)
+  }
+
+  const shouldCountdown = !state.activeResponse.isActive && !previousState.activeResponse.isActive
+  if (shouldCountdown) {
+    derivedTimeRemainingMs = Math.max(0, derivedTimeRemainingMs - deltaMs)
+  }
+
+  fallbackTimeRemainingRef.current = derivedTimeRemainingMs
+  return { ...state, timeRemainingMs: derivedTimeRemainingMs }
+}
+
 interface UseGameSocketReturn {
   connectionStatus: ConnectionStatus
   matchStatus: MatchStatus
   gameState: SanitizedGameState | null
+  /** game_state を受信した直後のクライアント時刻（同期タイマー用。setState より先に同期で更新される） */
+  lastGameStateReceivedAtRef: MutableRefObject<number>
   gameEvents: GameEvent[]
   opponentDisconnected: boolean
   errorMessage: string | null
@@ -39,6 +95,9 @@ export function useGameSocket(): UseGameSocketReturn {
 
   const wsRef = useRef<WebSocket | null>(null)
   const retriesRef = useRef(0)
+  const lastGameStateReceivedAtRef = useRef(Date.now())
+  const previousGameStateRef = useRef<SanitizedGameState | null>(null)
+  const fallbackTimeRemainingRef = useRef<number | null>(null)
 
   const serverUrl = process.env.NEXT_PUBLIC_GAME_SERVER_URL || 'ws://localhost:8080'
 
@@ -72,9 +131,17 @@ export function useGameSocket(): UseGameSocketReturn {
               opponentHero: message.opponentHero,
             })
             break
-          case 'game_state':
-            setGameState(message.state)
+          case 'game_state': {
+            const s = normalizeIncomingGameState(
+              message.state,
+              previousGameStateRef.current,
+              fallbackTimeRemainingRef
+            )
+            previousGameStateRef.current = s
+            lastGameStateReceivedAtRef.current = Date.now()
+            setGameState(s)
             break
+          }
           case 'game_event':
             setGameEvents(message.events)
             break
@@ -115,6 +182,8 @@ export function useGameSocket(): UseGameSocketReturn {
     setConnectionStatus('disconnected')
     setMatchStatus({ phase: 'idle' })
     setGameState(null)
+    previousGameStateRef.current = null
+    fallbackTimeRemainingRef.current = null
     setOpponentDisconnected(false)
     setErrorMessage(null)
   }, [])
@@ -137,6 +206,7 @@ export function useGameSocket(): UseGameSocketReturn {
     connectionStatus,
     matchStatus,
     gameState,
+    lastGameStateReceivedAtRef,
     gameEvents,
     opponentDisconnected,
     errorMessage,
