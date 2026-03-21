@@ -32,7 +32,17 @@ function toPlayerState(sp: SanitizedPlayerState): PlayerState {
 }
 
 // カード詳細ツールチップ
-function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
+function CardTooltip({
+  card,
+  side,
+  onClose,
+  unit,
+}: {
+  card: CardDefinition
+  side: 'left' | 'right'
+  onClose: () => void
+  unit?: Unit | null
+}) {
   const attributeColors: Record<string, string> = {
     red: 'border-red-500 bg-red-950/95',
     green: 'border-green-500 bg-green-950/95',
@@ -40,6 +50,30 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
     black: 'border-gray-500 bg-gray-950/95',
   }
   const positionClass = side === 'left' ? 'left-2 top-16' : 'right-2 top-16'
+
+  const STATUS_LABEL_MAP: Record<string, string> = {
+    rush: 'ラッシュ',
+    flight: 'フライト',
+    shield: 'シールド',
+    agility: '俊敏',
+    combo: '連撃',
+    veil: 'ヴェール',
+    crush: 'クラッシュ',
+    heavy_pierce: 'ヘビーピアス',
+    spillover: 'スピルオーバー',
+    halt: '停止',
+    seal: '封印',
+    anti_air: '対空',
+    unblockable_once: 'アンブロッカブル(1回)',
+  }
+  const getStatusLabel = (s: string) => STATUS_LABEL_MAP[s] ?? s
+
+  const ATTACK_EFFECT_LABEL_MAP: Record<string, string> = {
+    damage_front_unit_by_attack: '攻撃時：正面に攻撃力分ダメージ',
+  }
+  const DECIMATE_EFFECT_LABEL_MAP: Record<string, string> = {
+    add_fire_seed_to_ex: '撃破時：EXに火種追加',
+  }
 
   return (
     <div
@@ -60,6 +94,49 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
       )}
       {card.description && (
         <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">{card.description}</p>
+      )}
+
+      {unit && (
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <div className="text-white/90 font-bold text-[9px] mb-1">付与中の効果</div>
+          {(() => {
+            const permanent = unit.statusEffects ?? []
+            const tempStatuses = unit.tempBuffs?.statusEffects ?? []
+            const tempAttack = unit.tempBuffs?.attack ?? 0
+            const shieldCount = unit.shieldCount ?? 0
+
+            const lines: string[] = []
+            if (shieldCount > 0) lines.push(`シールド: ${shieldCount}`)
+            if (tempAttack !== 0) lines.push(`一時攻撃力: ${tempAttack}`)
+            if ((unit.actionDamageBoost ?? 0) !== 0) lines.push(`アクションダメージ+${unit.actionDamageBoost}`)
+            const damageTakenBoost = unit.damageTakenBoost ?? 0
+            if (damageTakenBoost !== 0) {
+              const timerSec = unit.damageTakenBoostTimer ? Math.ceil(unit.damageTakenBoostTimer / 1000) : 0
+              lines.push(`受ける効果ダメージ+${damageTakenBoost}${timerSec ? `（${timerSec}秒）` : ''}`)
+            }
+            const effectDamageIncreaseFromDamageReduction =
+              typeof unit.damageReduction === 'number' ? (unit.damageReduction < 0 ? -unit.damageReduction : 0) : 0
+            if (effectDamageIncreaseFromDamageReduction !== 0) {
+              lines.push(`受ける効果ダメージ+${effectDamageIncreaseFromDamageReduction}`)
+            }
+            if (unit.noCounterattack) lines.push('反撃不可')
+            if (unit.ignoreBlocker) lines.push('ブロック無視')
+            if (permanent.length > 0) lines.push(`状態: ${permanent.map(getStatusLabel).join(', ')}`)
+            if (tempStatuses.length > 0) lines.push(`一時状態: ${tempStatuses.map(getStatusLabel).join(', ')}`)
+
+            if ((unit.attackEffects?.length ?? 0) > 0) {
+              const mapped = unit.attackEffects!.map((e) => ATTACK_EFFECT_LABEL_MAP[e] ?? `攻撃時：${e}`)
+              lines.push(mapped.length === 1 ? mapped[0] : `攻撃時効果: ${mapped.join(', ')}`)
+            }
+            if ((unit.decimateEffects?.length ?? 0) > 0) {
+              const mapped = unit.decimateEffects!.map((e) => DECIMATE_EFFECT_LABEL_MAP[e] ?? `撃破時：${e}`)
+              lines.push(mapped.length === 1 ? mapped[0] : `撃破時効果: ${mapped.join(', ')}`)
+            }
+
+            if (lines.length === 0) return <p className="text-gray-400 text-[9px]">付与なし</p>
+            return <p className="text-gray-200 text-[9px] leading-relaxed whitespace-pre-wrap">{lines.join('\n')}</p>
+          })()}
+        </div>
       )}
     </div>
   )
@@ -126,7 +203,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     sendMessage,
   } = useGameSocket()
 
-  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
+  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right'; unitId?: string } | null>(null)
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
@@ -1014,7 +1091,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         ) {
                           handleAbilityTargetSelect(leftUnit.id)
                         } else {
-                          setDetailCard({ card: leftCardDef!, side: 'left' })
+                          setDetailCard({ card: leftCardDef!, side: 'left', unitId: leftUnit.id })
                         }
                       }} />
                     </div>
@@ -1055,7 +1132,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       ) {
                         handleAbilityTargetSelect(rightUnit.id)
                       } else {
-                        setDetailCard({ card: rightCardDef!, side: 'right' })
+                        setDetailCard({ card: rightCardDef!, side: 'right', unitId: rightUnit.id })
                       }
                     }} />
                     </div>
@@ -1195,7 +1272,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               <p className="text-yellow-400 text-lg ls:text-sm mt-4 ls:mt-1 animate-pulse">相手のマリガン完了を待っています...</p>
             )}
           </div>
-          {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+          {detailCard && (
+            <CardTooltip
+              card={detailCard.card}
+              side={detailCard.side}
+              onClose={() => setDetailCard(null)}
+              unit={
+                detailCard.unitId
+                  ? gameState.players[detailCard.side === 'left' ? 0 : 1].units.find((u) => u.id === detailCard.unitId) ?? undefined
+                  : undefined
+              }
+            />
+          )}
         </div>
       )}
 
@@ -1238,7 +1326,18 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       )}
 
       {/* Card Detail Tooltip */}
-      {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+      {detailCard && !dragging && (
+        <CardTooltip
+          card={detailCard.card}
+          side={detailCard.side}
+          onClose={() => setDetailCard(null)}
+          unit={
+            detailCard.unitId
+              ? gameState.players[detailCard.side === 'left' ? 0 : 1].units.find((u) => u.id === detailCard.unitId) ?? undefined
+              : undefined
+          }
+        />
+      )}
 
       {/* Dragging Card */}
       {dragging && <DraggingCard card={dragging.cardDef} position={dragPos} />}
