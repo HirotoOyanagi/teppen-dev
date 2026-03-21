@@ -32,7 +32,17 @@ function toPlayerState(sp: SanitizedPlayerState): PlayerState {
 }
 
 // カード詳細ツールチップ
-function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
+function CardTooltip({
+  card,
+  side,
+  unit,
+  onClose,
+}: {
+  card: CardDefinition
+  side: 'left' | 'right'
+  unit?: Unit
+  onClose: () => void
+}) {
   const attributeColors: Record<string, string> = {
     red: 'border-red-500 bg-red-950/95',
     green: 'border-green-500 bg-green-950/95',
@@ -40,6 +50,60 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
     black: 'border-gray-500 bg-gray-950/95',
   }
   const positionClass = side === 'left' ? 'left-2 top-16' : 'right-2 top-16'
+
+  const mapGrantedEffectLabel = (effect: string): string => {
+    const staticLabelMap: Record<string, string> = {
+      'grant_action_damage_immunity': 'ベール（効果ダメージ無効）',
+      'grant_unblockable_once': 'ブロック無視（1回）',
+      'grant_decimate_fire_seed': '撃破時：EXに火種を追加',
+      'grant_ignore_blocker': 'ブロック無視',
+      'grant_no_counterattack': '反撃不可',
+      'grant_status:agility': '俊敏',
+      'grant_status:combo': '連撃',
+      'grant_status:veil': 'ベール（効果ダメージ無効）',
+      'grant_status:crush': '圧倒',
+    }
+    const staticLabel = staticLabelMap[effect]
+    if (typeof staticLabel === 'string') {
+      return staticLabel
+    }
+
+    if (effect.startsWith('grant_shield:')) {
+      const parts = effect.split(':')
+      const value = Number(parts[1] || '1')
+      return `シールド+${value}`
+    }
+    if (effect.startsWith('grant_effect_damage_boost:')) {
+      const parts = effect.split(':')
+      const value = Number(parts[1] || '0')
+      return `受ける効果ダメージ+${value}`
+    }
+    if (effect.startsWith('grant_attack_effect:')) {
+      const parts = effect.split(':')
+      const value = parts.slice(1).join(':')
+      const attackEffectLabelMap: Record<string, string> = {
+        damage_front_equal_attack: '攻撃時：正面の敵に自身の攻撃力分の効果ダメージ',
+      }
+      const mapped = attackEffectLabelMap[value]
+      if (typeof mapped === 'string') {
+        return mapped
+      }
+      return `攻撃時効果: ${value}`
+    }
+    if (effect.startsWith('grant_status:')) {
+      const parts = effect.split(':')
+      const value = parts[1] || ''
+      return `状態付与: ${value}`
+    }
+    return effect
+  }
+
+  const grantedEffectLabels: string[] = []
+  if (unit && unit.grantedEffects) {
+    for (const effect of unit.grantedEffects) {
+      grantedEffectLabels.push(mapGrantedEffectLabel(effect))
+    }
+  }
 
   return (
     <div
@@ -60,6 +124,16 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
       )}
       {card.description && (
         <p className="text-gray-200 text-[9px] leading-tight max-h-16 overflow-y-auto">{card.description}</p>
+      )}
+      {grantedEffectLabels.length > 0 && (
+        <div className="mt-2 border-t border-white/20 pt-1">
+          <p className="text-[10px] text-cyan-300 font-bold mb-1">与えられた効果</p>
+          <ul className="text-[10px] text-cyan-100 space-y-0.5">
+            {grantedEffectLabels.map((label, index) => (
+              <li key={`${label}_${index}`}>- {label}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )
@@ -126,7 +200,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     sendMessage,
   } = useGameSocket()
 
-  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
+  const [detailCard, setDetailCard] = useState<{
+    card: CardDefinition
+    side: 'left' | 'right'
+    unit?: Unit
+  } | null>(null)
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
   const [hoveredLane, setHoveredLane] = useState<number | null>(null)
@@ -1014,7 +1092,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         ) {
                           handleAbilityTargetSelect(leftUnit.id)
                         } else {
-                          setDetailCard({ card: leftCardDef!, side: 'left' })
+                          setDetailCard({ card: leftCardDef!, side: 'left', unit: leftUnit })
                         }
                       }} />
                     </div>
@@ -1055,7 +1133,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       ) {
                         handleAbilityTargetSelect(rightUnit.id)
                       } else {
-                        setDetailCard({ card: rightCardDef!, side: 'right' })
+                        setDetailCard({ card: rightCardDef!, side: 'right', unit: rightUnit })
                       }
                     }} />
                     </div>
@@ -1195,7 +1273,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               <p className="text-yellow-400 text-lg ls:text-sm mt-4 ls:mt-1 animate-pulse">相手のマリガン完了を待っています...</p>
             )}
           </div>
-          {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+          {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
         </div>
       )}
 
@@ -1238,7 +1316,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       )}
 
       {/* Card Detail Tooltip */}
-      {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />}
+      {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
 
       {/* Dragging Card */}
       {dragging && <DraggingCard card={dragging.cardDef} position={dragPos} />}

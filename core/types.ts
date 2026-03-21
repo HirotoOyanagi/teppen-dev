@@ -121,6 +121,7 @@ export interface Unit {
   noCounterattack?: boolean // 反撃不可
   damageTakenBoost?: number // 受けるダメージ増加（+N）
   damageTakenBoostTimer?: number // 残り時間（ms）
+  grantedEffects?: string[] // grant系で付与された効果の参照用ログ
 }
 
 // 場にいる間の効果定義

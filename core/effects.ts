@@ -165,6 +165,17 @@ function applyGrantedStatusToUnit(unit: Unit, status: string): Unit {
   return updatedUnit
 }
 
+function appendGrantedEffectLog(unit: Unit, effect: string): Unit {
+  const current = unit.grantedEffects || []
+  if (current.includes(effect)) {
+    return unit
+  }
+  return {
+    ...unit,
+    grantedEffects: [...current, effect],
+  }
+}
+
 // ─── 火種（応用用共通） ───
 /** 火種カードのベースID（chainFireCount のキー等に使用）。他モジュールで火種条件を書くときに利用可 */
 export const FIRE_SEED_CARD_ID = 'cor_027'
@@ -1918,7 +1929,8 @@ function resolveGrantStatusSelf(
     ...player,
     units: player.units.map((u) => {
       if (u.id !== sourceUnit.unit.id) return u
-      return applyGrantedStatusToUnit(u, status)
+      const updated = applyGrantedStatusToUnit(u, status)
+      return appendGrantedEffectLog(updated, `grant_status:${status}`)
     }),
   }
   return { state: newState, events }
@@ -1950,7 +1962,8 @@ function resolveGrantStatusTarget(
     ...player,
     units: player.units.map((u) => {
       if (u.id !== targetId) return u
-      return applyGrantedStatusToUnit(u, status)
+      const updated = applyGrantedStatusToUnit(u, status)
+      return appendGrantedEffectLog(updated, `grant_status:${status}`)
     }),
   }
   return { state: newState, events }
@@ -1969,11 +1982,11 @@ function resolveGrantShieldSelf(
   const player = newState.players[playerIndex]
   newState.players[playerIndex] = {
     ...player,
-    units: player.units.map((u) =>
-      u.id === sourceUnit.unit.id
-        ? { ...u, shieldCount: (u.shieldCount || 0) + (count || 1) }
-        : u
-    ),
+    units: player.units.map((u) => {
+      if (u.id !== sourceUnit.unit.id) return u
+      const updated = { ...u, shieldCount: (u.shieldCount || 0) + (count || 1) }
+      return appendGrantedEffectLog(updated, `grant_shield:${count || 1}`)
+    }),
   }
   return { state: newState, events }
 }
@@ -1992,9 +2005,11 @@ function resolveGrantShieldRandomFriendly(
   const player = newState.players[playerIndex]
   newState.players[playerIndex] = {
     ...player,
-    units: player.units.map((u) =>
-      u.id === target.id ? { ...u, shieldCount: (u.shieldCount || 0) + (count || 1) } : u
-    ),
+    units: player.units.map((u) => {
+      if (u.id !== target.id) return u
+      const updated = { ...u, shieldCount: (u.shieldCount || 0) + (count || 1) }
+      return appendGrantedEffectLog(updated, `grant_shield:${count || 1}`)
+    }),
   }
   return { state: newState, events }
 }
@@ -2013,7 +2028,8 @@ function resolveGrantCrushAllFriendlyTemp(
     units: player.units.map((u) => {
       const statusEffects = [...(u.tempBuffs?.statusEffects || [])]
       if (!statusEffects.includes('crush')) statusEffects.push('crush')
-      return { ...u, tempBuffs: { ...u.tempBuffs, statusEffects } }
+      const updated = { ...u, tempBuffs: { ...u.tempBuffs, statusEffects } }
+      return appendGrantedEffectLog(updated, 'grant_status:crush')
     }),
   }
   return { state: newState, events }
@@ -2396,7 +2412,8 @@ function resolveGrantAttackEffect(
 
       const attackEffects = [...(u.attackEffects || [])]
       attackEffects.push(valueStr)
-      return { ...u, attackEffects }
+      const updated = { ...u, attackEffects }
+      return appendGrantedEffectLog(updated, `grant_attack_effect:${valueStr}`)
     }),
   }
 
@@ -3011,11 +3028,11 @@ function resolveGrantEffectDamageBoostFront(
   // 効果ダメージブーストをダメージ軽減の逆として実装（負の値）
   newState.players[opponentIndex] = {
     ...opponent,
-    units: opponent.units.map((u) =>
-      u.id === frontUnit.id
-        ? { ...u, damageReduction: (u.damageReduction || 0) - value }
-        : u
-    ),
+    units: opponent.units.map((u) => {
+      if (u.id !== frontUnit.id) return u
+      const updated = { ...u, damageReduction: (u.damageReduction || 0) - value }
+      return appendGrantedEffectLog(updated, `grant_effect_damage_boost:${value}`)
+    }),
   }
   return { state: newState, events }
 }
@@ -3046,7 +3063,8 @@ function resolveGrantEffectDamageBoostTarget(
       const currentTimer = u.damageTakenBoostTimer || 0
       const nextTimer = Math.max(currentTimer, durationMs)
 
-      return { ...u, damageTakenBoost: nextBoost, damageTakenBoostTimer: nextTimer }
+      const updated = { ...u, damageTakenBoost: nextBoost, damageTakenBoostTimer: nextTimer }
+      return appendGrantedEffectLog(updated, `grant_effect_damage_boost:${value}`)
     }),
   }
   return { state: newState, events }
@@ -3070,7 +3088,8 @@ function resolveGrantActionDamageImmunitySelf(
       if (u.id !== sourceUnit.unit.id) return u
       const statusEffects = [...(u.statusEffects || [])]
       if (!statusEffects.includes('veil')) statusEffects.push('veil')
-      return { ...u, statusEffects }
+      const updated = { ...u, statusEffects }
+      return appendGrantedEffectLog(updated, 'grant_action_damage_immunity')
     }),
   }
   return { state: newState, events }
@@ -3108,7 +3127,8 @@ function resolveGrantUnblockableTarget(
       if (!statusEffects.includes(statusName)) {
         statusEffects.push(statusName)
       }
-      return { ...u, statusEffects }
+      const updated = { ...u, statusEffects }
+      return appendGrantedEffectLog(updated, 'grant_unblockable_once')
     }),
   }
   return { state: newState, events }
@@ -3258,7 +3278,8 @@ function resolveGrantDecimateFireSeedTarget(
     units: newState.players[ownerIndex].units.map((u) => {
       if (u.id !== targetId) return u
       const existing = u.decimateEffects || []
-      return { ...u, decimateEffects: [...existing, 'add_fire_seed_to_ex'] }
+      const updated = { ...u, decimateEffects: [...existing, 'add_fire_seed_to_ex'] }
+      return appendGrantedEffectLog(updated, 'grant_decimate_fire_seed')
     }),
   }
   return { state: newState, events }
@@ -3496,9 +3517,11 @@ function resolveDamageTargetOnDestroyGrantHeroAttack(
     if (frontAlly) {
       newState.players[playerIndex] = {
         ...player,
-        units: player.units.map((u) =>
-          u.id === frontAlly.id ? { ...u, ignoreBlocker: true } : u
-        ),
+        units: player.units.map((u) => {
+          if (u.id !== frontAlly.id) return u
+          const updated = { ...u, ignoreBlocker: true }
+          return appendGrantedEffectLog(updated, 'grant_ignore_blocker')
+        }),
       }
     }
   }
@@ -3723,10 +3746,13 @@ function resolveGrantNoCounterattackAllEnemy(
 
   newState.players[opponentIndex] = {
     ...opponent,
-    units: opponent.units.map((u) => ({
-      ...u,
-      noCounterattack: true,
-    })),
+    units: opponent.units.map((u) => {
+      const updated = {
+        ...u,
+        noCounterattack: true,
+      }
+      return appendGrantedEffectLog(updated, 'grant_no_counterattack')
+    }),
   }
   return { state: newState, events }
 }

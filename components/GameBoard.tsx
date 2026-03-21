@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GameState, GameInput, Hero, CardDefinition } from '@/core/types'
+import type { GameState, GameInput, Hero, CardDefinition, Unit } from '@/core/types'
 import {
   updateGameState,
   createInitialGameState,
@@ -30,11 +30,13 @@ import {
 function CardTooltip({
   card,
   side,
+  unit,
   onClose,
   dismissOnClick = true,
 }: {
   card: CardDefinition
   side: 'left' | 'right'
+  unit?: Unit
   onClose: () => void
   /** true の場合だけクリックで閉じる（相手アクション説明の誤消し防止など） */
   dismissOnClick?: boolean
@@ -50,6 +52,60 @@ function CardTooltip({
   const positionClass = side === 'left'
     ? 'left-2 top-16'
     : 'right-2 top-16'
+
+  const mapGrantedEffectLabel = (effect: string): string => {
+    const staticLabelMap: Record<string, string> = {
+      'grant_action_damage_immunity': 'ベール（効果ダメージ無効）',
+      'grant_unblockable_once': 'ブロック無視（1回）',
+      'grant_decimate_fire_seed': '撃破時：EXに火種を追加',
+      'grant_ignore_blocker': 'ブロック無視',
+      'grant_no_counterattack': '反撃不可',
+      'grant_status:agility': '俊敏',
+      'grant_status:combo': '連撃',
+      'grant_status:veil': 'ベール（効果ダメージ無効）',
+      'grant_status:crush': '圧倒',
+    }
+    const staticLabel = staticLabelMap[effect]
+    if (typeof staticLabel === 'string') {
+      return staticLabel
+    }
+
+    if (effect.startsWith('grant_shield:')) {
+      const parts = effect.split(':')
+      const value = Number(parts[1] || '1')
+      return `シールド+${value}`
+    }
+    if (effect.startsWith('grant_effect_damage_boost:')) {
+      const parts = effect.split(':')
+      const value = Number(parts[1] || '0')
+      return `受ける効果ダメージ+${value}`
+    }
+    if (effect.startsWith('grant_attack_effect:')) {
+      const parts = effect.split(':')
+      const value = parts.slice(1).join(':')
+      const attackEffectLabelMap: Record<string, string> = {
+        damage_front_equal_attack: '攻撃時：正面の敵に自身の攻撃力分の効果ダメージ',
+      }
+      const mapped = attackEffectLabelMap[value]
+      if (typeof mapped === 'string') {
+        return mapped
+      }
+      return `攻撃時効果: ${value}`
+    }
+    if (effect.startsWith('grant_status:')) {
+      const parts = effect.split(':')
+      const value = parts[1] || ''
+      return `状態付与: ${value}`
+    }
+    return effect
+  }
+
+  const grantedEffectLabels: string[] = []
+  if (unit && unit.grantedEffects) {
+    for (const effect of unit.grantedEffects) {
+      grantedEffectLabels.push(mapGrantedEffectLabel(effect))
+    }
+  }
 
   return (
     <div
@@ -80,6 +136,16 @@ function CardTooltip({
         <p className="text-gray-200 text-sm leading-snug max-h-32 overflow-y-auto">
           {card.description}
         </p>
+      )}
+      {grantedEffectLabels.length > 0 && (
+        <div className="mt-2 border-t border-white/20 pt-1">
+          <p className="text-[10px] text-cyan-300 font-bold mb-1">与えられた効果</p>
+          <ul className="text-[10px] text-cyan-100 space-y-0.5">
+            {grantedEffectLabels.map((label, index) => (
+              <li key={`${label}_${index}`}>- {label}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )
@@ -241,7 +307,11 @@ export default function GameBoard(props: GameBoardProps) {
   const { onMulliganComplete, testMode = false } = props
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
-  const [detailCard, setDetailCard] = useState<{ card: CardDefinition; side: 'left' | 'right' } | null>(null)
+  const [detailCard, setDetailCard] = useState<{
+    card: CardDefinition
+    side: 'left' | 'right'
+    unit?: Unit
+  } | null>(null)
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean; fromTestPanel?: boolean; testPlayerId?: 'player1' | 'player2' } | null>(null)
   const [testPanelOpen, setTestPanelOpen] = useState(true)
   const [testPanelPlayerId, setTestPanelPlayerId] = useState<'player1' | 'player2'>('player1')
@@ -854,8 +924,8 @@ export default function GameBoard(props: GameBoardProps) {
   )
 
   // カードタップ → 効果表示
-  const onCardTap = (cardDef: CardDefinition, side: 'left' | 'right') => {
-    setDetailCard({ card: cardDef, side })
+  const onCardTap = (cardDef: CardDefinition, side: 'left' | 'right', unit?: Unit) => {
+    setDetailCard({ card: cardDef, side, unit })
   }
 
   // ドラッグ開始（長押し後）
@@ -1511,7 +1581,7 @@ export default function GameBoard(props: GameBoardProps) {
                           ) {
                             handleAbilityTargetSelect(leftUnit.id)
                           } else {
-                            onCardTap(leftCardDef, 'left')
+                            onCardTap(leftCardDef, 'left', leftUnit)
                           }
                         }}
                       />
@@ -1566,7 +1636,7 @@ export default function GameBoard(props: GameBoardProps) {
                         ) {
                           handleAbilityTargetSelect(rightUnit.id)
                         } else {
-                          onCardTap(rightCardDef, 'right')
+                          onCardTap(rightCardDef, 'right', rightUnit)
                         }
                       }}
                     />
@@ -1713,7 +1783,7 @@ export default function GameBoard(props: GameBoardProps) {
           </div>
 
           {detailCard && (
-            <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+            <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />
           )}
         </div>
       )}
@@ -1735,7 +1805,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* Card Detail Tooltip */}
       {detailCard && !dragging && (
-        <CardTooltip card={detailCard.card} side={detailCard.side} onClose={() => setDetailCard(null)} />
+        <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />
       )}
 
       {/* 相手がアクションカードを使用したときの効果説明（相手側の説明UI） */}
