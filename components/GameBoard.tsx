@@ -27,7 +27,18 @@ import {
 } from '@/ai/opponentAi'
 
 // カード詳細ツールチップ（HPの上に表示）
-function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'left' | 'right'; onClose: () => void }) {
+function CardTooltip({
+  card,
+  side,
+  onClose,
+  dismissOnClick = true,
+}: {
+  card: CardDefinition
+  side: 'left' | 'right'
+  onClose: () => void
+  /** true の場合だけクリックで閉じる（相手アクション説明の誤消し防止など） */
+  dismissOnClick?: boolean
+}) {
   const attributeColors: Record<string, string> = {
     red: 'border-red-500 bg-red-950/95',
     green: 'border-green-500 bg-green-950/95',
@@ -46,7 +57,7 @@ function CardTooltip({ card, side, onClose }: { card: CardDefinition; side: 'lef
         w-56 p-2 rounded border-2 shadow-lg backdrop-blur-sm
         ${attributeColors[card.attribute] || attributeColors.black}
         animate-in fade-in duration-100`}
-      onClick={onClose}
+      onClick={dismissOnClick ? onClose : undefined}
     >
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-1">
@@ -126,12 +137,7 @@ const TICK_INTERVAL = 50 // 50ms
 
 // 試合タイマー表示（5分からカウントダウン）
 function TimerDisplay({ timeRemainingMs }: { timeRemainingMs: number }) {
-  const [remaining, setRemaining] = useState(timeRemainingMs)
-  useEffect(() => {
-    setRemaining(timeRemainingMs)
-    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1000)), 1000)
-    return () => clearInterval(id)
-  }, [timeRemainingMs])
+  const remaining = Math.max(0, timeRemainingMs)
   const totalSec = Math.floor(remaining / 1000)
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
@@ -1093,7 +1099,13 @@ export default function GameBoard(props: GameBoardProps) {
           <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">BATTLE</span>
         </div>
         {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
-          <TimerDisplay timeRemainingMs={gameState.timeRemainingMs ?? 5 * 60 * 1000} />
+          <TimerDisplay
+            timeRemainingMs={
+              gameState.activeResponse.isActive
+                ? gameState.activeResponse.timer
+                : gameState.timeRemainingMs ?? 5 * 60 * 1000
+            }
+          />
         )}
       </div>
 
@@ -1121,8 +1133,8 @@ export default function GameBoard(props: GameBoardProps) {
           <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
               {gameState.activeResponse.status === 'building'
-                ? `アクティブレスポンス ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`
-                : `効果解決まで ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`}
+                ? 'アクティブレスポンス'
+                : '効果解決中'}
             </div>
             {gameState.activeResponse.currentResolvingItem && (
               <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
@@ -1732,6 +1744,7 @@ export default function GameBoard(props: GameBoardProps) {
           card={opponentPlayedActionCard.card}
           side="right"
           onClose={() => setOpponentPlayedActionCard(null)}
+          dismissOnClick={false}
         />
       )}
 

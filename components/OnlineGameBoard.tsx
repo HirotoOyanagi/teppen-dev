@@ -652,8 +652,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
         {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
           <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
-            <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${(gameState.timeRemainingMs ?? 0) <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
-              {Math.floor((gameState.timeRemainingMs ?? 0) / 60000)}:{String(Math.floor(((gameState.timeRemainingMs ?? 0) % 60000) / 1000)).padStart(2, '0')}
+            <span
+              className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${(gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}
+            >
+              {Math.floor(((gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) ?? 0) / 60000)}:
+              {String(Math.floor((((gameState.activeResponse.isActive ? gameState.activeResponse.timer : (gameState.timeRemainingMs ?? 0)) ?? 0) % 60000) / 1000)).padStart(2, '0')}
             </span>
           </div>
         )}
@@ -670,9 +673,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           />
           <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
-              {gameState.activeResponse.status === 'building'
-                ? `アクティブレスポンス ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`
-                : `効果解決まで ${Math.ceil(gameState.activeResponse.timer / 1000)}秒`}
+              {gameState.activeResponse.status === 'building' ? 'アクティブレスポンス' : '効果解決中'}
             </div>
             {gameState.activeResponse.currentResolvingItem && (
               <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
