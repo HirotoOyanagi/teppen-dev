@@ -14,8 +14,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_001 イグニス: 登場時：自身のEXポケットに「火種」を1枚加える。自身がアクションカードを使ったとき、このユニットの攻撃力を＋1。
   cor_001: 'play:add_fire_seed_to_ex;resonate:buff_self_attack:1;ex_resonate:buff_self_attack:1',
 
-  // COR_002 ライガ: プレイ時：もっともMPが少ない手札のカードを一枚墓地に送る。そうした場合、自身のEXポケットに「焔の洗礼」を1枚加える。自身がEXポケットからカードを使ったとき、ランダムな敵ユニット1体に2ダメージ。
-  cor_002: 'play:discard_lowest_mp_hand;play:add_flame_baptism_to_ex;ex_resonate:damage_random_enemy:2',
+  // COR_002 ライガ: プレイ時：自身のEXポケットに「焔の洗礼」を1枚加える。自身がEXポケットからカードを使ったとき、ランダムな敵ユニット1体に2ダメージ。
+  cor_002: 'play:add_flame_baptism_to_ex;ex_resonate:damage_random_enemy:2',
 
   // COR_003 アッシュ: EXポケットからアクションカードを使ったとき、このユニットは即時攻撃を行う。
   cor_003: 'ex_resonate:immediate_attack_self',
