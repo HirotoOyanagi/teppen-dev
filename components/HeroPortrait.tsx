@@ -5,41 +5,41 @@ import { resolveCardDefinition } from '@/core/cardId'
 
 const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
 
-/** デッキ用：積みカードのシルエット（淡色） */
+/** デッキ用：積みカードのシルエット（淡色）— viewBox 内に収め stroke 分の余白あり */
 function DeckIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 28 22"
-      className={className}
+      className={`block max-h-full max-w-full shrink-0 overflow-hidden ${className || ''}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
       <rect
         x="10"
-        y="1"
-        width="16"
-        height="20"
-        rx="1.5"
-        strokeWidth="1.2"
+        y="1.5"
+        width="15"
+        height="12"
+        rx="1.2"
+        strokeWidth="1"
         className="fill-white/[0.06] stroke-white/25"
       />
       <rect
-        x="6"
-        y="4"
-        width="16"
-        height="20"
-        rx="1.5"
-        strokeWidth="1.2"
+        x="6.5"
+        y="4.5"
+        width="15"
+        height="12"
+        rx="1.2"
+        strokeWidth="1"
         className="fill-cyan-400/[0.05] stroke-cyan-200/20"
       />
       <rect
-        x="2"
-        y="7"
-        width="16"
-        height="20"
-        rx="1.5"
-        strokeWidth="1.2"
+        x="3"
+        y="7.5"
+        width="15"
+        height="12"
+        rx="1.2"
+        strokeWidth="1"
         className="fill-cyan-300/[0.08] stroke-cyan-100/30"
       />
     </svg>
@@ -175,26 +175,23 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
           </span>
         </div>
 
-        {/* HPのすぐ下: 左=デッキアイコン+枚数、右=墓地アイコン+枚数（ラベル文字なし） */}
-        <div
-          className="flex w-[5.5rem] ls:w-[4.75rem] items-stretch justify-between gap-0.5 rounded border border-white/12 bg-black/45 px-1 py-0.5 shadow-sm backdrop-blur-[2px]"
-        >
+        {/* HPのすぐ下: デッキ・墓地を近づけて中央にまとめる */}
+        <div className="flex w-auto max-w-[5.5rem] items-end justify-center gap-1 ls:gap-0.5 px-0 py-0">
           <div
             className="flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`残りデッキ ${player.deck.length}枚`}
           >
             <DeckIcon className="w-7 h-5 ls:w-6 ls:h-4 opacity-70" />
-            <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-100/45 tabular-nums leading-none">
+            <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-100/45 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
               {player.deck.length}
             </span>
           </div>
-          <div className="w-px shrink-0 bg-white/8 self-stretch my-0.5" aria-hidden />
           <div
-            className="group relative flex flex-col items-center justify-center min-w-0 flex-1 gap-0.5"
+            className="group relative flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`墓地 ${player.graveyard.length}枚`}
           >
             <GraveyardIcon className="w-7 h-6 ls:w-6 ls:h-5 opacity-70" />
-            <span className="font-orbitron font-bold text-[9px] ls:text-[8px] text-amber-100/45 tabular-nums leading-none">
+            <span className="font-orbitron font-bold text-[9px] ls:text-[8px] text-amber-100/45 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
               {player.graveyard.length}
             </span>
             {player.graveyard.length > 0 && (

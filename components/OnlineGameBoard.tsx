@@ -812,9 +812,43 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
       )}
 
-      {/* 相手の必殺技・おとも（右上・表示のみ） */}
-      {gameState.phase === 'playing' && (opponent.hero.heroArt || opponent.hero.companion) && (
-        <div className="absolute top-14 right-0 ls:right-0 z-25 flex gap-2 ls:gap-1 pr-1 ls:pr-0.5 pt-1">
+      {/* 相手のEXポケット（アーツの左隣）＋必殺技・おとも（右上・表示のみ） */}
+      {gameState.phase === 'playing' && (
+        <div className="absolute top-14 right-0 ls:right-0 z-25 flex flex-row items-end gap-1 ls:gap-0.5 pr-1 ls:pr-0.5 pt-1">
+          <div className="flex shrink-0 gap-1" aria-label="相手のEXポケット">
+            {[0, 1].map((slotIdx) => {
+              const rawId = opponent.exPocket[slotIdx]
+              const isFilled = Boolean(rawId && String(rawId).trim().length > 0)
+              if (isFilled) {
+                return (
+                  <div
+                    key={`opp_ex_filled_${slotIdx}`}
+                    className="relative h-14 w-11 ls:h-12 ls:w-10 overflow-hidden rounded border-2 border-purple-500/80 bg-gradient-to-b from-purple-950/95 via-zinc-950 to-black shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                    aria-label="EXポケットにカードあり（内容は非表示）"
+                  >
+                    <div className="absolute inset-1 rounded-sm border border-purple-400/20 bg-gradient-to-br from-purple-900/50 to-black/70" />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-35">
+                      <div className="h-0.5 w-7 rounded-full bg-purple-300/25" />
+                    </div>
+                    <span className="pointer-events-none absolute top-1 left-1 rounded bg-black/55 px-0.5 text-[6px] font-bold text-purple-200/60">
+                      EX
+                    </span>
+                  </div>
+                )
+              }
+              return (
+                <div
+                  key={`opp_ex_empty_${slotIdx}`}
+                  className="flex h-14 w-11 ls:h-12 ls:w-10 flex-col items-center justify-center rounded border border-dashed border-purple-500/40 bg-purple-950/20"
+                  aria-label="EXポケット空"
+                >
+                  <span className="text-[7px] ls:text-[6px] font-bold text-purple-400/35">EX</span>
+                </div>
+              )
+            })}
+          </div>
+          {(opponent.hero.heroArt || opponent.hero.companion) && (
+            <div className="flex gap-2 ls:gap-1">
           {opponent.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-yellow-500/60 overflow-hidden">
@@ -861,6 +895,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 <div className="font-bold text-cyan-400 mb-1">{opponent.hero.companion.name}</div>
                 <div className="text-gray-300">{opponent.hero.companion.description}</div>
               </div>
+            </div>
+          )}
             </div>
           )}
         </div>
