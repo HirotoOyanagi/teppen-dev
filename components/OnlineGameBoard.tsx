@@ -880,7 +880,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 : ''
             }`}
           >
-            <HeroPortrait player={toPlayerState(player)} side="left" />
+            <HeroPortrait player={toPlayerState(player)} side="left" cardMap={cardMap} />
           </div>
           {abilityTargetMode && (
             <div className="mt-1 px-2">
@@ -1032,7 +1032,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
 
         <div className="w-1/4 ls:w-1/5">
-          <HeroPortrait player={toPlayerState(opponent)} side="right" />
+          <HeroPortrait player={toPlayerState(opponent)} side="right" cardMap={cardMap} />
         </div>
       </div>
 

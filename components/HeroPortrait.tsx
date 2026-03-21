@@ -1,15 +1,102 @@
 import React, { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import type { PlayerState } from '@/core/types'
+import type { CardDefinition, PlayerState } from '@/core/types'
+import { resolveCardDefinition } from '@/core/cardId'
 
 const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
+
+/** デッキ用：積みカードのシルエット（淡色） */
+function DeckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 28 22"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect
+        x="10"
+        y="1"
+        width="16"
+        height="20"
+        rx="1.5"
+        strokeWidth="1.2"
+        className="fill-white/[0.06] stroke-white/25"
+      />
+      <rect
+        x="6"
+        y="4"
+        width="16"
+        height="20"
+        rx="1.5"
+        strokeWidth="1.2"
+        className="fill-cyan-400/[0.05] stroke-cyan-200/20"
+      />
+      <rect
+        x="2"
+        y="7"
+        width="16"
+        height="20"
+        rx="1.5"
+        strokeWidth="1.2"
+        className="fill-cyan-300/[0.08] stroke-cyan-100/30"
+      />
+    </svg>
+  )
+}
+
+/** 墓地用：石碑＋下に薄いカード影（淡色） */
+function GraveyardIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 28 24"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect
+        x="3"
+        y="14"
+        width="10"
+        height="8"
+        rx="0.8"
+        strokeWidth="0.9"
+        className="fill-amber-950/25 stroke-amber-200/18"
+      />
+      <rect
+        x="15"
+        y="16"
+        width="9"
+        height="6"
+        rx="0.6"
+        strokeWidth="0.8"
+        className="fill-amber-950/30 stroke-amber-200/14"
+      />
+      <path
+        d="M14 3.5c2.8 0 5 2.1 5 4.7v9.3c0 0.6-.4 1-1 1H10c-.6 0-1-.4-1-1V8.2c0-2.6 2.2-4.7 5-4.7z"
+        strokeWidth="1.2"
+        className="fill-amber-200/[0.07] stroke-amber-100/28"
+      />
+      <path
+        d="M14 7v5.5M11.2 9.75h5.6"
+        className="stroke-amber-100/20"
+        strokeWidth="0.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
 
 interface HeroPortraitProps {
   player: PlayerState
   side: 'left' | 'right'
+  /** カード名解決用（墓地ホバー）。省略時はID表示のみ */
+  cardMap?: Map<string, CardDefinition>
 }
 
-const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
+const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) => {
   const isLeft = side === 'left'
   const [shake, setShake] = useState(false)
 
@@ -67,9 +154,9 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
         />
       </div>
 
-      {/* HP: 固定位置・大きめ表示（自分=左下、相手=右下） */}
+      {/* HP + 直下にデッキ枚数（左）・墓地（右） */}
       <div
-        className={`absolute z-10 ${
+        className={`absolute z-10 flex flex-col items-center gap-1 ${
           isLeft ? 'bottom-2 left-2' : 'bottom-2 right-2'
         } ls:bottom-1 ls:left-1 ls:right-1`}
       >
@@ -86,6 +173,54 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side }) => {
           >
             {Math.max(0, player.hp)}
           </span>
+        </div>
+
+        {/* HPのすぐ下: 左=デッキアイコン+枚数、右=墓地アイコン+枚数（ラベル文字なし） */}
+        <div
+          className="flex w-[5.5rem] ls:w-[4.75rem] items-stretch justify-between gap-0.5 rounded border border-white/12 bg-black/45 px-1 py-0.5 shadow-sm backdrop-blur-[2px]"
+        >
+          <div
+            className="flex flex-col items-center justify-center min-w-0 gap-0.5"
+            aria-label={`残りデッキ ${player.deck.length}枚`}
+          >
+            <DeckIcon className="w-7 h-5 ls:w-6 ls:h-4 opacity-70" />
+            <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-100/45 tabular-nums leading-none">
+              {player.deck.length}
+            </span>
+          </div>
+          <div className="w-px shrink-0 bg-white/8 self-stretch my-0.5" aria-hidden />
+          <div
+            className="group relative flex flex-col items-center justify-center min-w-0 flex-1 gap-0.5"
+            aria-label={`墓地 ${player.graveyard.length}枚`}
+          >
+            <GraveyardIcon className="w-7 h-6 ls:w-6 ls:h-5 opacity-70" />
+            <span className="font-orbitron font-bold text-[9px] ls:text-[8px] text-amber-100/45 tabular-nums leading-none">
+              {player.graveyard.length}
+            </span>
+            {player.graveyard.length > 0 && (
+              <div
+                className={`absolute bottom-full mb-1 z-50 hidden group-hover:block pointer-events-none ${
+                  isLeft ? 'left-0' : 'right-0'
+                }`}
+              >
+                <div className="w-28 max-h-32 ls:max-h-28 overflow-hidden rounded border border-amber-700/35 bg-black/95 text-left shadow-lg">
+                  <div className="flex items-center gap-1 border-b border-amber-800/30 px-1.5 py-1">
+                    <GraveyardIcon className="w-4 h-3.5 shrink-0 opacity-80" />
+                  </div>
+                  <div className="max-h-24 ls:max-h-20 overflow-y-auto px-1.5 py-1">
+                    {player.graveyard.map((cardId, i) => {
+                      const def = cardMap ? resolveCardDefinition(cardMap, cardId) : undefined
+                      return (
+                        <div key={`gy_${i}_${cardId}`} className="truncate text-[7px] ls:text-[6px] text-gray-400/90">
+                          {def?.name || cardId}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

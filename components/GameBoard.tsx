@@ -1332,7 +1332,7 @@ export default function GameBoard(props: GameBoardProps) {
                 : ''
             }`}
           >
-            <HeroPortrait player={player} side="left" />
+            <HeroPortrait player={player} side="left" cardMap={cardMap} />
           </div>
           {/* ターゲット選択モード表示 */}
           {abilityTargetMode && (
@@ -1348,25 +1348,6 @@ export default function GameBoard(props: GameBoardProps) {
               </div>
             </div>
           )}
-          {/* 墓地カウンター */}
-          <div className="mt-2 px-2 group relative">
-            <div className="bg-gray-800/80 border border-gray-600/50 rounded px-2 py-1 text-[10px] text-gray-300 text-center">
-              墓地: {player.graveyard.length}枚
-            </div>
-            {player.graveyard.length > 0 && (
-              <div className="absolute left-full top-0 ml-2 w-36 max-h-40 overflow-y-auto p-2 rounded border border-gray-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
-                <div className="font-bold text-gray-400 mb-1">墓地の内容</div>
-                {player.graveyard.map((cardId, i) => {
-                  const def = resolveCardDefinition(cardMap, cardId)
-                  return (
-                    <div key={`grave_${i}`} className="text-gray-300 truncate">
-                      {def?.name || cardId}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Battle Slots */}
@@ -1554,10 +1535,8 @@ export default function GameBoard(props: GameBoardProps) {
           opponent.hero.modelUrl ? 'w-64 min-w-[240px] ls:min-w-0 ls:w-1/5' : 'w-1/4'
         }`}>
           <div className="flex-1 min-h-0 overflow-hidden">
-            <HeroPortrait player={opponent} side="right" />
+            <HeroPortrait player={opponent} side="right" cardMap={cardMap} />
           </div>
-          {/* 左パネルの墓地・ターゲット選択と高さを揃えてHP位置を一致させる */}
-          <div className="mt-2 h-14 shrink-0 ls:h-12" aria-hidden="true" />
         </div>
       </div>
 
