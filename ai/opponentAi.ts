@@ -13,6 +13,18 @@ import {
 } from '@/core/cardTargeting'
 
 const AI_PLAYER_ID = 'player2'
+const DAMAGE_GROWTH_CORE_CARD_IDS = new Set([
+  'COR_007', // スパーク
+  'COR_009', // スポッター
+  'COR_015', // ガイド
+  'COR_025', // ハンター
+  'COR_027', // 火種
+  'COR_029', // 灼熱一閃
+  'COR_035', // 死角狙撃
+  'COR_039', // 焔の収束点
+  'COR_040', // 終末の開炉
+  'COR_041', // 側面強襲
+])
 
 /** 通常プレイ時のAI行動間隔（ミリ秒） */
 export const AI_NORMAL_ACTION_INTERVAL_MS = 1200
@@ -71,6 +83,7 @@ function tryPlayActionInAr(
   opponent: { units: { id: string }[] },
   cardMap: Map<string, CardDefinition>
 ): GameInput | null {
+  const opponentHasUnits = opponent.units.length > 0
   const sources: { cardId: string; fromExPocket: boolean; cost: number }[] = []
   for (const cardId of player.hand) {
     const def = resolveCardDefinition(cardMap, cardId)
@@ -80,7 +93,15 @@ function tryPlayActionInAr(
     const def = resolveCardDefinition(cardMap, cardId)
     if (def?.type === 'action') sources.push({ cardId, fromExPocket: true, cost: def.cost })
   }
-  sources.sort((a, b) => a.cost - b.cost)
+  sources.sort((a, b) => {
+    const cardA = resolveCardDefinition(cardMap, a.cardId)
+    const cardB = resolveCardDefinition(cardMap, b.cardId)
+    const scoreA = getDamageGrowthActionScore(cardA, opponentHasUnits)
+    const scoreB = getDamageGrowthActionScore(cardB, opponentHasUnits)
+    const scoreDiff = scoreB - scoreA
+    if (scoreDiff !== 0) return scoreDiff
+    return a.cost - b.cost
+  })
 
   for (const { cardId, fromExPocket } of sources) {
     const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -93,6 +114,13 @@ function tryPlayActionInAr(
     const needsTarget = cardRequiresTargetSelection(cardDef)
 
     if (!needsTarget) {
+      // ターゲット不要のダメージ系（敵ユニットがいないと無駄）を避ける
+      if (
+        !opponentHasUnits &&
+        isEnemyUnitDamageCardWithoutEnemyHero(cardDef)
+      ) {
+        continue
+      }
       return {
         type: 'active_response_action',
         playerId: AI_PLAYER_ID,
@@ -204,8 +232,10 @@ function tryPlayUnit(
 
   if (playableUnits.length === 0) return null
 
-  // コストが低い順、次に攻撃力が高い順でソート
+  // ダメージ育成シナジー重視でソート
   playableUnits.sort((a, b) => {
+    const scoreDiff = getDamageGrowthUnitScore(b.def) - getDamageGrowthUnitScore(a.def)
+    if (scoreDiff !== 0) return scoreDiff
     const costDiff = a.def.cost - b.def.cost
     if (costDiff !== 0) return costDiff
     const atkA = a.def.unitStats?.attack ?? 0
@@ -231,6 +261,7 @@ function tryPlayAction(
   opponent: { units: { id: string }[] },
   cardMap: Map<string, CardDefinition>
 ): GameInput | null {
+  const opponentHasUnits = opponent.units.length > 0
   if (state.activeResponse.isActive) return null
 
   const sources: { cardId: string; fromExPocket: boolean; cost: number }[] = []
@@ -242,7 +273,15 @@ function tryPlayAction(
     const def = resolveCardDefinition(cardMap, cardId)
     if (def?.type === 'action') sources.push({ cardId, fromExPocket: true, cost: def.cost })
   }
-  sources.sort((a, b) => a.cost - b.cost)
+  sources.sort((a, b) => {
+    const cardA = resolveCardDefinition(cardMap, a.cardId)
+    const cardB = resolveCardDefinition(cardMap, b.cardId)
+    const scoreA = getDamageGrowthActionScore(cardA, opponentHasUnits)
+    const scoreB = getDamageGrowthActionScore(cardB, opponentHasUnits)
+    const scoreDiff = scoreB - scoreA
+    if (scoreDiff !== 0) return scoreDiff
+    return a.cost - b.cost
+  })
 
   for (const { cardId, fromExPocket } of sources) {
     const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -255,6 +294,13 @@ function tryPlayAction(
     const needsTarget = cardRequiresTargetSelection(cardDef)
 
     if (!needsTarget) {
+      // ターゲット不要のダメージ系（敵ユニットがいないと無駄）を避ける
+      if (
+        !opponentHasUnits &&
+        isEnemyUnitDamageCardWithoutEnemyHero(cardDef)
+      ) {
+        continue
+      }
       return {
         type: 'play_card',
         playerId: AI_PLAYER_ID,
@@ -295,10 +341,64 @@ function pickTarget(
   const self = state.players[playerIndex]
   const opponent = state.players[1 - playerIndex]
 
+  const enemyUnitsByHp = [...opponent.units].sort((a, b) => a.hp - b.hp)
   const targetByType: Record<string, string | undefined> = {
     friendly_hero: self.playerId,
     friendly_unit: self.units.length > 0 ? self.units[0].id : undefined,
-    enemy_unit: opponent.units.length > 0 ? opponent.units[0].id : undefined,
+    enemy_unit: enemyUnitsByHp.length > 0 ? enemyUnitsByHp[0].id : undefined,
   }
   return targetByType[targetType]
+}
+
+function getDamageGrowthActionScore(
+  cardDef: CardDefinition | null | undefined,
+  opponentHasUnits: boolean
+): number {
+  if (!cardDef) return -999
+  let score = 0
+  if (DAMAGE_GROWTH_CORE_CARD_IDS.has(cardDef.id)) score += 20
+  if (cardDef.description && cardDef.description.includes('ダメージ')) score += 9
+  if (cardDef.description && cardDef.description.includes('破壊')) score += 6
+  if (cardDef.description && cardDef.description.includes('+1/+1')) score += 8
+  if (cardDef.description && cardDef.description.includes('攻撃力を+1')) score += 5
+  const lowCostBonusMap: Record<number, number> = {
+    1: 5,
+    2: 4,
+    3: 3,
+    4: 2,
+    5: 1,
+  }
+  const lowCostBonus = lowCostBonusMap[cardDef.cost]
+  if (typeof lowCostBonus === 'number') score += lowCostBonus
+
+  // 盤面適応:
+  // 敵ユニットがいないのに「敵ユニットへのダメージ」が主効果のカードは、育成の種まき以外では無駄になりやすい。
+  // 文言ベースで大きくペナルティを入れて、代替行動（盤面/火種/バフ）を選びやすくする。
+  const description = cardDef.description || ''
+  if (!opponentHasUnits) {
+    if (isEnemyUnitDamageCardWithoutEnemyHero(cardDef)) score -= 120
+    else if (description.includes('敵ユニット')) score -= 25
+  }
+
+  return score
+}
+
+function isEnemyUnitDamageCardWithoutEnemyHero(cardDef: CardDefinition): boolean {
+  const description = cardDef.description || ''
+  const affectsEnemyUnits = description.includes('敵ユニット')
+  const affectsEnemyHero = description.includes('敵ヒーロー') || description.includes('敵リーダー')
+  // 敵ユニットへのダメージはあるが、敵ヒーロー/リーダーへの明示がないカードを「無駄撃ち候補」とみなす
+  return affectsEnemyUnits && !affectsEnemyHero
+}
+
+function getDamageGrowthUnitScore(cardDef: CardDefinition): number {
+  let score = 0
+  if (DAMAGE_GROWTH_CORE_CARD_IDS.has(cardDef.id)) score += 18
+  if (cardDef.description && cardDef.description.includes('ダメージ')) score += 8
+  if (cardDef.description && cardDef.description.includes('破壊')) score += 6
+  if (cardDef.description && cardDef.description.includes('+1/+1')) score += 10
+  if (cardDef.description && cardDef.description.includes('攻撃時')) score += 4
+  const attack = cardDef.unitStats?.attack ?? 0
+  if (attack >= 3) score += 2
+  return score
 }

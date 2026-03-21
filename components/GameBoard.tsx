@@ -144,63 +144,85 @@ function TimerDisplay({ timeRemainingMs }: { timeRemainingMs: number }) {
   )
 }
 
-// 相手用ヒーロー（HEROESからランダム選択）
-function getOpponentHero(playerHeroId: string): Hero {
-  const candidates = HEROES.filter((h) => h.id !== playerHeroId)
-  return candidates[Math.floor(Math.random() * candidates.length)] || HEROES[0]
+const FIXED_OPPONENT_HERO_ID = 'hero_red_kaiser'
+
+function getFixedRedOpponentHero(): Hero {
+  const fixed = HEROES.find((hero) => hero.id === FIXED_OPPONENT_HERO_ID)
+  if (fixed) return fixed
+  const redFallback = HEROES.find((hero) => hero.attribute === 'red')
+  if (redFallback) return redFallback
+  return HEROES[0]
 }
 
-/** 相手AI用：アクション多めのデッキを生成（30枚） */
-function createActionHeavyOpponentDeck(
-  cardMap: Map<string, CardDefinition>,
-  heroAttribute: string
+/** 相手AI用：赤の「ダメージで育てる」固定デッキ */
+function createFixedRedDamageGrowthDeck(
+  cardMap: Map<string, CardDefinition>
 ): string[] {
-  const actions: CardDefinition[] = []
-  const units: CardDefinition[] = []
-  for (const card of cardMap.values()) {
-    if (card.attribute !== heroAttribute) continue
-    const typeMap: Record<string, (c: CardDefinition) => void> = {
-      action: (c) => actions.push(c),
-      unit: (c) => units.push(c),
-    }
-    const push = typeMap[card.type]
-    if (push) push(card)
+  const fixedCoreDeck: string[] = [
+    // 育成の核
+    'COR_007', 'COR_007', 'COR_007',
+    'COR_025', 'COR_025', 'COR_025',
+    'COR_015', 'COR_015', 'COR_015',
+    'COR_009', 'COR_009', 'COR_009',
+    // 盤面処理+育成補助
+    'COR_027', 'COR_027', 'COR_027',
+    'COR_029', 'COR_029', 'COR_029',
+    'COR_035', 'COR_035', 'COR_035',
+    'COR_041', 'COR_041', 'COR_041',
+    // 強めのフィニッシュ群
+    'COR_040', 'COR_040',
+    'COR_039', 'COR_039',
+    'COR_012', 'COR_026',
+  ]
+
+  const deck: string[] = []
+  for (const cardId of fixedCoreDeck) {
+    const card = cardMap.get(cardId)
+    if (!card) continue
+    if (card.attribute !== 'red') continue
+    deck.push(cardId)
   }
 
-  const pickWithLimit = (
-    list: CardDefinition[],
-    count: number,
-    maxPerCard: Record<string, number>
-  ): string[] => {
-    const result: string[] = []
-    const used = new Map<string, number>()
-    for (const card of list) {
-      if (result.length >= count) break
-      const limit = maxPerCard[card.rarity ?? 'normal'] ?? 3
-      const n = used.get(card.id) ?? 0
-      if (n < limit) {
-        result.push(card.id)
-        used.set(card.id, n + 1)
-      }
-    }
-    return result
+  if (deck.length >= 30) {
+    return deck.slice(0, 30)
   }
 
-  const maxPerRarity: Record<string, number> = { legend: 1, normal: 3 }
-  const byCost = (a: CardDefinition, b: CardDefinition) => a.cost - b.cost
-  const actionIds = pickWithLimit([...actions].sort(byCost), 18, maxPerRarity)
-  const unitIds = pickWithLimit([...units].sort(byCost), 12, maxPerRarity)
-  let deck = [...actionIds, ...unitIds]
-  if (deck.length < 30) {
-    const pool = [...actions, ...units].sort((a, b) => a.cost - b.cost)
-    for (const card of pool) {
-      if (deck.length >= 30) break
-      const limit = maxPerRarity[card.rarity ?? 'normal'] ?? 3
-      const count = deck.filter((id) => id === card.id).length
-      if (count < limit) deck.push(card.id)
-    }
+  const redDamageCandidates = [...cardMap.values()]
+    .filter((card) => card.attribute === 'red')
+    .sort((a, b) => {
+      const scoreA = getRedDamageGrowthDeckScore(a)
+      const scoreB = getRedDamageGrowthDeckScore(b)
+      return scoreB - scoreA
+    })
+
+  for (const card of redDamageCandidates) {
+    if (deck.length >= 30) break
+    const currentCopies = deck.filter((id) => id === card.id).length
+    if (currentCopies >= 3) continue
+    deck.push(card.id)
   }
+
   return deck.slice(0, 30)
+}
+
+function getRedDamageGrowthDeckScore(card: CardDefinition): number {
+  let score = 0
+  const description = card.description || ''
+  if (card.type === 'action') score += 5
+  if (description.includes('ダメージ')) score += 7
+  if (description.includes('破壊')) score += 4
+  if (description.includes('+1/+1')) score += 6
+  if (description.includes('攻撃力を+1')) score += 4
+  if (description.includes('火種')) score += 3
+  const lowCostBonusMap: Record<number, number> = {
+    1: 4,
+    2: 3,
+    3: 2,
+    4: 1,
+  }
+  const lowCostBonus = lowCostBonusMap[card.cost]
+  if (typeof lowCostBonus === 'number') score += lowCostBonus
+  return score
 }
 
 interface GameBoardProps {
@@ -347,10 +369,8 @@ export default function GameBoard(props: GameBoardProps) {
 
     // プレイヤーのヒーローを取得
     const playerHero = HEROES.find((h) => h.id === savedDeck.heroId) || HEROES[0]
-    const opponentHero = getOpponentHero(playerHero.id)
-
-    // 相手のデッキはアクション多めに生成（AIが積極的にアクションを返すため）
-    const opponentDeck = createActionHeavyOpponentDeck(cardMap, opponentHero.attribute)
+    const opponentHero = getFixedRedOpponentHero()
+    const opponentDeck = createFixedRedDamageGrowthDeck(cardMap)
 
     const initialState = createInitialGameState(
       'player1',
