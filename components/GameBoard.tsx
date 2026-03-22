@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import type { GameState, GameInput, Hero, CardDefinition, Unit } from '@/core/types'
 import {
   updateGameState,
@@ -1085,7 +1085,7 @@ export default function GameBoard(props: GameBoardProps) {
   }, [dragging, hoveredLane, hoveredUnitId, hoveredHeroId, gameState, handlePlayCard, requiresTarget, getTargetType])
 
   // グローバルマウス/タッチイベント（カードドラッグ + アビリティドラッグ）
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!dragging && !abilityDragging) return
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -1574,16 +1574,15 @@ export default function GameBoard(props: GameBoardProps) {
                         unit={leftUnit}
                         isField
                         cardMap={cardMap}
-                        onClick={() => {
+                        onPrimaryPress={() => {
                           if (
                             (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
                             (cardTargetMode && cardTargetMode.targetSide === 'friendly')
                           ) {
                             handleAbilityTargetSelect(leftUnit.id)
-                          } else {
-                            onCardTap(leftCardDef, 'left', leftUnit)
                           }
                         }}
+                        onCardDetail={() => onCardTap(leftCardDef, 'left', leftUnit)}
                       />
                     </div>
                   ) : (
@@ -1629,16 +1628,15 @@ export default function GameBoard(props: GameBoardProps) {
                       unit={rightUnit}
                       isField
                       cardMap={cardMap}
-                      onClick={() => {
+                      onPrimaryPress={() => {
                         if (
                           (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
                           (cardTargetMode && cardTargetMode.targetSide === 'enemy')
                         ) {
                           handleAbilityTargetSelect(rightUnit.id)
-                        } else {
-                          onCardTap(rightCardDef, 'right', rightUnit)
                         }
                       }}
+                      onCardDetail={() => onCardTap(rightCardDef, 'right', rightUnit)}
                     />
                     </div>
                   ) : (
@@ -1679,7 +1677,7 @@ export default function GameBoard(props: GameBoardProps) {
                 cardDef={cardDef}
                 size="lg"
                 cardMap={cardMap}
-                onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                onCardDetail={() => setDetailCard({ card: cardDef, side: 'left' })}
                 onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
                 canPlay={canPlay}
                 isDragging={isDragging}
@@ -1718,7 +1716,7 @@ export default function GameBoard(props: GameBoardProps) {
                       cardDef={exCardDef}
                       size="sm"
                       cardMap={cardMap}
-                      onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
+                      onCardDetail={() => setDetailCard({ card: exCardDef, side: 'left' })}
                       onDragStart={(x, y) => onDragStart(exCard, exCardDef, slotIdx, x, y, true)}
                       canPlay={canPlay}
                       isDragging={isDragging}
@@ -1759,7 +1757,7 @@ export default function GameBoard(props: GameBoardProps) {
                       cardDef={cardDef}
                       size="md"
                       cardMap={cardMap}
-                      onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                      onCardDetail={() => setDetailCard({ card: cardDef, side: 'left' })}
                     />
                   )
                 })}
@@ -1779,7 +1777,7 @@ export default function GameBoard(props: GameBoardProps) {
                 このまま
               </button>
             </div>
-            <p className="text-gray-400 text-sm ls:text-xs mt-4 ls:mt-1">※カードをタップで詳細を確認</p>
+            <p className="text-gray-400 text-sm ls:text-xs mt-4 ls:mt-1">※カードを右クリックで詳細を確認（タッチは長押し）</p>
           </div>
 
           {detailCard && (

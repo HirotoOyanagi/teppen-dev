@@ -7,7 +7,10 @@ interface GameCardProps {
   unit?: Unit | null
   size?: 'sm' | 'md' | 'lg'
   isField?: boolean
-  onClick?: () => void
+  /** 右クリック（コンテキストメニュー）でカード詳細を表示 */
+  onCardDetail?: () => void
+  /** 左クリック完了時（ドラッグ開始しなかった場合）— 主にフィールドのターゲット選択 */
+  onPrimaryPress?: () => void
   onDragStart?: (x: number, y: number) => void
   canPlay?: boolean
   isDragging?: boolean
@@ -111,14 +114,13 @@ function extractKeywords(params: {
   return result
 }
 
-const LONG_PRESS_DURATION = 150 // 長押し判定時間（ミリ秒）
-
 const GameCard: React.FC<GameCardProps> = ({
   cardDef,
   unit,
   size = 'md',
   isField = false,
-  onClick,
+  onCardDetail,
+  onPrimaryPress,
   onDragStart,
   canPlay = true,
   isDragging = false,
@@ -126,8 +128,8 @@ const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const [shake, setShake] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const isDraggingRef = useRef(false)
+  /** この操作で onDragStart を呼んだか（左クリックの誤爆を防ぐ） */
+  const dragStartedThisGestureRef = useRef(false)
   
   // キーワード効果を抽出
   const keywords = useMemo(() => {
@@ -179,39 +181,42 @@ const GameCard: React.FC<GameCardProps> = ({
     return ''
   }, [unit, cardDef.unitStats, baseDef])
 
-  // タッチ/マウス開始
-  const handlePressStart = useCallback((clientX: number, clientY: number) => {
-    isDraggingRef.current = false
-
-    if (onDragStart && canPlay) {
-      pressTimerRef.current = setTimeout(() => {
-        isDraggingRef.current = true
-        onDragStart(clientX, clientY)
-      }, LONG_PRESS_DURATION)
-    }
-  }, [onDragStart, canPlay])
-
-  // タッチ/マウス終了
-  const handlePressEnd = useCallback(() => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current)
-      pressTimerRef.current = null
-    }
-
-    // ドラッグしなかった場合のみクリック処理（効果表示）
-    if (!isDraggingRef.current && onClick) {
-      onClick()
-    }
-  }, [onClick])
-
-  // クリーンアップ
-  useEffect(() => {
-    return () => {
-      if (pressTimerRef.current) {
-        clearTimeout(pressTimerRef.current)
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button === 2) {
+        e.preventDefault()
+        return
       }
-    }
-  }, [])
+      if (e.button !== 0) return
+
+      dragStartedThisGestureRef.current = false
+      if (onDragStart && canPlay) {
+        dragStartedThisGestureRef.current = true
+        onDragStart(e.clientX, e.clientY)
+      }
+    },
+    [onDragStart, canPlay]
+  )
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return
+      if (dragStartedThisGestureRef.current) return
+      if (onPrimaryPress) {
+        onPrimaryPress()
+      }
+    },
+    [onPrimaryPress]
+  )
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onCardDetail) return
+      e.preventDefault()
+      onCardDetail()
+    },
+    [onCardDetail]
+  )
 
   // HPが減少したときに揺らす簡易エフェクト
   useEffect(() => {
@@ -245,23 +250,29 @@ const GameCard: React.FC<GameCardProps> = ({
     lg: 'w-32 h-44 ls:w-20 ls:h-28',
   }
 
+  const cursorClassMap: Record<string, string> = {
+    grab: 'cursor-grab active:cursor-grabbing',
+    pointer: 'cursor-pointer',
+    default: 'cursor-default',
+  }
+  let cursorKey: keyof typeof cursorClassMap = 'default'
+  if (onDragStart && canPlay) {
+    cursorKey = 'grab'
+  } else if (onCardDetail || onPrimaryPress) {
+    cursorKey = 'pointer'
+  }
+
   return (
     <div
-      onMouseDown={(e) => handlePressStart(e.clientX, e.clientY)}
-      onMouseUp={handlePressEnd}
-      onMouseLeave={() => {
-        if (pressTimerRef.current) {
-          clearTimeout(pressTimerRef.current)
-          pressTimerRef.current = null
-        }
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => {
+        dragStartedThisGestureRef.current = false
       }}
-      onTouchStart={(e) => {
-        if (e.touches[0]) handlePressStart(e.touches[0].clientX, e.touches[0].clientY)
-      }}
-      onTouchEnd={handlePressEnd}
-      onContextMenu={(e) => e.preventDefault()}
-      className={`relative ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''} ${
-        (onClick || onDragStart) && canPlay ? 'cursor-pointer' : 'cursor-default'
+      onContextMenu={handleContextMenu}
+      style={{ touchAction: onDragStart && canPlay ? 'none' : undefined }}
+      className={`relative select-none ${sizeClasses[size]} ${isDragging ? 'opacity-30 scale-95' : ''} ${
+        cursorClassMap[cursorKey]
       }`}
     >
     {/* カード本体（overflow-hidden適用） */}

@@ -3,7 +3,7 @@
  * サーバーからのGameState受信で更新、入力はWebSocket経由で送信
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import type { GameInput, CardDefinition, Unit, PlayerState } from '@/core/types'
 import type { SanitizedGameState, SanitizedPlayerState } from '@/core/protocol'
 import { useCards } from '@/utils/useCards'
@@ -643,7 +643,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   }, [dragging, hoveredLane, hoveredUnitId, hoveredHeroId, gameState, handlePlayCard, requiresTarget, getTargetType])
 
   // グローバルマウス/タッチイベント（カードドラッグ + アビリティドラッグ）
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!dragging && !abilityDragging) return
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -1107,16 +1107,20 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                                 : ''
                       }`}
                     >
-                      <GameCard cardDef={leftCardDef} unit={leftUnit} isField onClick={() => {
-                        if (
-                          (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
-                          (cardTargetMode && cardTargetMode.targetSide === 'friendly')
-                        ) {
-                          handleAbilityTargetSelect(leftUnit.id)
-                        } else {
-                          setDetailCard({ card: leftCardDef!, side: 'left', unit: leftUnit })
-                        }
-                      }} />
+                      <GameCard
+                        cardDef={leftCardDef}
+                        unit={leftUnit}
+                        isField
+                        onPrimaryPress={() => {
+                          if (
+                            (abilityTargetMode && abilityTargetMode.targetSide === 'friendly') ||
+                            (cardTargetMode && cardTargetMode.targetSide === 'friendly')
+                          ) {
+                            handleAbilityTargetSelect(leftUnit.id)
+                          }
+                        }}
+                        onCardDetail={() => setDetailCard({ card: leftCardDef!, side: 'left', unit: leftUnit })}
+                      />
                     </div>
                   ) : (
                     <div key={`empty_left_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
@@ -1148,16 +1152,20 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                             : ''
                       }`}
                     >
-                    <GameCard cardDef={rightCardDef} unit={rightUnit} isField onClick={() => {
-                      if (
-                        (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
-                        (cardTargetMode && cardTargetMode.targetSide === 'enemy')
-                      ) {
-                        handleAbilityTargetSelect(rightUnit.id)
-                      } else {
-                        setDetailCard({ card: rightCardDef!, side: 'right', unit: rightUnit })
-                      }
-                    }} />
+                    <GameCard
+                      cardDef={rightCardDef}
+                      unit={rightUnit}
+                      isField
+                      onPrimaryPress={() => {
+                        if (
+                          (abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
+                          (cardTargetMode && cardTargetMode.targetSide === 'enemy')
+                        ) {
+                          handleAbilityTargetSelect(rightUnit.id)
+                        }
+                      }}
+                      onCardDetail={() => setDetailCard({ card: rightCardDef!, side: 'right', unit: rightUnit })}
+                    />
                     </div>
                   ) : (
                     <div key={`empty_right_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
@@ -1193,7 +1201,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 key={`${cardId}_${i}`}
                 cardDef={cardDef}
                 size="lg"
-                onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                onCardDetail={() => setDetailCard({ card: cardDef, side: 'left' })}
                 onDragStart={(x, y) => onDragStart(cardId, cardDef, i, x, y)}
                 canPlay={canPlay}
                 isDragging={isDragging}
@@ -1231,7 +1239,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       cardDef={exCardDef}
                       size="sm"
                       cardMap={cardMap}
-                      onClick={() => setDetailCard({ card: exCardDef, side: 'left' })}
+                      onCardDetail={() => setDetailCard({ card: exCardDef, side: 'left' })}
                       onDragStart={(x, y) => onDragStart(exCard, exCardDef, slotIdx, x, y, true)}
                       canPlay={canPlay}
                       isDragging={isDragging}
@@ -1276,7 +1284,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       key={`${cardId}_${idx}`}
                       cardDef={cardDef}
                       size="md"
-                      onClick={() => setDetailCard({ card: cardDef, side: 'left' })}
+                      onCardDetail={() => setDetailCard({ card: cardDef, side: 'left' })}
                     />
                   )
                 })}
@@ -1294,6 +1302,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             ) : (
               <p className="text-yellow-400 text-lg ls:text-sm mt-4 ls:mt-1 animate-pulse">相手のマリガン完了を待っています...</p>
             )}
+            <p className="text-gray-400 text-sm ls:text-xs mt-4 ls:mt-1">※カードを右クリックで詳細を確認（タッチは長押し）</p>
           </div>
           {detailCard && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
         </div>
