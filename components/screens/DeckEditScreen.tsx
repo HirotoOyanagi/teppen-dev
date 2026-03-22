@@ -127,6 +127,17 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
     }
   }, [handleAddCard])
 
+  const handleCardPoolContextMenu = useCallback((e: React.MouseEvent, card: CardDefinition) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    longPressTriggeredRef.current = false
+    setSelectedCard(card)
+  }, [])
+
   const handleCardPointerCancel = useCallback(() => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current)
@@ -209,11 +220,17 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
                 <div
                   key={card.id}
                   className={`${styles.cardItem} ${!canAdd ? styles.disabled : ''}`}
-                  onPointerDown={() => handleCardPointerDown(card)}
-                  onPointerUp={() => handleCardPointerUp(card, canAdd)}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return
+                    handleCardPointerDown(card)
+                  }}
+                  onPointerUp={(e) => {
+                    if (e.button !== 0) return
+                    handleCardPointerUp(card, canAdd)
+                  }}
                   onPointerCancel={handleCardPointerCancel}
                   onPointerLeave={handleCardPointerCancel}
-                  onContextMenu={(e) => e.preventDefault()}
+                  onContextMenu={(e) => handleCardPoolContextMenu(e, card)}
                   draggable={canAdd}
                   onDragStart={(e) => canAdd && handleDragStart(e, card)}
                 >
