@@ -301,10 +301,12 @@ interface GameBoardProps {
   onMulliganComplete?: () => void
   /** テスト環境: 横に全カードパネルを出し、任意のカードをドラッグでプレイ可能 */
   testMode?: boolean
+  /** 対戦終了後にメニューへ戻る（例: デッキ選択） */
+  onExitBattle?: () => void
 }
 
 export default function GameBoard(props: GameBoardProps) {
-  const { onMulliganComplete, testMode = false } = props
+  const { onMulliganComplete, testMode = false, onExitBattle } = props
   const [gameState, setGameState] = useState<GameState | null>(null)
   const { cardMap, isLoading: cardsLoading } = useCards()
   const [detailCard, setDetailCard] = useState<{
@@ -1792,12 +1794,24 @@ export default function GameBoard(props: GameBoardProps) {
           <h2 className="text-8xl ls:text-4xl font-black italic tracking-tighter text-white animate-pulse">
             {winner}
           </h2>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-12 ls:mt-4 px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
-          >
-            リマッチ
-          </button>
+          <div className="mt-12 ls:mt-4 flex flex-col ls:flex-row items-center justify-center gap-4 ls:gap-6">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-12 ls:px-6 py-4 ls:py-2 bg-yellow-500 text-black font-bold text-2xl ls:text-lg hover:bg-yellow-400 transition-colors skew-x-[-12deg]"
+            >
+              リマッチ
+            </button>
+            {onExitBattle && (
+              <button
+                type="button"
+                onClick={onExitBattle}
+                className="px-12 ls:px-6 py-4 ls:py-2 bg-transparent text-white font-bold text-2xl ls:text-lg border-2 border-white/80 hover:bg-white/10 transition-colors skew-x-[-12deg]"
+              >
+                戻る
+              </button>
+            )}
+          </div>
         </div>
       )}
 

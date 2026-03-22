@@ -100,7 +100,11 @@ export default function BattlePage() {
             onMulliganComplete={handleMulliganComplete}
           />
         ) : (
-          <GameBoard onMulliganComplete={handleMulliganComplete} testMode={router.query.mode === 'test'} />
+          <GameBoard
+            onMulliganComplete={handleMulliganComplete}
+            testMode={router.query.mode === 'test'}
+            onExitBattle={() => router.push('/deck-select')}
+          />
         )}
       </div>
     </>
