@@ -255,6 +255,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const abilityHoveredUnitIdRef = useRef<string | null>(null)
   // 接続 & マッチメイキング開始
   useEffect(() => {
     if (cardsLoading) return
@@ -430,6 +431,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         ? (type === 'hero_art' ? 'enemy' : 'friendly')
         : 'none'
 
+      abilityHoveredUnitIdRef.current = null
       setAbilityDragging({ type, targetSide, name: ability.name })
       setDragPos({ x, y })
     },
@@ -453,6 +455,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             }
           }
         })
+        abilityHoveredUnitIdRef.current = foundUnitId
         setHoveredUnitId(foundUnitId)
       } else if (abilityDragging.targetSide === 'enemy') {
         let foundUnitId: string | null = null
@@ -465,6 +468,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             }
           }
         })
+        abilityHoveredUnitIdRef.current = foundUnitId
         setHoveredUnitId(foundUnitId)
       }
     },
@@ -477,13 +481,17 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
     if (abilityDragging.targetSide === 'none') {
       handleFireAbility(abilityDragging.type)
-    } else if (hoveredUnitId) {
-      handleFireAbility(abilityDragging.type, hoveredUnitId)
+    } else {
+      const targetUnitId = abilityHoveredUnitIdRef.current
+      if (targetUnitId) {
+        handleFireAbility(abilityDragging.type, targetUnitId)
+      }
     }
 
+    abilityHoveredUnitIdRef.current = null
     setAbilityDragging(null)
     setHoveredUnitId(null)
-  }, [abilityDragging, hoveredUnitId, handleFireAbility])
+  }, [abilityDragging, handleFireAbility])
 
   // ターゲット選択モードでのユニットクリック
   const handleAbilityTargetSelect = useCallback(
@@ -642,34 +650,26 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     setDetailCard(null)
   }, [dragging, hoveredLane, hoveredUnitId, hoveredHeroId, gameState, handlePlayCard, requiresTarget, getTargetType])
 
-  // グローバルマウス/タッチイベント（カードドラッグ + アビリティドラッグ）
+  // グローバルポインターイベント（マウス/タッチ/ペン統一。カードドラッグ + アビリティドラッグ）
   useLayoutEffect(() => {
     if (!dragging && !abilityDragging) return
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       if (dragging) onDragMove(e.clientX, e.clientY)
       if (abilityDragging) onAbilityDragMove(e.clientX, e.clientY)
-    }
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) {
-        if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY)
-        if (abilityDragging) onAbilityDragMove(e.touches[0].clientX, e.touches[0].clientY)
-      }
     }
     const handleEnd = () => {
       if (dragging) onDragEnd()
       if (abilityDragging) onAbilityDragEnd()
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleEnd)
-    window.addEventListener('touchmove', handleTouchMove)
-    window.addEventListener('touchend', handleEnd)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handleEnd)
+    window.addEventListener('pointercancel', handleEnd)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleEnd)
-      window.removeEventListener('touchmove', handleTouchMove)
-      window.removeEventListener('touchend', handleEnd)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleEnd)
+      window.removeEventListener('pointercancel', handleEnd)
     }
   }, [dragging, abilityDragging, onDragMove, onDragEnd, onAbilityDragMove, onAbilityDragEnd])
 
@@ -809,22 +809,20 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
       {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
       {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
-        <div className="absolute bottom-20 ls:bottom-14 left-0 ls:left-0 z-25 flex gap-2 ls:gap-1 pl-1 ls:pl-0.5 pb-1">
+        <div className="absolute bottom-20 ls:bottom-14 left-0 ls:left-0 z-30 flex gap-2 ls:gap-1 pl-1 ls:pl-0.5 pb-1">
           {player.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <button
-                onMouseDown={(e) => {
+                type="button"
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return
+                  e.preventDefault()
                   if (player.ap >= player.hero.heroArt!.cost) {
                     onAbilityDragStart('hero_art', e.clientX, e.clientY)
                   }
                 }}
-                onTouchStart={(e) => {
-                  if (player.ap >= player.hero.heroArt!.cost && e.touches[0]) {
-                    onAbilityDragStart('hero_art', e.touches[0].clientX, e.touches[0].clientY)
-                  }
-                }}
                 disabled={player.ap < player.hero.heroArt.cost}
-                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.heroArt.cost
                     ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
@@ -863,18 +861,16 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           {player.hero.companion && (
             <div className="group relative flex items-center gap-1">
               <button
-                onMouseDown={(e) => {
+                type="button"
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return
+                  e.preventDefault()
                   if (player.ap >= player.hero.companion!.cost) {
                     onAbilityDragStart('companion', e.clientX, e.clientY)
                   }
                 }}
-                onTouchStart={(e) => {
-                  if (player.ap >= player.hero.companion!.cost && e.touches[0]) {
-                    onAbilityDragStart('companion', e.touches[0].clientX, e.touches[0].clientY)
-                  }
-                }}
                 disabled={player.ap < player.hero.companion.cost}
-                className={`relative w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.companion.cost
                     ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
@@ -915,7 +911,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
       {/* 相手のEXポケット（アーツの左隣）＋必殺技・おとも（右上・表示のみ） */}
       {gameState.phase === 'playing' && (
-        <div className="absolute top-14 right-0 ls:right-0 z-25 flex flex-row items-end gap-1 ls:gap-0.5 pr-1 ls:pr-0.5 pt-1">
+        <div className="absolute top-14 right-0 ls:right-0 z-30 flex flex-row items-end gap-1 ls:gap-0.5 pr-1 ls:pr-0.5 pt-1">
           <div className="flex shrink-0 gap-1" aria-label="相手のEXポケット">
             {[0, 1].map((slotIdx) => {
               const rawId = opponent.exPocket[slotIdx]
