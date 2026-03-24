@@ -55,6 +55,40 @@
   letter-spacing: 2px;
 }
 
+.navButtons {
+  position: absolute;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.navButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #555;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ddd;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.navButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.navButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .closeButton {
   position: absolute;
   right: 12px;
@@ -402,6 +436,17 @@
     width: 24px;
     height: 24px;
     font-size: 14px;
+  }
+
+  .navButtons {
+    right: 42px;
+    gap: 4px;
+  }
+
+  .navButton {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
   }
 
   .content {

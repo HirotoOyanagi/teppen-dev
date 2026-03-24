@@ -64,6 +64,14 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
     })
   }, [allCards, searchTerm, selectedAttribute])
 
+  const modalCardList = useMemo(() => {
+    let cardSource = allCards
+    if (filteredCards.length > 0) {
+      cardSource = filteredCards
+    }
+    return cardSource
+  }, [allCards, filteredCards])
+
   const deckCardSummary = useMemo(() => {
     const counts = new Map<string, number>()
     deckCardIds.forEach((cid) => counts.set(cid, (counts.get(cid) || 0) + 1))
@@ -154,6 +162,32 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
       return next
     })
   }, [])
+
+  const handleOpenPrevCard = useCallback(() => {
+    if (!selectedCard || modalCardList.length === 0) return
+    const currentIndex = modalCardList.findIndex((card) => card.id === selectedCard.id)
+    if (currentIndex === -1) return
+
+    let prevIndex = currentIndex - 1
+    if (prevIndex < 0) {
+      prevIndex = modalCardList.length - 1
+    }
+
+    setSelectedCard(modalCardList[prevIndex])
+  }, [selectedCard, modalCardList])
+
+  const handleOpenNextCard = useCallback(() => {
+    if (!selectedCard || modalCardList.length === 0) return
+    const currentIndex = modalCardList.findIndex((card) => card.id === selectedCard.id)
+    if (currentIndex === -1) return
+
+    let nextIndex = currentIndex + 1
+    if (nextIndex >= modalCardList.length) {
+      nextIndex = 0
+    }
+
+    setSelectedCard(modalCardList[nextIndex])
+  }, [selectedCard, modalCardList])
 
   const handleSaveDeck = () => {
     if (deckId) {
@@ -389,7 +423,12 @@ export default function DeckEditScreen({ deckId }: DeckEditScreenProps) {
       </div>
 
       {selectedCard && (
-        <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
+        <CardModal
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
+          onPrevCard={handleOpenPrevCard}
+          onNextCard={handleOpenNextCard}
+        />
       )}
 
       <BottomNavigation />

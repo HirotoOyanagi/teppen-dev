@@ -5,6 +5,8 @@ import styles from './CardModal.module.css'
 interface CardModalProps {
   card: CardDefinition | null
   onClose: () => void
+  onPrevCard?: () => void
+  onNextCard?: () => void
 }
 
 const attributeColors: Record<string, string> = {
@@ -95,16 +97,28 @@ function highlightKeywords(text: string): { segments: { text: string; isKeyword:
   return { segments }
 }
 
-export default function CardModal({ card, onClose }: CardModalProps) {
+export default function CardModal({ card, onClose, onPrevCard, onNextCard }: CardModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
+      const keyActionMap: Record<string, () => void> = {
+        Escape: onClose,
+      }
+
+      if (onPrevCard) {
+        keyActionMap.ArrowLeft = onPrevCard
+      }
+      if (onNextCard) {
+        keyActionMap.ArrowRight = onNextCard
+      }
+
+      const action = keyActionMap[e.key]
+      if (action) {
+        action()
       }
     }
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+  }, [onClose, onPrevCard, onNextCard])
 
   if (!card) return null
 
@@ -124,6 +138,14 @@ export default function CardModal({ card, onClose }: CardModalProps) {
         {/* ヘッダー */}
         <div className={styles.header}>
           <span className={styles.headerTitle}>カード詳細</span>
+          <div className={styles.navButtons}>
+            <button className={styles.navButton} onClick={onPrevCard} disabled={!onPrevCard} aria-label="前のカード">
+              ←
+            </button>
+            <button className={styles.navButton} onClick={onNextCard} disabled={!onNextCard} aria-label="次のカード">
+              →
+            </button>
+          </div>
           <button className={styles.closeButton} onClick={onClose}>
             ×
           </button>
