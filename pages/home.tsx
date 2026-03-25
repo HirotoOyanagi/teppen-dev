@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import Head from 'next/head'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
-import BottomNavigationForPages from '@/components/BottomNavigationForPages'
-import type { Hero } from '@/core/types'
 import { HEROES } from '@/core/heroes'
 import styles from './home.module.css'
 
@@ -11,87 +10,145 @@ const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: fal
 
 export default function HomePage() {
   const router = useRouter()
-  const [userName, setUserName] = useState('プレイヤー')
-  const [currentHero, setCurrentHero] = useState<Hero>(HEROES[0])
+  const [currentHero] = useState(HEROES[0]) // Default to Reisia for demonstration
 
-  useEffect(() => {
-    const savedName = localStorage.getItem('teppen_userName')
-    if (savedName) {
-      setUserName(savedName)
-    }
-
-    const savedHeroId = localStorage.getItem('teppen_currentHeroId')
-    if (savedHeroId) {
-      const hero = HEROES.find((h) => h.id === savedHeroId)
-      if (hero) {
-        setCurrentHero(hero)
-      }
-    }
-  }, [])
-
-  const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const name = e.target.value || 'プレイヤー'
-    setUserName(name)
-    localStorage.setItem('teppen_userName', name)
-  }
-
-  const handleRankMatch = () => {
-    router.push('/deck-select')
-  }
-
-  const attributeColors: Record<string, string> = {
-    red: '#e74c3c',
-    green: '#27ae60',
-    purple: '#9b59b6',
-    black: '#2c3e50',
+  const navigate = (path: string) => {
+    router.push(path)
   }
 
   return (
-    <>
+    <div className={styles.container}>
       <Head>
-        <title>Chrono Reverse - ホーム</title>
+        <title>TEPPEN - Home</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.userInfo}>
-            <div className={styles.userIcon}>👤</div>
-            <input
-              type="text"
-              value={userName}
-              onChange={handleUserNameChange}
-              className={styles.userNameInput}
-              placeholder="プレイヤー名"
-            />
+
+      {/* Top Bar */}
+      <div className={styles.topBar}>
+        <div className={styles.topNavGroup}>
+          <div className={styles.topNavItem}>
+            <div className={styles.badge}>5</div>
+            <span className={styles.icon}>🔥</span>
+            <span>ミッション</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🔔</span>
+            <span>お知らせ</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🎁</span>
+            <span>プレゼント</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🏆</span>
+            <span>ランキング</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>⚙️</span>
+            <span>その他</span>
           </div>
         </div>
 
-        <div className={styles.main}>
-          <div className={styles.heroDisplay}>
-            <div
-              className={styles.heroCard}
-              style={{ borderColor: attributeColors[currentHero.attribute] }}
-            >
-              <h2 className={styles.heroName}>{currentHero.name}</h2>
-              <div className={styles.heroAttribute}>
-                属性: {currentHero.attribute}
-              </div>
-              {currentHero.modelUrl && (
-                <div className={styles.heroModel}>
-                  <HeroModel3D modelUrl={currentHero.modelUrl} variant="home" />
-                </div>
-              )}
-              <p className={styles.heroDescription}>{currentHero.description}</p>
+        <div className={styles.currencyGroup}>
+          <div className={styles.currencyBox}>
+            <div className={styles.currencyItem}>
+              <div className={styles.currencyIcon} />
+              <span>1,347</span>
+            </div>
+            <div className={styles.currencyItem}>
+              <div className={`${styles.currencyIcon} ${styles.soulsIcon}`} />
+              <span>90</span>
+            </div>
+            <div className={styles.plusIcon}>+</div>
+          </div>
+          <div className={styles.statusGroup}>
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className={styles.mainContent}>
+        <div className={styles.characterArea}>
+          <div className={styles.heroModelContainer}>
+            {currentHero.modelUrl && (
+              <HeroModel3D 
+                modelUrl={currentHero.modelUrl} 
+                variant="home" 
+                className={styles.heroModel}
+              />
+            )}
+          </div>
+          
+          <div className={styles.eventBanner}>
+            <div style={{ fontWeight: '900', color: '#fff' }}>ECHOES OF ADVENTURE</div>
+            <div style={{ fontSize: '11px', color: '#d4af37' }}>新マップ＆チャレンジ追加！</div>
+          </div>
+        </div>
+
+        <div className={styles.bannerArea}>
+          {/* Large Banner */}
+          <div className={styles.bannerLarge} onClick={() => navigate('/deck-select')}>
+            <h2>Thank You for Playing!</h2>
+            <p>〈ランクマッチ〉 開催終了いたしました</p>
+          </div>
+
+          {/* Medium Banner */}
+          <div className={styles.bannerMedium}>
+            <div className={styles.floorBadge}>FLOOR 17 UNLIMITED</div>
+            <div className={styles.countdown}>残り時間 7日17時間23分</div>
+            <div className={styles.pointMatchTitle}>
+              ポイントマッチ "誇り高き孤高の英雄たち"
             </div>
           </div>
 
-          <button className={styles.rankMatchButton} onClick={handleRankMatch}>
-            ランクマッチ
-          </button>
+          {/* Small Banners */}
+          <div className={styles.bannerSmallRow}>
+            <div className={styles.bannerSmall} onClick={() => navigate('/matchmaking')}>
+              フリーマッチ
+            </div>
+            <div className={styles.bannerSmall}>
+              ルームマッチ
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className={styles.bottomBar}>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>👤</span>
+          <span>ソロプレイ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>🏟️</span>
+          <span>コロシアム</span>
+        </div>
+        <div className={`${styles.bottomNavItem} ${styles.active}`} onClick={() => navigate('/matchmaking')}>
+          <span className={styles.bottomNavIcon}>⚔️</span>
+          <span>バトル</span>
+        </div>
+        
+        {/* Central Tournament Button */}
+        <div className={styles.tournamentButton}>
+          <span className={styles.tournamentIcon}>👑</span>
+          <span>大会</span>
         </div>
 
-        <BottomNavigationForPages />
+        <div className={styles.bottomNavItem} onClick={() => navigate('/cards')}>
+          <span className={styles.bottomNavIcon}>🃏</span>
+          <span>カード</span>
+        </div>
+        <div className={styles.bottomNavItem} onClick={() => navigate('/shop')}>
+          <span className={styles.bottomNavIcon}>💰</span>
+          <span>ショップ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>📺</span>
+          <span>TEPPEN Ch.</span>
+        </div>
       </div>
-    </>
+    </div>
   )
 }

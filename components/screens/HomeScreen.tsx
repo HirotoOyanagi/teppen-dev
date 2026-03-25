@@ -1,82 +1,140 @@
-import { useState, useEffect } from 'react'
+import React from 'react'
+import Image from 'next/image'
 import { useNavigation } from '@/components/NavigationContext'
-import BottomNavigation from '@/components/BottomNavigation'
-import type { Hero } from '@/core/types'
-import { HEROES } from '@/core/heroes'
 import styles from './HomeScreen.module.css'
 
-export default function HomeScreen() {
+const HomeScreen: React.FC = () => {
   const { navigate } = useNavigation()
-  const [userName, setUserName] = useState('プレイヤー')
-  const [currentHero, setCurrentHero] = useState<Hero>(HEROES[0])
-
-  useEffect(() => {
-    const savedName = localStorage.getItem('teppen_userName')
-    if (savedName) {
-      setUserName(savedName)
-    }
-
-    const savedHeroId = localStorage.getItem('teppen_currentHeroId')
-    if (savedHeroId) {
-      const hero = HEROES.find((h) => h.id === savedHeroId)
-      if (hero) {
-        setCurrentHero(hero)
-      }
-    }
-  }, [])
-
-  const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const name = e.target.value || 'プレイヤー'
-    setUserName(name)
-    localStorage.setItem('teppen_userName', name)
-  }
-
-  const handleRankMatch = () => {
-    navigate({ name: 'deck-select' })
-  }
-
-  const attributeColors: Record<string, string> = {
-    red: '#e74c3c',
-    green: '#27ae60',
-    purple: '#9b59b6',
-    black: '#2c3e50',
-  }
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.userInfo}>
-          <div className={styles.userIcon}>👤</div>
-          <input
-            type="text"
-            value={userName}
-            onChange={handleUserNameChange}
-            className={styles.userNameInput}
-            placeholder="プレイヤー名"
-          />
-        </div>
-      </div>
-
-      <div className={styles.main}>
-        <div className={styles.heroDisplay}>
-          <div
-            className={styles.heroCard}
-            style={{ borderColor: attributeColors[currentHero.attribute] }}
-          >
-            <h2 className={styles.heroName}>{currentHero.name}</h2>
-            <div className={styles.heroAttribute}>
-              属性: {currentHero.attribute}
-            </div>
-            <p className={styles.heroDescription}>{currentHero.description}</p>
+      {/* Top Bar */}
+      <div className={styles.topBar}>
+        <div className={styles.topNavGroup}>
+          <div className={styles.topNavItem}>
+            <div className={styles.badge}>5</div>
+            <span className={styles.icon}>🔥</span>
+            <span>ミッション</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🔔</span>
+            <span>お知らせ</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🎁</span>
+            <span>プレゼント</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>🏆</span>
+            <span>ランキング</span>
+          </div>
+          <div className={styles.topNavItem}>
+            <span className={styles.icon}>⚙️</span>
+            <span>その他</span>
           </div>
         </div>
 
-        <button className={styles.rankMatchButton} onClick={handleRankMatch}>
-          ランクマッチ
-        </button>
+        <div className={styles.currencyGroup}>
+          <div className={styles.currencyItem}>
+            <div className={styles.currencyIcon} />
+            <span>1,347</span>
+          </div>
+          <div className={styles.currencyItem}>
+            <div className={`${styles.currencyIcon} ${styles.soulsIcon}`} />
+            <span>90</span>
+          </div>
+          <div className={styles.plusIcon}>+</div>
+          <div className={styles.statusGroup}>
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
       </div>
 
-      <BottomNavigation />
+      {/* Main Content */}
+      <div className={styles.mainContent}>
+        <div className={styles.characterArea}>
+          {/* Character Placeholder - In a real app, this would be a PNG with transparency */}
+          <div className={styles.characterImage}>
+            <Image 
+              src="/images/cards/Cor001.png" 
+              alt="Character" 
+              width={400} 
+              height={600} 
+              style={{ objectFit: 'contain' }}
+            />
+          </div>
+          
+          <div className={styles.eventBanner}>
+            <div style={{ fontWeight: 'bold' }}>ECHOES OF ADVENTURE</div>
+            <div style={{ fontSize: '10px' }}>新マップ＆チャレンジ追加！</div>
+          </div>
+        </div>
+
+        <div className={styles.bannerArea}>
+          {/* Large Banner */}
+          <div className={styles.bannerLarge}>
+            <h2>Thank You for Playing!</h2>
+            <p>〈ランクマッチ〉 開催終了いたしました</p>
+          </div>
+
+          {/* Medium Banner */}
+          <div className={styles.bannerMedium}>
+            <div className={styles.floorBadge}>FLOOR 17 UNLIMITED</div>
+            <div className={styles.countdown}>残り時間 7日17時間23分</div>
+            <div className={styles.pointMatchTitle}>
+              ポイントマッチ "誇り高き孤高の英雄たち"
+            </div>
+          </div>
+
+          {/* Small Banners */}
+          <div className={styles.bannerSmallRow}>
+            <div className={styles.bannerSmall} onClick={() => navigate({ name: 'matchmaking' })}>
+              フリーマッチ
+            </div>
+            <div className={styles.bannerSmall}>
+              ルームマッチ
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className={styles.bottomBar}>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>👤</span>
+          <span>ソロプレイ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>🏟️</span>
+          <span>コロシアム</span>
+        </div>
+        <div className={`${styles.bottomNavItem} ${styles.active}`} onClick={() => navigate({ name: 'matchmaking' })}>
+          <span className={styles.bottomNavIcon}>⚔️</span>
+          <span>バトル</span>
+        </div>
+        
+        {/* Central Tournament Button */}
+        <div className={styles.tournamentButton}>
+          <span className={styles.tournamentIcon}>👑</span>
+          <span>大会</span>
+        </div>
+
+        <div className={styles.bottomNavItem} onClick={() => navigate({ name: 'cards' })}>
+          <span className={styles.bottomNavIcon}>🃏</span>
+          <span>カード</span>
+        </div>
+        <div className={styles.bottomNavItem} onClick={() => navigate({ name: 'shop' })}>
+          <span className={styles.bottomNavIcon}>💰</span>
+          <span>ショップ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>📺</span>
+          <span>TEPPEN Ch.</span>
+        </div>
+      </div>
     </div>
   )
 }
+
+export default HomeScreen

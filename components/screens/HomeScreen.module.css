@@ -1,193 +1,306 @@
 .container {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(90, 160, 255, 0.18) 0%, transparent 55%),
-    radial-gradient(circle at 80% 100%, rgba(255, 140, 80, 0.16) 0%, transparent 55%),
-    linear-gradient(160deg, #050713 0%, #050814 40%, #06040b 100%);
-  padding-bottom: 80px;
-  color: #e5ecff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: radial-gradient(circle at 30% 50%, #2a2a2a 0%, #000 100%);
+  color: white;
+  overflow: hidden;
+  font-family: sans-serif;
+  user-select: none;
 }
 
-.header {
-  padding: 20px;
-  background: linear-gradient(90deg, rgba(8, 14, 28, 0.8), rgba(10, 22, 44, 0.9));
-  border-bottom: 1px solid rgba(126, 189, 255, 0.35);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
-}
-
-.userInfo {
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  padding: 0 20px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+  z-index: 10;
 }
 
-.userIcon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #b0c4ff);
+.topNavGroup {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  box-shadow: 0 0 18px rgba(150, 190, 255, 0.8);
+  gap: 15px;
 }
 
-.userNameInput {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid rgba(146, 192, 255, 0.7);
-  border-radius: 999px;
-  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.18), rgba(10, 20, 40, 0.85));
-  font-size: 16px;
-  color: #e5ecff;
-  box-shadow: 0 0 16px rgba(60, 120, 255, 0.35);
-}
-
-.userNameInput:focus {
-  outline: none;
-  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.32), rgba(12, 26, 52, 0.95));
-}
-
-.main {
-  padding: 40px 20px;
+.topNavItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
+  font-size: 10px;
+  opacity: 0.8;
+  cursor: pointer;
+  position: relative;
 }
 
-.heroDisplay {
-  width: 100%;
-  max-width: 400px;
+.topNavItem:hover {
+  opacity: 1;
 }
 
-.heroCard {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(120, 190, 255, 0.16), transparent 60%),
-    linear-gradient(145deg, rgba(12, 20, 40, 0.95), rgba(6, 10, 25, 0.98));
-  border-radius: 16px;
-  padding: 30px;
-  border: 1px solid rgba(148, 198, 255, 0.65);
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.95),
-    0 0 22px rgba(80, 150, 255, 0.35);
-  text-align: center;
-}
-
-.heroName {
-  font-size: 32px;
+.badge {
+  position: absolute;
+  top: -5px;
+  right: 0;
+  background: #ff0000;
+  color: white;
+  font-size: 10px;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold;
-  margin-bottom: 12px;
-  color: #f4f6ff;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  border: 1px solid white;
 }
 
-.heroAttribute {
+.icon {
   font-size: 18px;
-  color: #8ea9ff;
-  margin-bottom: 12px;
+  margin-bottom: 2px;
+  color: #d4af37; /* Gold */
 }
 
-.heroModel {
+.currencyGroup {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(0,0,0,0.4);
+  padding: 5px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.currencyItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.currencyIcon {
+  width: 16px;
+  height: 16px;
+  background: #d4af37;
+  border-radius: 50%;
+}
+
+.soulsIcon {
+  background: #00e5ff;
+}
+
+.plusIcon {
+  background: #d4af37;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.statusGroup {
+  display: flex;
+  gap: 10px;
+  margin-left: 15px;
+  opacity: 0.7;
+}
+
+.mainContent {
+  display: flex;
   width: 100%;
-  margin: 16px 0;
-  border-radius: 12px;
+  height: 100%;
+  padding: 60px 20px 80px;
+}
+
+.characterArea {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.characterImage {
+  max-height: 90%;
+  filter: drop-shadow(0 0 20px rgba(0,0,0,0.5));
+}
+
+.eventBanner {
+  position: absolute;
+  bottom: 0;
+  left: 20px;
+  width: 200px;
+  height: 60px;
+  background: linear-gradient(45deg, #4a148c, #1a237e);
+  border: 1px solid #d4af37;
+  border-radius: 4px;
+  padding: 5px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.bannerArea {
+  width: 450px;
+  display: grid;
+  grid-template-rows: 140px 140px 100px;
+  gap: 10px;
+  align-self: center;
+}
+
+.bannerLarge {
+  background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('/public/images/cards/Cor001.png') center/cover;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 15px;
+  position: relative;
   overflow: hidden;
 }
 
-.heroDescription {
-  font-size: 16px;
-  color: #c2c9e5;
-}
-
-.rankMatchButton {
-  padding: 20px 60px;
+.bannerLarge h2 {
   font-size: 24px;
+  font-weight: italic;
+  margin: 0;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.bannerLarge p {
+  font-size: 12px;
+  margin: 5px 0 0;
+  color: #ccc;
+}
+
+.bannerMedium {
+  background: linear-gradient(135deg, #4a148c, #880e4f);
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.countdown {
+  font-size: 12px;
+  color: #ffff00;
+  text-align: right;
+}
+
+.pointMatchTitle {
+  font-size: 16px;
   font-weight: bold;
-  color: #120808;
-  background: radial-gradient(circle at 20% 0%, #ffe7a8, #e7a34a);
-  border: none;
-  border-radius: 50px;
+}
+
+.floorBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #d4af37;
+  color: black;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.bannerSmallRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bannerSmall {
+  background: rgba(40,40,40,0.8);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
   cursor: pointer;
-  box-shadow:
-    0 14px 32px rgba(0, 0, 0, 0.95),
-    0 0 18px rgba(255, 210, 140, 0.7);
-  transition: transform 0.2s, box-shadow 0.2s;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
-.rankMatchButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+.bannerSmall:hover {
+  background: rgba(60,60,60,0.8);
+  border-color: #d4af37;
 }
 
-.rankMatchButton:active {
-  transform: translateY(0);
+.bottomBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%);
+  padding: 0 10px;
+  z-index: 10;
 }
 
-/* スマホ横画面対応 */
-@media (orientation: landscape) and (max-height: 500px) {
-  .container {
-    height: 100vh;
-    height: 100dvh;
-    padding-bottom: 0;
-    padding-right: 56px;
-    overflow: hidden;
-  }
-
-  .header {
-    padding: 8px 12px;
-  }
-
-  .userIcon {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-  }
-
-  .userNameInput {
-    padding: 6px 10px;
-    font-size: 14px;
-  }
-
-  .main {
-    padding: 12px 16px;
-    flex-direction: row;
-    gap: 16px;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .heroDisplay {
-    max-width: 280px;
-  }
-
-  .heroCard {
-    padding: 16px;
-    border-radius: 12px;
-  }
-
-  .heroName {
-    font-size: 20px;
-    margin-bottom: 6px;
-  }
-
-  .heroAttribute {
-    font-size: 14px;
-    margin-bottom: 6px;
-  }
-
-  .heroDescription {
-    font-size: 12px;
-  }
-
-  .rankMatchButton {
-    padding: 14px 32px;
-    font-size: 18px;
-  }
+.bottomNavItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
+.bottomNavItem:hover, .bottomNavItem.active {
+  color: white;
+}
+
+.bottomNavIcon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.bottomNavItem.active .bottomNavIcon {
+  color: #00e5ff;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+}
+
+.tournamentButton {
+  position: relative;
+  transform: translateY(-15px);
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, #ffd700, #d4af37);
+  border: 4px solid #fff;
+  border-radius: 15%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+  cursor: pointer;
+}
+
+.tournamentButton span {
+  color: black;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.tournamentIcon {
+  font-size: 30px;
+  color: #fff;
+  margin-bottom: 2px;
+}

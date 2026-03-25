@@ -79,7 +79,6 @@ function BattleCamera() {
 }
 
 function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className }: HeroModel3DProps) {
-  const baseHeight = variant === 'battle' ? 340 : 180
   const showOrbit = variant === 'home'
 
   return (
@@ -87,9 +86,8 @@ function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className
       className={className}
       style={{
         width: '100%',
-        height: baseHeight,
-        backgroundColor: variant === 'home' ? 'rgba(0,0,0,0.2)' : 'transparent',
-        borderRadius: variant === 'home' ? 12 : 0,
+        height: '100%',
+        backgroundColor: 'transparent',
         overflow: 'hidden',
       }}
     >
