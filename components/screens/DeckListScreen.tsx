@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import dynamic from 'next/dynamic'
 import { useNavigation } from '@/components/NavigationContext'
 import { getDecks, deleteDeck, type SavedDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { HEROES } from '@/core/heroes'
 import styles from './DeckListScreen.module.css'
+
+const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
 
 export default function DeckListScreen() {
   const router = useRouter()
@@ -132,11 +135,15 @@ export default function DeckListScreen() {
         </div>
 
         <div className={styles.mainArea}>
-          {/* Hero Artwork Placeholder */}
-          <div className={styles.heroArtwork}>
-             <div style={{ fontSize: '200px', opacity: 0.2, textAlign: 'center', marginTop: '100px' }}>
-                {attributeIcons[selectedHero.attribute]}
-             </div>
+          {/* 3D Model Background - Positioned on the right */}
+          <div className={styles.heroModelContainer}>
+            {selectedHero.modelUrl && (
+              <HeroModel3D 
+                modelUrl={selectedHero.modelUrl} 
+                variant="home" 
+                side="right"
+              />
+            )}
           </div>
 
           {selectedDeck && (

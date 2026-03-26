@@ -1,4 +1,3 @@
 {
-  "presets": ["next/babel"],
-  "plugins": ["@locator/babel-jsx/dist"]
+  "presets": ["next/babel"]
 }

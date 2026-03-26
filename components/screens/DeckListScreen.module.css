@@ -1,7 +1,7 @@
 .container {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #1a0f0a;
+  background: #000;
   color: #d4af37;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
@@ -14,9 +14,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0.4;
+  background: radial-gradient(circle at 70% 50%, #2a1506 0%, #000 100%);
+  opacity: 0.8;
   z-index: 0;
 }
 
@@ -61,7 +60,7 @@
 
 .content {
   display: flex;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 160px);
   position: relative;
   z-index: 5;
 }
@@ -111,7 +110,7 @@
   padding: 8px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .deckItemName {
@@ -130,23 +129,18 @@
   flex: 1;
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 40px;
+  padding-left: 40px;
+  align-items: center;
 }
 
-.heroArtwork {
+.heroModelContainer {
   position: absolute;
   top: 0;
-  left: 0;
   right: 0;
-  bottom: 0;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: -1;
-  opacity: 0.8;
+  width: 60%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .deckDetailsBox {
@@ -154,47 +148,53 @@
   border: 1px solid #d4af37;
   padding: 20px;
   width: 400px;
-  margin-bottom: 40px;
-  transform: translateX(-50px);
+  position: relative;
+  z-index: 10;
+  margin-bottom: 100px;
 }
 
 .detailRow {
   display: flex;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #333;
-  padding-bottom: 4px;
+  flex-direction: column;
+  margin-bottom: 15px;
 }
 
 .detailLabel {
-  width: 120px;
-  font-size: 12px;
+  font-size: 11px;
   color: #999;
   text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
 .detailValue {
-  flex: 1;
-  font-size: 16px;
+  font-size: 18px;
   color: #fff;
+  background: rgba(40, 40, 40, 0.8);
+  padding: 8px 12px;
+  border-left: 3px solid #d4af37;
 }
 
 .deckStatus {
   display: flex;
-  gap: 15px;
-  margin-top: 15px;
+  gap: 20px;
+  margin-top: 20px;
 }
 
 .statusItem {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 16px;
 }
 
 .bottomRightButtons {
+  position: absolute;
+  bottom: 120px;
+  right: 40px;
   display: flex;
   align-items: flex-end;
   gap: 20px;
+  z-index: 20;
 }
 
 .auxButtons {
@@ -214,6 +214,7 @@
   justify-content: center;
   cursor: pointer;
   font-size: 10px;
+  font-weight: bold;
 }
 
 .iconButton span {
@@ -226,10 +227,11 @@
   border: 2px solid #fff;
   color: #fff;
   padding: 15px 40px;
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 900;
+  font-style: italic;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
   transition: transform 0.1s;
 }
 
@@ -254,6 +256,7 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Bottom Bar (Shared) */
 .bottomBar {
   position: absolute;
   bottom: 0;
