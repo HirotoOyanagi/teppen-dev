@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { useNavigation } from '@/components/NavigationContext'
-import BottomNavigation from '@/components/BottomNavigation'
 import { getDecks, deleteDeck, type SavedDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { HEROES } from '@/core/heroes'
 import styles from './DeckListScreen.module.css'
 
 export default function DeckListScreen() {
+  const router = useRouter()
   const { navigate, goBack } = useNavigation()
   const [decks, setDecks] = useState<SavedDeck[]>([])
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null)
@@ -69,6 +70,10 @@ export default function DeckListScreen() {
     green: '🌿',
     purple: '🔮',
     black: '💀',
+  }
+
+  const handleBottomNav = (path: string) => {
+    router.push(path)
   }
 
   return (
@@ -190,7 +195,39 @@ export default function DeckListScreen() {
         </div>
       </div>
 
-      <BottomNavigation />
+      {/* Bottom Bar (Shared) */}
+      <div className={styles.bottomBar}>
+        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/home')}>
+          <span className={styles.bottomNavIcon}>👤</span>
+          <span>ソロプレイ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>🏟️</span>
+          <span>コロシアム</span>
+        </div>
+        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/matchmaking')}>
+          <span className={styles.bottomNavIcon}>⚔️</span>
+          <span>バトル</span>
+        </div>
+        
+        <div className={styles.tournamentButton}>
+          <span className={styles.tournamentIcon}>👑</span>
+          <span>大会</span>
+        </div>
+
+        <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/cards')}>
+          <span className={styles.bottomNavIcon}>🃏</span>
+          <span>カード</span>
+        </div>
+        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/shop')}>
+          <span className={styles.bottomNavIcon}>💰</span>
+          <span>ショップ</span>
+        </div>
+        <div className={styles.bottomNavItem}>
+          <span className={styles.bottomNavIcon}>📺</span>
+          <span>TEPPEN Ch.</span>
+        </div>
+      </div>
     </div>
   )
 }

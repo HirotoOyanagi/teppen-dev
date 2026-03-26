@@ -254,12 +254,81 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Landscape / Mobile optimization */
-@media (max-width: 900px) {
-  .sidebar {
-    width: 200px;
-  }
-  .deckDetailsBox {
-    width: 300px;
-  }
+.bottomBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%);
+  padding: 0 20px;
+  z-index: 100;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.bottomNavItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 80px;
+}
+
+.bottomNavItem:hover {
+  color: #fff;
+}
+
+.bottomNavItem.active {
+  color: #fff;
+}
+
+.bottomNavIcon {
+  font-size: 30px;
+  margin-bottom: 6px;
+  transition: transform 0.2s;
+}
+
+.bottomNavItem:hover .bottomNavIcon {
+  transform: translateY(-5px);
+}
+
+.bottomNavItem.active .bottomNavIcon {
+  color: #00fbff;
+  text-shadow: 0 0 20px rgba(0, 251, 255, 0.8);
+}
+
+.tournamentButton {
+  position: relative;
+  transform: translateY(-25px);
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle at center, #fff 0%, #ffd700 20%, #d4af37 100%);
+  border: 5px solid #fff;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.6), inset 0 0 20px rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.tournamentButton span {
+  color: #000;
+  font-weight: 900;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.tournamentIcon {
+  font-size: 40px;
+  color: #000;
+  margin-bottom: 2px;
 }
