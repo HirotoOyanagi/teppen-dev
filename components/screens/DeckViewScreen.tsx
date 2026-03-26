@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
 import CardModal from '@/components/CardModal'
 import { getDeck } from '@/utils/deckStorage'
@@ -16,6 +16,7 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
   const [deck, setDeck] = useState<{ cardIds: string[]; name: string; heroId: string } | null>(null)
   const { cardMap } = useCards()
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (deckId) {
@@ -26,9 +27,50 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
     }
   }, [deckId])
 
+  useEffect(() => {
+    if (!deck) return
+    if (!containerRef.current) return
+
+    const el = containerRef.current
+    const rect = el.getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    const bgEl = el.querySelector(`.${styles.background}`) as HTMLElement | null
+    const bgStyle = bgEl ? window.getComputedStyle(bgEl) : null
+
+    const coversViewport =
+      rect.top <= 0 &&
+      rect.left <= 0 &&
+      rect.bottom >= window.innerHeight - 1 &&
+      rect.right >= window.innerWidth - 1
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '818948' },
+      body: JSON.stringify({
+        sessionId: '818948',
+        runId: 'background-debug-1',
+        hypothesisId: 'H2_overlay_cover_bg',
+        location: 'DeckViewScreen.tsx:background-log',
+        message: 'deck-view container computed',
+        data: {
+          deckId,
+          coversViewport,
+          rect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
+          containerBgColor: style.backgroundColor,
+          containerBgImage: style.backgroundImage,
+          bgOpacity: bgStyle?.opacity,
+          bgBgImage: bgStyle?.backgroundImage,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
+  }, [deck, deckId])
+
   if (!deck) {
     return (
-      <div className={styles.container}>
+      <div ref={containerRef} className={styles.container}>
         <div className={styles.loading}>読み込み中...</div>
       </div>
     )
@@ -54,7 +96,7 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
   }
 
   return (
-    <div className={styles.container}>
+    <div ref={containerRef} className={styles.container}>
       <div className={styles.overlay}>
         <button className={styles.closeButton} onClick={() => goBack()}>×</button>
         

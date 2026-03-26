@@ -13,6 +13,7 @@ export type Screen =
 
 interface NavigationContextType {
   currentScreen: Screen
+  previousScreen: Screen | null
   navigate: (screen: Screen) => void
   goBack: () => void
 }
@@ -23,6 +24,7 @@ export function NavigationProvider({ children, initial }: { children: ReactNode;
   const [history, setHistory] = useState<Screen[]>([initial ?? { name: 'home' }])
 
   const currentScreen = history[history.length - 1]
+  const previousScreen = history.length >= 2 ? history[history.length - 2] : null
 
   const navigate = useCallback((screen: Screen) => {
     setHistory((prev) => [...prev, screen])
@@ -36,7 +38,7 @@ export function NavigationProvider({ children, initial }: { children: ReactNode;
   }, [])
 
   return (
-    <NavigationContext.Provider value={{ currentScreen, navigate, goBack }}>
+    <NavigationContext.Provider value={{ currentScreen, previousScreen, navigate, goBack }}>
       {children}
     </NavigationContext.Provider>
   )

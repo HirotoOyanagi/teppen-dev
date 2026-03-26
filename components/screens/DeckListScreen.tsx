@@ -17,6 +17,42 @@ export default function DeckListScreen() {
   const { cardMap } = useCards()
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '818948' },
+      body: JSON.stringify({
+        sessionId: '818948',
+        runId: 'background-debug-1',
+        hypothesisId: 'H1_unmount_prev_screen',
+        location: 'DeckListScreen.tsx:mount',
+        message: 'DeckListScreen mount',
+        data: {},
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
+
+    return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '818948' },
+        body: JSON.stringify({
+          sessionId: '818948',
+          runId: 'background-debug-1',
+          hypothesisId: 'H1_unmount_prev_screen',
+          location: 'DeckListScreen.tsx:unmount',
+          message: 'DeckListScreen unmount',
+          data: {},
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+    }
+  }, [])
+
+  useEffect(() => {
     const loadedDecks = getDecks()
     loadedDecks.sort((a, b) => b.updatedAt - a.updatedAt)
     setDecks(loadedDecks)

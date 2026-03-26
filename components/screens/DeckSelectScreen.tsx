@@ -15,6 +15,42 @@ export default function DeckSelectScreen() {
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null)
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '818948' },
+      body: JSON.stringify({
+        sessionId: '818948',
+        runId: 'background-debug-1',
+        hypothesisId: 'H1_unmount_prev_screen',
+        location: 'DeckSelectScreen.tsx:mount',
+        message: 'DeckSelectScreen mount',
+        data: {},
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
+
+    return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '818948' },
+        body: JSON.stringify({
+          sessionId: '818948',
+          runId: 'background-debug-1',
+          hypothesisId: 'H1_unmount_prev_screen',
+          location: 'DeckSelectScreen.tsx:unmount',
+          message: 'DeckSelectScreen unmount',
+          data: {},
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+    }
+  }, [])
+
+  useEffect(() => {
     const loadedDecks = getDecks()
     loadedDecks.sort((a, b) => b.updatedAt - a.updatedAt)
     setDecks(loadedDecks)
@@ -146,7 +182,7 @@ export default function DeckSelectScreen() {
                 </div>
                 <div className={styles.detailRow}>
                   <div className={styles.detailLabel}>ヒーローアーツ</div>
-                  <div className={styles.detailValue}>{selectedHero.heroArt.name}</div>
+                  <div className={styles.detailValue}>{selectedHero.heroArt?.name ?? ''}</div>
                 </div>
                 <div className={styles.deckStatus}>
                   <div className={styles.statusItem}>

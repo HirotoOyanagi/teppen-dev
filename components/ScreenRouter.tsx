@@ -1,4 +1,4 @@
-import { useNavigation } from '@/components/NavigationContext'
+import { useNavigation, type Screen } from '@/components/NavigationContext'
 import HomeScreen from '@/components/screens/HomeScreen'
 import CardsScreen from '@/components/screens/CardsScreen'
 import CardListScreen from '@/components/screens/CardListScreen'
@@ -10,28 +10,41 @@ import MatchmakingScreen from '@/components/screens/MatchmakingScreen'
 import ShopScreen from '@/components/screens/ShopScreen'
 
 export default function ScreenRouter() {
-  const { currentScreen } = useNavigation()
+  const { currentScreen, previousScreen } = useNavigation()
 
-  switch (currentScreen.name) {
-    case 'home':
-      return <HomeScreen />
-    case 'cards':
-      return <CardsScreen />
-    case 'card-list':
-      return <CardListScreen />
-    case 'deck-list':
-      return <DeckListScreen />
-    case 'deck-view':
-      return <DeckViewScreen deckId={currentScreen.deckId} />
-    case 'deck-edit':
-      return <DeckEditScreen deckId={currentScreen.deckId} />
-    case 'deck-select':
-      return <DeckSelectScreen />
-    case 'matchmaking':
-      return <MatchmakingScreen />
-    case 'shop':
-      return <ShopScreen />
-    default:
-      return <HomeScreen />
+  const renderBaseScreen = (screen: Screen) => {
+    switch (screen.name) {
+      case 'home':
+        return <HomeScreen />
+      case 'cards':
+        return <CardsScreen />
+      case 'card-list':
+        return <CardListScreen />
+      case 'deck-list':
+        return <DeckListScreen />
+      case 'deck-edit':
+        return <DeckEditScreen deckId={screen.deckId} />
+      case 'deck-select':
+        return <DeckSelectScreen />
+      case 'matchmaking':
+        return <MatchmakingScreen />
+      case 'shop':
+        return <ShopScreen />
+      case 'deck-view':
+        return <HomeScreen />
+      default:
+        return <HomeScreen />
+    }
   }
+
+  const baseScreen = currentScreen.name === 'deck-view' ? previousScreen ?? { name: 'home' } : currentScreen
+
+  return (
+    <>
+      {renderBaseScreen(baseScreen)}
+      {currentScreen.name === 'deck-view' && (
+        <DeckViewScreen deckId={currentScreen.deckId} />
+      )}
+    </>
+  )
 }
