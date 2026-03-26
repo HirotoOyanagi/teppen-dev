@@ -29,7 +29,8 @@ export default function DeckListScreen() {
     setSelectedDeck(deck)
   }
 
-  const handleDeleteDeck = (deckId: string) => {
+  const handleDeleteDeck = (e: React.MouseEvent, deckId: string) => {
+    e.stopPropagation()
     if (confirm('このデッキを削除しますか？')) {
       deleteDeck(deckId)
       const newDecks = getDecks().sort((a, b) => b.updatedAt - a.updatedAt)
@@ -42,17 +43,17 @@ export default function DeckListScreen() {
     }
   }
 
-  const handleViewDeck = () => {
-    if (selectedDeck) {
-      navigate({ name: 'deck-view', deckId: selectedDeck.id })
-    }
-  }
-
   const handleEditDeck = () => {
     if (selectedDeck) {
       navigate({ name: 'deck-edit', deckId: selectedDeck.id })
     } else {
       navigate({ name: 'deck-edit' })
+    }
+  }
+
+  const handleViewDeck = () => {
+    if (selectedDeck) {
+      navigate({ name: 'deck-view', deckId: selectedDeck.id })
     }
   }
 
@@ -63,80 +64,128 @@ export default function DeckListScreen() {
     black: '#2c3e50',
   }
 
+  const attributeIcons: Record<string, string> = {
+    red: '🔥',
+    green: '🌿',
+    purple: '🔮',
+    black: '💀',
+  }
+
   return (
     <div className={styles.container}>
+      {/* Background with overlay */}
+      <div className={styles.background} />
+
       <div className={styles.header}>
-        <button className={styles.backButton} onClick={() => goBack()}>
-          ← 戻る
-        </button>
-        <h1>デッキ編成</h1>
+        <div className={styles.headerLeft}>
+          <button className={styles.backButton} onClick={() => goBack()}>
+            BACK
+          </button>
+          <h1>デッキ一覧</h1>
+          <span className={styles.deckCount}>{decks.length} / 100</span>
+        </div>
       </div>
 
       <div className={styles.content}>
-        <div className={styles.deckList}>
+        <div className={styles.sidebar}>
           <button
             className={styles.newDeckButton}
             onClick={() => navigate({ name: 'deck-edit' })}
           >
-            + 新しいデッキを作成
+            + NEW DECK
           </button>
-          {decks.map((deck) => (
-            <div
-              key={deck.id}
-              className={`${styles.deckItem} ${
-                selectedDeck?.id === deck.id ? styles.selected : ''
-              }`}
-              onClick={() => handleDeckSelect(deck)}
-            >
-              <div className={styles.deckInfo}>
-                <h3>{deck.name}</h3>
-                <p>{deck.cardIds.length}枚</p>
-              </div>
-            </div>
-          ))}
+          <div className={styles.deckList}>
+            {decks.map((deck) => {
+              const hero = HEROES.find((h) => h.id === deck.heroId) || HEROES[0]
+              return (
+                <div
+                  key={deck.id}
+                  className={`${styles.deckItem} ${
+                    selectedDeck?.id === deck.id ? styles.selected : ''
+                  }`}
+                  onClick={() => handleDeckSelect(deck)}
+                >
+                  <div 
+                    className={styles.deckItemHeroPortrait} 
+                    style={{ backgroundColor: attributeColors[hero.attribute] }}
+                  >
+                    {/* Portrait Placeholder */}
+                    <div style={{ fontSize: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      👤
+                    </div>
+                  </div>
+                  <div className={styles.deckItemInfo}>
+                    <div className={styles.deckItemName}>{deck.name}</div>
+                    <div className={styles.deckItemAttr}>
+                      {attributeIcons[hero.attribute]} {hero.name}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        <div className={styles.deckDetail}>
-          {selectedDeck ? (
+        <div className={styles.mainArea}>
+          {/* Hero Artwork Placeholder */}
+          <div className={styles.heroArtwork}>
+             <div style={{ fontSize: '200px', opacity: 0.2, textAlign: 'center', marginTop: '100px' }}>
+                {attributeIcons[selectedHero.attribute]}
+             </div>
+          </div>
+
+          {selectedDeck && (
             <>
-              <div
-                className={styles.heroCard}
-                style={{ borderColor: attributeColors[selectedHero.attribute] }}
-              >
-                <h2>{selectedHero.name}</h2>
-                <p>属性: {selectedHero.attribute}</p>
+              <div className={styles.deckDetailsBox}>
+                <div className={styles.detailRow}>
+                  <div className={styles.detailLabel}>デッキ名</div>
+                  <div className={styles.detailValue}>{selectedDeck.name}</div>
+                </div>
+                <div className={styles.detailRow}>
+                  <div className={styles.detailLabel}>ヒーロー</div>
+                  <div className={styles.detailValue}>{selectedHero.name}</div>
+                </div>
+                <div className={styles.detailRow}>
+                  <div className={styles.detailLabel}>ヒーローアーツ</div>
+                  <div className={styles.detailValue}>{selectedHero.heroArt.name}</div>
+                </div>
+                <div className={styles.deckStatus}>
+                  <div className={styles.statusItem}>
+                    <span style={{ color: '#d4af37' }}>📄</span>
+                    <span>{selectedDeck.cardIds.length} / 30</span>
+                  </div>
+                  <div className={styles.statusItem}>
+                    <span style={{ color: attributeColors[selectedHero.attribute] }}>
+                      {attributeIcons[selectedHero.attribute]}
+                    </span>
+                    <span>{selectedHero.attribute.toUpperCase()}</span>
+                  </div>
+                </div>
               </div>
-              <div className={styles.buttons}>
+
+              <div className={styles.bottomRightButtons}>
+                <div className={styles.auxButtons}>
+                  <div className={styles.iconButton} onClick={(e) => handleDeleteDeck(e, selectedDeck.id)}>
+                    <span>🗑️</span>
+                    TRASH
+                  </div>
+                  <div className={styles.iconButton} onClick={handleViewDeck}>
+                    <span>👁️</span>
+                    DECK
+                  </div>
+                  <div className={styles.iconButton}>
+                    <span>👕</span>
+                    SKIN
+                  </div>
+                </div>
                 <button
-                  className={styles.actionButton}
-                  onClick={handleViewDeck}
-                >
-                  デッキ確認
-                </button>
-                <button
-                  className={styles.actionButton}
+                  className={styles.editButton}
                   onClick={handleEditDeck}
                 >
                   デッキ編成
                 </button>
-                <button
-                  className={styles.deleteButton}
-                  onClick={() => handleDeleteDeck(selectedDeck.id)}
-                >
-                  デッキ削除
-                </button>
               </div>
             </>
-          ) : (
-            <div className={styles.noDeck}>
-              <p>デッキがありません</p>
-              <button
-                className={styles.newDeckButton}
-                onClick={() => navigate({ name: 'deck-edit' })}
-              >
-                新しいデッキを作成
-              </button>
-            </div>
           )}
         </div>
       </div>

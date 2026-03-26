@@ -1,255 +1,265 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding-bottom: 80px;
+  min-height: 100dvh;
+  background: #1a0f0a;
+  color: #d4af37;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.4;
+  z-index: 0;
 }
 
 .header {
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
+  height: 60px;
+  padding: 0 20px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.4));
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  border-bottom: 2px solid #d4af37;
+  position: relative;
+  z-index: 10;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .backButton {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
+  background: #333;
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  padding: 4px 12px;
   cursor: pointer;
-  font-size: 16px;
-}
-
-.backButton:hover {
-  background: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
 }
 
 .header h1 {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 20px;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.deckCount {
+  font-size: 14px;
+  color: #999;
 }
 
 .content {
   display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: calc(100vh - 200px);
+  height: calc(100vh - 120px);
+  position: relative;
+  z-index: 5;
+}
+
+.sidebar {
+  width: 320px;
+  background: rgba(0, 0, 0, 0.8);
+  border-right: 1px solid #d4af37;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  overflow-y: auto;
 }
 
 .deckList {
-  flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.newDeckButton {
-  padding: 16px;
-  background: white;
-  border: 2px dashed #999;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  color: #666;
-  transition: background 0.2s;
-}
-
-.newDeckButton:hover {
-  background: #f5f5f5;
+  gap: 8px;
 }
 
 .deckItem {
-  padding: 16px;
-  background: white;
-  border-radius: 12px;
+  height: 100px;
+  border: 2px solid #333;
+  background: rgba(20, 20, 20, 0.9);
+  display: flex;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.deckItem:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
 }
 
 .deckItem.selected {
-  background: #4a9eff;
-  color: white;
+  border-color: #d4af37;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
 }
 
-.deckInfo h3 {
-  margin: 0 0 4px 0;
-  font-size: 18px;
+.deckItemHeroPortrait {
+  width: 100px;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  border-right: 1px solid #333;
 }
 
-.deckInfo p {
-  margin: 0;
-  font-size: 14px;
+.deckItemInfo {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.deckItemName {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.deckItemAttr {
+  font-size: 12px;
+  color: #999;
+}
+
+.mainArea {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 40px;
+}
+
+.heroArtwork {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
   opacity: 0.8;
 }
 
-.deckDetail {
+.deckDetailsBox {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #d4af37;
+  padding: 20px;
+  width: 400px;
+  margin-bottom: 40px;
+  transform: translateX(-50px);
+}
+
+.detailRow {
+  display: flex;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 4px;
+}
+
+.detailLabel {
+  width: 120px;
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.detailValue {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 300px;
-}
-
-.heroCard {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  border: 4px solid;
-  text-align: center;
-}
-
-.heroCard h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-}
-
-.heroCard p {
-  margin: 0;
-  color: #666;
-}
-
-.buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.actionButton,
-.deleteButton {
-  padding: 16px;
-  border: none;
-  border-radius: 12px;
   font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  color: #fff;
 }
 
-.actionButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.deckStatus {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
 }
 
-.actionButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
 }
 
-.deleteButton {
-  background: #e74c3c;
-  color: white;
+.bottomRightButtons {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
 }
 
-.deleteButton:hover {
-  background: #c0392b;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.auxButtons {
+  display: flex;
+  gap: 10px;
 }
 
-.noDeck {
+.iconButton {
+  width: 80px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #d4af37;
+  color: #d4af37;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 40px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  text-align: center;
+  cursor: pointer;
+  font-size: 10px;
 }
 
-.noDeck p {
-  font-size: 18px;
-  color: #666;
+.iconButton span {
+  font-size: 20px;
+  margin-bottom: 4px;
 }
 
-/* スマホ横画面対応 */
-@media (orientation: landscape) and (max-height: 500px) {
-  .container {
-    height: 100vh;
-    height: 100dvh;
-    padding-bottom: 0;
-    padding-right: 56px;
-    overflow: hidden;
-  }
-
-  .header {
-    padding: 8px 12px;
-  }
-
-  .header h1 {
-    font-size: 18px;
-  }
-
-  .backButton {
-    padding: 6px 10px;
-    font-size: 13px;
-  }
-
-  .content {
-    padding: 8px 12px;
-    gap: 12px;
-    height: calc(100vh - 50px);
-  }
-
-  .deckList {
-    touch-action: pan-y;
-  }
-
-  .deckItem {
-    padding: 10px;
-  }
-
-  .deckInfo h3 {
-    font-size: 14px;
-  }
-
-  .deckInfo p {
-    font-size: 12px;
-  }
-
-  .newDeckButton {
-    padding: 10px;
-    font-size: 13px;
-  }
-
-  .deckDetail {
-    gap: 10px;
-    min-width: 200px;
-  }
-
-  .heroCard {
-    padding: 12px;
-  }
-
-  .heroCard h2 {
-    font-size: 18px;
-  }
-
-  .buttons {
-    gap: 8px;
-  }
-
-  .actionButton,
-  .deleteButton {
-    padding: 10px;
-    font-size: 13px;
-  }
-
-  .noDeck {
-    padding: 20px;
-    gap: 12px;
-  }
+.editButton {
+  background: linear-gradient(to bottom, #f39c12, #d35400);
+  border: 2px solid #fff;
+  color: #fff;
+  padding: 15px 40px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s;
 }
 
+.editButton:active {
+  transform: scale(0.95);
+}
+
+.newDeckButton {
+  height: 60px;
+  border: 2px dashed #d4af37;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4af37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.newDeckButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Landscape / Mobile optimization */
+@media (max-width: 900px) {
+  .sidebar {
+    width: 200px;
+  }
+  .deckDetailsBox {
+    width: 300px;
+  }
+}
