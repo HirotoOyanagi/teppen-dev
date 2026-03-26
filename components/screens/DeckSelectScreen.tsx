@@ -7,12 +7,37 @@ import { HEROES } from '@/core/heroes'
 import styles from './DeckSelectScreen.module.css'
 
 const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
+type BattleEntryMode = 'rank' | 'practice' | 'free' | 'room'
 
 export default function DeckSelectScreen() {
   const router = useRouter()
   const { navigate, goBack } = useNavigation()
   const [decks, setDecks] = useState<SavedDeck[]>([])
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null)
+  const battleModeMap: Record<string, BattleEntryMode> = {
+    rank: 'rank',
+    practice: 'practice',
+    free: 'free',
+    room: 'room',
+  }
+  const battleModeNameMap: Record<BattleEntryMode, string> = {
+    rank: 'ランクマッチ',
+    practice: 'プラクティス（AI対戦）',
+    free: 'フリーマッチ',
+    room: 'ルームマッチ',
+  }
+  const battleModeRouteMap: Record<BattleEntryMode, (deckId: string) => string> = {
+    rank: (deckId) => `/battle?mode=online&deckId=${deckId}&battleMode=rank`,
+    practice: (deckId) => `/battle?mode=offline&deckId=${deckId}&battleMode=practice`,
+    free: (deckId) => `/battle?mode=online&deckId=${deckId}&battleMode=free`,
+    room: (deckId) => `/battle?mode=online&deckId=${deckId}&battleMode=room`,
+  }
+  let rawBattleMode = ''
+  if (typeof router.query.battleMode === 'string') {
+    rawBattleMode = router.query.battleMode
+  }
+  const selectedBattleMode = battleModeMap[rawBattleMode] ?? 'rank'
+  const selectedBattleModeName = battleModeNameMap[selectedBattleMode]
 
   useEffect(() => {
     // #region agent log
@@ -78,7 +103,9 @@ export default function DeckSelectScreen() {
     if (selectedDeck.cardIds.length !== 30) return
 
     localStorage.setItem('teppen_selectedDeckId', selectedDeck.id)
-    navigate({ name: 'matchmaking' })
+    const targetPathBuilder = battleModeRouteMap[selectedBattleMode]
+    const targetPath = targetPathBuilder(selectedDeck.id)
+    router.push(targetPath)
   }
 
   const attributeIcons: Record<string, string> = {
@@ -183,6 +210,10 @@ export default function DeckSelectScreen() {
                 <div className={styles.detailRow}>
                   <div className={styles.detailLabel}>ヒーローアーツ</div>
                   <div className={styles.detailValue}>{selectedHero.heroArt?.name ?? ''}</div>
+                </div>
+                <div className={styles.detailRow}>
+                  <div className={styles.detailLabel}>バトルモード</div>
+                  <div className={styles.detailValue}>{selectedBattleModeName}</div>
                 </div>
                 <div className={styles.deckStatus}>
                   <div className={styles.statusItem}>

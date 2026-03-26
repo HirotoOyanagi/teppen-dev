@@ -13,26 +13,24 @@ export default function HomePage() {
   return (
     <AppLayout activeTab="battle" title="Home">
       {/* Large Banner */}
-      <div className={styles.bannerLarge} onClick={() => navigate('/deck-select')}>
-        <h2>Thank You for Playing!</h2>
-        <p>〈ランクマッチ〉 開催終了いたしました</p>
+      <div className={styles.bannerLarge} onClick={() => navigate('/deck-select?battleMode=rank')}>
+        <h2>ランクマッチ</h2>
+        <p>レートを賭けて真剣勝負</p>
       </div>
 
       {/* Medium Banner */}
-      <div className={styles.bannerMedium}>
-        <div className={styles.floorBadge}>FLOOR 17 UNLIMITED</div>
-        <div className={styles.countdown}>残り時間 7日17時間23分</div>
-        <div className={styles.pointMatchTitle}>
-          ポイントマッチ "誇り高き孤高の英雄たち"
-        </div>
+      <div className={styles.bannerMedium} onClick={() => navigate('/deck-select?battleMode=practice')}>
+        <div className={styles.floorBadge}>プラクティス</div>
+        <div className={styles.countdown}>AI対戦でデッキ調整</div>
+        <div className={styles.pointMatchTitle}>ルール確認や試運転に最適</div>
       </div>
 
       {/* Small Banners */}
       <div className={styles.bannerSmallRow}>
-        <div className={styles.bannerSmall} onClick={() => navigate('/matchmaking')}>
+        <div className={styles.bannerSmall} onClick={() => navigate('/deck-select?battleMode=free')}>
           フリーマッチ
         </div>
-        <div className={styles.bannerSmall}>
+        <div className={styles.bannerSmall} onClick={() => navigate('/deck-select?battleMode=room')}>
           ルームマッチ
         </div>
       </div>
