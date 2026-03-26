@@ -1,7 +1,7 @@
 import React, { Suspense, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Canvas } from '@react-three/fiber'
-import { useGLTF, useAnimations, OrbitControls } from '@react-three/drei'
+import { useGLTF, useAnimations } from '@react-three/drei'
 import type { Group } from 'three'
 import { LoopRepeat } from 'three'
 
@@ -79,8 +79,6 @@ function BattleCamera() {
 }
 
 function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className }: HeroModel3DProps) {
-  const showOrbit = variant === 'home'
-
   return (
     <div
       className={className}
@@ -105,14 +103,6 @@ function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className
         <Suspense fallback={null}>
           <AnimatedModel url={modelUrl} variant={variant} side={side} />
         </Suspense>
-        {showOrbit && (
-          <OrbitControls
-            enableZoom={true}
-            enablePan={false}
-            minDistance={2}
-            maxDistance={5}
-          />
-        )}
       </Canvas>
     </div>
   )
