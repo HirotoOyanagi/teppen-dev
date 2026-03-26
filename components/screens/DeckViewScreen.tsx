@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
-import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
+import { HEROES } from '@/core/heroes'
 import type { CardDefinition } from '@/core/types'
 import styles from './DeckViewScreen.module.css'
 
@@ -13,7 +13,7 @@ interface DeckViewScreenProps {
 
 export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
   const { goBack } = useNavigation()
-  const [deck, setDeck] = useState<{ cardIds: string[]; name: string } | null>(null)
+  const [deck, setDeck] = useState<{ cardIds: string[]; name: string; heroId: string } | null>(null)
   const { cardMap } = useCards()
   const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null)
 
@@ -37,41 +37,94 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
   const cards = deck.cardIds
     .map((cardId) => cardMap.get(cardId))
     .filter((card): card is CardDefinition => card !== undefined)
+    .sort((a, b) => a.cost - b.cost)
+
+  const hero = HEROES.find(h => h.id === deck.heroId) || HEROES[0]
+
+  const attributeIcons: Record<string, string> = {
+    red: '🔥',
+    green: '🌿',
+    purple: '🔮',
+    black: '💀',
+  }
+
+  let heroArtText = ''
+  if (hero.heroArt) {
+    heroArtText = ` / ${hero.heroArt.name}`
+  }
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <button className={styles.backButton} onClick={() => goBack()}>
-          ← 戻る
-        </button>
-        <h1>{deck.name}</h1>
-        <p>{cards.length}枚</p>
-      </div>
-
-      <div className={styles.cardGrid}>
-        {cards.map((card, index) => (
-          <div
-            key={`${card.id}-${index}`}
-            className={styles.cardItem}
-            onClick={() => setSelectedCard(card)}
-          >
-            <div className={styles.cardCost}>{card.cost}</div>
-            <div className={styles.cardName}>{card.name}</div>
-            {card.unitStats && (
-              <div className={styles.cardStats}>
-                <span className={styles.attack}>{card.unitStats.attack}</span>
-                <span className={styles.hp}>{card.unitStats.hp}</span>
-              </div>
-            )}
+      <div className={styles.overlay}>
+        <button className={styles.closeButton} onClick={() => goBack()}>×</button>
+        
+        {/* Top Bar */}
+        <div className={styles.topBar}>
+          <div className={styles.heroIcon}>
+            {attributeIcons[hero.attribute]}
           </div>
-        ))}
+          <div className={styles.deckName}>{deck.name}</div>
+          <div className={styles.spacer}></div>
+          <div className={styles.heroArtName}>
+            {hero.name}
+            {heroArtText}
+          </div>
+          <div className={styles.cardCount}>
+            📄 {cards.length}/30
+          </div>
+          <div style={{ color: '#ffd700', fontSize: '20px', marginLeft: '10px' }}>⚔️</div>
+        </div>
+
+        {/* Main Grid */}
+        <div className={styles.mainGrid}>
+          {cards.map((card, index) => {
+            const hasImage = Boolean(card.imageUrl)
+            const backgroundImage = ({
+              true: () => `url(${card.imageUrl!})`,
+              false: () => 'none',
+            } as const)[String(hasImage) as 'true' | 'false']()
+
+            return (
+              <div
+                key={`${card.id}-${index}`}
+                className={styles.cardItem}
+                onClick={() => setSelectedCard(card)}
+              >
+                <div className={styles.cardLabel}>{card.name}</div>
+                <div className={styles.cardImage} style={{ backgroundImage }} />
+                <div className={styles.cardOverlay}>
+                  <div className={styles.cardMP}>{card.cost}</div>
+                  {card.unitStats && (
+                    <div className={styles.cardStats}>
+                      <span className={styles.atk}>{card.unitStats.attack}</span>
+                      <span className={styles.hp}>{card.unitStats.hp}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {/* Fill empty slots up to 30 */}
+          {Array.from({ length: Math.max(0, 30 - cards.length) }).map((_, i) => (
+            <div key={`empty-${i}`} className={styles.cardItem} style={{ opacity: 0.3 }} />
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className={styles.footer}>
+          <button className={styles.footerButton}>
+            デッキコードをコピー
+          </button>
+          <div className={styles.spacer}></div>
+          <button className={`${styles.footerButton} ${styles.qrButton}`}>
+            デッキQRを表示
+          </button>
+        </div>
       </div>
 
       {selectedCard && (
         <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
       )}
-
-      <BottomNavigation />
     </div>
   )
 }
