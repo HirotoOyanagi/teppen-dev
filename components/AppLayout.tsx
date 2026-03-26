@@ -101,15 +101,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
 
       {/* Bottom Bar (Shared) */}
       <div className={styles.bottomBar}>
-        <div className={styles.bottomNavItem} onClick={() => navigate('/home')}>
-          <span className={styles.bottomNavIcon}>👤</span>
-          <span>ソロプレイ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>🏟️</span>
           <span>コロシアム</span>
         </div>
-        <div className={`${styles.bottomNavItem} ${activeTab === 'battle' ? styles.active : ''}`} onClick={() => navigate('/matchmaking')}>
+        <div
+          className={`${styles.bottomNavItem} ${activeTab === 'battle' ? styles.active : ''}`}
+          onClick={() => navigate('/home')}
+        >
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>

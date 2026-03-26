@@ -195,7 +195,7 @@ export default function DeckListScreen() {
                 </div>
                 <div className={styles.detailRow}>
                   <div className={styles.detailLabel}>ヒーローアーツ</div>
-                  <div className={styles.detailValue}>{selectedHero.heroArt.name}</div>
+                  <div className={styles.detailValue}>{selectedHero.heroArt?.name ?? ''}</div>
                 </div>
                 <div className={styles.deckStatus}>
                   <div className={styles.statusItem}>
@@ -240,15 +240,11 @@ export default function DeckListScreen() {
 
       {/* Bottom Bar (Shared) */}
       <div className={styles.bottomBar}>
-        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/home')}>
-          <span className={styles.bottomNavIcon}>👤</span>
-          <span>ソロプレイ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>🏟️</span>
           <span>コロシアム</span>
         </div>
-        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/matchmaking')}>
+        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/home')}>
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>

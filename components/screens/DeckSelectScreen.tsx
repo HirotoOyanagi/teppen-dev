@@ -222,15 +222,11 @@ export default function DeckSelectScreen() {
 
       {/* Bottom Bar (Shared) */}
       <div className={styles.bottomBar}>
-        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/home')}>
-          <span className={styles.bottomNavIcon}>👤</span>
-          <span>ソロプレイ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>🏟️</span>
           <span>コロシアム</span>
         </div>
-        <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/matchmaking')}>
+        <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/home')}>
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>

@@ -102,14 +102,10 @@ const HomeScreen: React.FC = () => {
       {/* Bottom Bar */}
       <div className={styles.bottomBar}>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>👤</span>
-          <span>ソロプレイ</span>
-        </div>
-        <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>🏟️</span>
           <span>コロシアム</span>
         </div>
-        <div className={`${styles.bottomNavItem} ${styles.active}`} onClick={() => navigate({ name: 'matchmaking' })}>
+        <div className={`${styles.bottomNavItem} ${styles.active}`} onClick={() => navigate({ name: 'home' })}>
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>
