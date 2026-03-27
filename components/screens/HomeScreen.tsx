@@ -109,12 +109,6 @@ const HomeScreen: React.FC = () => {
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>
-        
-        {/* Central Tournament Button */}
-        <div className={styles.tournamentButton}>
-          <span className={styles.tournamentIcon}>👑</span>
-          <span>大会</span>
-        </div>
 
         <div className={styles.bottomNavItem} onClick={() => navigate({ name: 'cards' })}>
           <span className={styles.bottomNavIcon}>🃏</span>

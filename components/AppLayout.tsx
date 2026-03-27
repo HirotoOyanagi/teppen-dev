@@ -105,23 +105,38 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
           <span className={styles.bottomNavIcon}>🏟️</span>
           <span>コロシアム</span>
         </div>
+        {(() => {
+          const isActive = activeTab === 'battle'
+          const activeClass = ({
+            true: () => styles.active,
+            false: () => '',
+          } as const)[String(isActive) as 'true' | 'false']()
+
+          return (
         <div
-          className={`${styles.bottomNavItem} ${activeTab === 'battle' ? styles.active : ''}`}
+          className={`${styles.bottomNavItem} ${activeClass}`}
           onClick={() => navigate('/home')}
         >
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
         </div>
-        
-        <div className={styles.tournamentButton}>
-          <span className={styles.tournamentIcon}>👑</span>
-          <span>大会</span>
-        </div>
+          )
+        })()}
 
-        <div className={`${styles.bottomNavItem} ${activeTab === 'cards' ? styles.active : ''}`} onClick={() => navigate('/cards')}>
+        {(() => {
+          const isActive = activeTab === 'cards'
+          const activeClass = ({
+            true: () => styles.active,
+            false: () => '',
+          } as const)[String(isActive) as 'true' | 'false']()
+
+          return (
+        <div className={`${styles.bottomNavItem} ${activeClass}`} onClick={() => navigate('/cards')}>
           <span className={styles.bottomNavIcon}>🃏</span>
           <span>カード</span>
         </div>
+          )
+        })()}
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>📺</span>
           <span>TEPPEN Ch.</span>

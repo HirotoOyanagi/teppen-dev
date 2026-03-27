@@ -61,9 +61,10 @@ export default function DeckListScreen() {
     }
   }, [])
 
-  const selectedHero = selectedDeck
-    ? HEROES.find((h) => h.id === selectedDeck.heroId) || HEROES[0]
-    : HEROES[0]
+  let selectedHero = HEROES[0]
+  if (selectedDeck) {
+    selectedHero = HEROES.find((h) => h.id === selectedDeck.heroId) || HEROES[0]
+  }
 
   const handleDeckSelect = (deck: SavedDeck) => {
     setSelectedDeck(deck)
@@ -247,11 +248,6 @@ export default function DeckListScreen() {
         <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/home')}>
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
-        </div>
-        
-        <div className={styles.tournamentButton}>
-          <span className={styles.tournamentIcon}>👑</span>
-          <span>大会</span>
         </div>
 
         <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/cards')}>

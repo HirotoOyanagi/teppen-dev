@@ -84,9 +84,10 @@ export default function DeckSelectScreen() {
     }
   }, [])
 
-  const selectedHero = selectedDeck
-    ? HEROES.find((h) => h.id === selectedDeck.heroId) || HEROES[0]
-    : HEROES[0]
+  let selectedHero = HEROES[0]
+  if (selectedDeck) {
+    selectedHero = HEROES.find((h) => h.id === selectedDeck.heroId) || HEROES[0]
+  }
 
   const handleDeckSelect = (deck: SavedDeck) => {
     setSelectedDeck(deck)
@@ -126,8 +127,12 @@ export default function DeckSelectScreen() {
     router.push(path)
   }
 
-  const deckCardCount = selectedDeck ? selectedDeck.cardIds.length : 0
-  const canStartBattle = selectedDeck && deckCardCount === 30
+  let deckCardCount = 0
+  if (selectedDeck) {
+    deckCardCount = selectedDeck.cardIds.length
+  }
+
+  const canStartBattle = Boolean(selectedDeck) && deckCardCount === 30
 
   return (
     <div className={styles.container}>
@@ -238,13 +243,23 @@ export default function DeckSelectScreen() {
                     DECK
                   </div>
                 </div>
+                {(() => {
+                  const isDisabled = !canStartBattle
+                  const disabledClass = ({
+                    true: () => styles.disabled,
+                    false: () => '',
+                  } as const)[String(isDisabled) as 'true' | 'false']()
+
+                  return (
                 <button
-                  className={`${styles.startButton} ${!canStartBattle ? styles.disabled : ''}`}
+                  className={`${styles.startButton} ${disabledClass}`}
                   onClick={handleStartBattle}
                   disabled={!canStartBattle}
                 >
                   バトル開始
                 </button>
+                  )
+                })()}
               </div>
             </>
           )}
@@ -260,11 +275,6 @@ export default function DeckSelectScreen() {
         <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/home')}>
           <span className={styles.bottomNavIcon}>⚔️</span>
           <span>バトル</span>
-        </div>
-        
-        <div className={styles.tournamentButton}>
-          <span className={styles.tournamentIcon}>👑</span>
-          <span>大会</span>
         </div>
 
         <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/cards')}>
