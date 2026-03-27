@@ -12,6 +12,30 @@ export default function HomePage() {
 
   return (
     <AppLayout activeTab="battle" title="Home">
+      {/* こっそりテストプレイ導線（左下） */}
+      <button
+        type="button"
+        onClick={() => navigate('/matchmaking')}
+        aria-label="テストプレイ"
+        style={{
+          position: 'fixed',
+          left: 10,
+          bottom: 10,
+          zIndex: 50,
+          fontSize: 10,
+          padding: '4px 6px',
+          borderRadius: 6,
+          border: '1px solid rgba(255,255,255,0.18)',
+          background: 'rgba(0,0,0,0.25)',
+          color: 'rgba(255,255,255,0.45)',
+          letterSpacing: '0.08em',
+          opacity: 0.35,
+          backdropFilter: 'blur(6px)',
+        }}
+      >
+        tp
+      </button>
+
       {/* Large Banner */}
       <div className={styles.bannerLarge} onClick={() => navigate('/deck-select?battleMode=rank')}>
         <h2>ランクマッチ</h2>

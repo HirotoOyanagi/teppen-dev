@@ -10,6 +10,7 @@ export default function BattlePage() {
   const [hasDeck, setHasDeck] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isOnline, setIsOnline] = useState(false)
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null)
   const [onlineProps, setOnlineProps] = useState<{
     playerId: string
     heroId: string
@@ -27,6 +28,7 @@ export default function BattlePage() {
       router.push('/home')
       return
     }
+    setSelectedDeckId(deckId)
 
     const deck = getDeck(deckId)
     if (!deck || deck.cardIds.length !== 30) {
@@ -85,6 +87,43 @@ export default function BattlePage() {
     return null
   }
 
+  const rawMode = router.query.mode
+  const mode = typeof rawMode === 'string' ? rawMode : ''
+  const isTest = mode === 'test'
+
+  const battleModeRaw = router.query.battleMode
+  const battleMode = typeof battleModeRaw === 'string' ? battleModeRaw : ''
+
+  const testUiLabel = ({
+    true: '通常に戻る',
+    false: 'テストプレイ',
+  } as const)[String(isTest) as 'true' | 'false']
+
+  const buildBattleHref = (nextMode: 'offline' | 'online' | 'test'): string => {
+    const deckId = selectedDeckId
+    if (!deckId) {
+      return '/home'
+    }
+    const battleModeParam = battleMode ? `&battleMode=${encodeURIComponent(battleMode)}` : ''
+    return `/battle?mode=${nextMode}&deckId=${encodeURIComponent(deckId)}${battleModeParam}`
+  }
+
+  const targetModeWhenExitTestMap: Record<string, 'offline' | 'online'> = {
+    online: 'online',
+    offline: 'offline',
+    '': 'offline',
+  }
+  const targetModeWhenExitTest = targetModeWhenExitTestMap[mode] ?? 'offline'
+
+  const handleTestUiClick = () => {
+    const nextModeBuilderMap: Record<'true' | 'false', () => 'offline' | 'online' | 'test'> = {
+      true: () => targetModeWhenExitTest,
+      false: () => 'test',
+    }
+    const nextModeBuilder = nextModeBuilderMap[String(isTest) as 'true' | 'false']
+    router.push(buildBattleHref(nextModeBuilder()))
+  }
+
   return (
     <>
       <Head>
@@ -92,6 +131,16 @@ export default function BattlePage() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </Head>
       <div className="fixed inset-0 overflow-hidden">
+        {/* テストプレイUI（右上に常設） */}
+        <div className="absolute top-2 right-2 z-[999]">
+          <button
+            type="button"
+            onClick={handleTestUiClick}
+            className="px-3 py-2 rounded-md border border-white/20 bg-black/40 text-white/80 text-xs font-bold tracking-wider hover:bg-black/55 hover:text-white transition-colors"
+          >
+            {testUiLabel}
+          </button>
+        </div>
         {isOnline && onlineProps ? (
           <OnlineGameBoard
             playerId={onlineProps.playerId}

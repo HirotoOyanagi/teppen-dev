@@ -28,16 +28,6 @@ export default function MatchmakingScreen() {
     setLoading(false)
   }, [navigate])
 
-  const handleStartOnline = () => {
-    if (!deck) return
-    // バトルページへは実際のページ遷移（別コンテキスト）
-    router.push(`/battle?mode=online&deckId=${deck.id}`)
-  }
-
-  const handleStartOffline = () => {
-    router.push('/battle')
-  }
-
   const handleStartTest = () => {
     if (!deck) return
     router.push(`/battle?mode=test&deckId=${deck.id}`)
@@ -72,22 +62,6 @@ export default function MatchmakingScreen() {
         <h1 className="text-4xl ls:text-2xl font-bold text-yellow-400 mb-12 ls:mb-4 tracking-widest">BATTLE MODE</h1>
 
         <div className="flex flex-col gap-6 ls:gap-3 w-full max-w-md">
-          <button
-            onClick={handleStartOnline}
-            className="px-12 py-6 ls:px-6 ls:py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-xl ls:text-base hover:from-cyan-500 hover:to-blue-500 transition-all rounded-lg shadow-[0_0_30px_rgba(0,180,255,0.3)] hover:shadow-[0_0_40px_rgba(0,180,255,0.5)]"
-          >
-            オンライン対戦
-            <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">他のプレイヤーと対戦</span>
-          </button>
-
-          <button
-            onClick={handleStartOffline}
-            className="px-12 py-6 ls:px-6 ls:py-3 bg-gradient-to-r from-gray-700 to-gray-600 text-white font-bold text-xl ls:text-base hover:from-gray-600 hover:to-gray-500 transition-all rounded-lg"
-          >
-            オフライン対戦
-            <span className="block text-sm ls:text-xs font-normal mt-1 text-white/70">AIと対戦</span>
-          </button>
-
           <button
             onClick={handleStartTest}
             className="px-12 py-6 ls:px-6 ls:py-3 bg-gradient-to-r from-amber-700 to-yellow-700 text-white font-bold text-xl ls:text-base hover:from-amber-600 hover:to-yellow-600 transition-all rounded-lg border border-yellow-500/50"
