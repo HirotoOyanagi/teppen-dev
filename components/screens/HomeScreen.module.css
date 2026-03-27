@@ -157,7 +157,9 @@
 }
 
 .bannerLarge {
-  background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('/public/images/cards/Cor001.png') center/cover;
+  background:
+    linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)),
+    url('/images/cards/Cor001.png') center/cover;
   border: 2px solid rgba(255,255,255,0.2);
   border-radius: 8px;
   display: flex;
@@ -183,7 +185,10 @@
 }
 
 .bannerMedium {
-  background: linear-gradient(135deg, #4a148c, #880e4f);
+  background:
+    linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.82) 100%),
+    url('/images/cards/Cor013.png') center/cover,
+    linear-gradient(135deg, #4a148c, #880e4f);
   border: 2px solid #d4af37;
   border-radius: 8px;
   padding: 15px;
@@ -232,6 +237,18 @@
   font-weight: bold;
   font-size: 14px;
   cursor: pointer;
+}
+
+.bannerSmallRow > .bannerSmall:first-child {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.78) 100%),
+    url('/images/cards/Cor027.png') center/cover;
+}
+
+.bannerSmallRow > .bannerSmall:last-child {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.78) 100%),
+    url('/images/cards/Cor028.png') center/cover;
 }
 
 .bannerSmall:hover {

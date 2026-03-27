@@ -27,10 +27,10 @@ export default function HomePage() {
 
       {/* Small Banners */}
       <div className={styles.bannerSmallRow}>
-        <div className={styles.bannerSmall} onClick={() => navigate('/deck-select?battleMode=free')}>
+        <div className={`${styles.bannerSmall} ${styles.freeMatchBanner}`} onClick={() => navigate('/deck-select?battleMode=free')}>
           フリーマッチ
         </div>
-        <div className={styles.bannerSmall} onClick={() => navigate('/deck-select?battleMode=room')}>
+        <div className={`${styles.bannerSmall} ${styles.roomMatchBanner}`} onClick={() => navigate('/deck-select?battleMode=room')}>
           ルームマッチ
         </div>
       </div>

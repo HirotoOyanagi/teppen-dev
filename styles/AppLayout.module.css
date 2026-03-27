@@ -227,7 +227,10 @@
 }
 
 .bannerMedium {
-  background: linear-gradient(135deg, #3d0563 0%, #5f0a37 100%);
+  background:
+    linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.78) 100%),
+    url('/images/cards/Cor013.png') center/cover,
+    linear-gradient(135deg, #3d0563 0%, #5f0a37 100%);
   border: 2px solid #d4af37;
   border-radius: 12px;
   padding: 20px;
@@ -289,7 +292,10 @@
 }
 
 .cardListBanner {
-  background: linear-gradient(to right, #2d0a4e, #5f0a37);
+  background:
+    linear-gradient(90deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%),
+    url('/images/cards/Cor003.png') center/cover,
+    linear-gradient(to right, #2d0a4e, #5f0a37);
   border: 2px solid #d4af37;
   border-radius: 12px;
   display: flex;
@@ -329,6 +335,18 @@
   background: rgba(50,50,50,0.9);
   border-color: #d4af37;
   transform: translateY(-2px);
+}
+
+.bannerSmall.freeMatchBanner {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 100%),
+    url('/images/cards/Cor027.png') center/cover;
+}
+
+.bannerSmall.roomMatchBanner {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 100%),
+    url('/images/cards/Cor028.png') center/cover;
 }
 
 .bottomBar {
