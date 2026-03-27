@@ -271,10 +271,6 @@ export default function DeckSelectScreen() {
           <span className={styles.bottomNavIcon}>🃏</span>
           <span>カード</span>
         </div>
-        <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/shop')}>
-          <span className={styles.bottomNavIcon}>💰</span>
-          <span>ショップ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>📺</span>
           <span>TEPPEN Ch.</span>

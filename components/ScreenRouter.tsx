@@ -7,7 +7,6 @@ import DeckViewScreen from '@/components/screens/DeckViewScreen'
 import DeckEditScreen from '@/components/screens/DeckEditScreen'
 import DeckSelectScreen from '@/components/screens/DeckSelectScreen'
 import MatchmakingScreen from '@/components/screens/MatchmakingScreen'
-import ShopScreen from '@/components/screens/ShopScreen'
 
 export default function ScreenRouter() {
   const { currentScreen, previousScreen } = useNavigation()
@@ -28,8 +27,6 @@ export default function ScreenRouter() {
         return <DeckSelectScreen />
       case 'matchmaking':
         return <MatchmakingScreen />
-      case 'shop':
-        return <ShopScreen />
       case 'deck-view':
         return <HomeScreen />
       default:

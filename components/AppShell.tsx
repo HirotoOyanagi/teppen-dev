@@ -7,7 +7,6 @@ import DeckViewScreen from '@/components/screens/DeckViewScreen'
 import DeckEditScreen from '@/components/screens/DeckEditScreen'
 import DeckSelectScreen from '@/components/screens/DeckSelectScreen'
 import MatchmakingScreen from '@/components/screens/MatchmakingScreen'
-import ShopScreen from '@/components/screens/ShopScreen'
 
 function ScreenRenderer() {
   const { currentScreen } = useNavigation()
@@ -29,8 +28,6 @@ function ScreenRenderer() {
       return <DeckSelectScreen />
     case 'matchmaking':
       return <MatchmakingScreen />
-    case 'shop':
-      return <ShopScreen />
     default:
       return <HomeScreen />
   }

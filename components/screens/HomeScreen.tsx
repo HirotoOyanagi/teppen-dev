@@ -120,10 +120,6 @@ const HomeScreen: React.FC = () => {
           <span className={styles.bottomNavIcon}>🃏</span>
           <span>カード</span>
         </div>
-        <div className={styles.bottomNavItem} onClick={() => navigate({ name: 'shop' })}>
-          <span className={styles.bottomNavIcon}>💰</span>
-          <span>ショップ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>📺</span>
           <span>TEPPEN Ch.</span>

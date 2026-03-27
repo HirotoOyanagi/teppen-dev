@@ -4,7 +4,6 @@ import styles from './BottomNavigation.module.css'
 const navItems: { id: string; label: string; screen: Screen }[] = [
   { id: 'home', label: 'ホーム', screen: { name: 'home' } },
   { id: 'cards', label: 'カード', screen: { name: 'cards' } },
-  { id: 'shop', label: 'ショップ', screen: { name: 'shop' } },
   { id: 'battle', label: 'バトル', screen: { name: 'deck-select' } },
 ]
 

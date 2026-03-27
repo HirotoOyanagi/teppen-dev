@@ -122,10 +122,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
           <span className={styles.bottomNavIcon}>🃏</span>
           <span>カード</span>
         </div>
-        <div className={`${styles.bottomNavItem} ${activeTab === 'shop' ? styles.active : ''}`} onClick={() => navigate('/shop')}>
-          <span className={styles.bottomNavIcon}>💰</span>
-          <span>ショップ</span>
-        </div>
         <div className={styles.bottomNavItem}>
           <span className={styles.bottomNavIcon}>📺</span>
           <span>TEPPEN Ch.</span>

@@ -9,7 +9,6 @@ export type Screen =
   | { name: 'deck-edit'; deckId?: string }
   | { name: 'deck-select' }
   | { name: 'matchmaking' }
-  | { name: 'shop' }
 
 interface NavigationContextType {
   currentScreen: Screen
