@@ -14,12 +14,6 @@ export default function CardsPage() {
     <AppLayout activeTab="cards" title="Cards">
       {/* Deck Edit Banner (Large/Tall) */}
       <div className={styles.deckEditBanner} onClick={() => navigate('/deck-list')}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-          {/* Mock card icons */}
-          <div style={{ width: '60px', height: '80px', background: '#333', border: '1px solid #d4af37' }} />
-          <div style={{ width: '60px', height: '80px', background: '#333', border: '1px solid #d4af37' }} />
-          <div style={{ width: '60px', height: '80px', background: '#333', border: '1px solid #d4af37', transform: 'translateX(-20px)' }} />
-        </div>
         <div className={styles.bannerLabel}>デッキ編成</div>
       </div>
 
