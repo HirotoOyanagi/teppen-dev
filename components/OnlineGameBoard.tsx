@@ -23,24 +23,6 @@ import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
 
 const DEFAULT_MATCH_MS = 5 * 60 * 1000
 
-// #region agent log
-function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
-    body: JSON.stringify({
-      sessionId: '306588',
-      runId: 'pre-fix',
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
-}
-// #endregion
-
 function finiteOr(value: number | undefined, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -274,31 +256,57 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const abilityHoveredUnitIdRef = useRef<string | null>(null)
+  const prevPhaseRef = useRef<string | null>(null)
+  const prevHeaderSecRef = useRef<number | null>(null)
+  const timeOffsetMsRef = useRef<number>(0)
+  const playingStartTimerMsRef = useRef<number | null>(null)
+  const playingStartLocalAtMsRef = useRef<number | null>(null)
 
-  // #region agent log
   useEffect(() => {
     if (!gameState) return
-    if (!Array.isArray(gameState.players)) return
-    if (gameState.players.length < 2) return
-    const p0 = gameState.players[0]
-    const p1 = gameState.players[1]
-    const players = gameState.players.map((p) => ({
-      playerId: p.playerId,
-      heroId: p.hero?.id,
-      heroName: p.hero?.name,
-      hasModelUrl: Boolean(p.hero?.modelUrl && String(p.hero?.modelUrl).trim().length > 0),
-    }))
-    __agentLog('H1', 'components/OnlineGameBoard.tsx:playersIndexing', 'players[] indexing snapshot', {
-      propPlayerId: playerId,
-      players,
-      uiAssumesPlayerIndex: 0,
-      uiAssumesOpponentIndex: 1,
-      uiPlayerId: p0.playerId,
-      uiOpponentId: p1.playerId,
-      propHeroId: heroId,
-    })
-  }, [gameState, heroId, playerId])
-  // #endregion
+    const headerTimerMs = finiteOr(getHeaderTimerMsFromServer(gameState), 0)
+    const headerSec = Math.floor(headerTimerMs / 1000)
+    const prevPhase = prevPhaseRef.current
+    const prevSec = prevHeaderSecRef.current
+
+    const phaseChanged = prevPhase !== gameState.phase
+    const secChanged = prevSec !== headerSec
+
+    // mulligan -> playing の瞬間を記録（この直後にタイマーが飛ぶことがあるため）
+    const shouldMarkPlayingStart = prevPhase === 'mulligan' && gameState.phase === 'playing'
+    if (shouldMarkPlayingStart) {
+      const rawTimer = finiteOr(gameState.timeRemainingMs, DEFAULT_MATCH_MS)
+      playingStartTimerMsRef.current = rawTimer
+      playingStartLocalAtMsRef.current = Date.now()
+      timeOffsetMsRef.current = 0
+    }
+
+    // playing 開始直後の「最初の飛び減り」を検知して表示補正
+    const baseTimer = playingStartTimerMsRef.current
+    const baseLocalAt = playingStartLocalAtMsRef.current
+    const withinStartWindow = baseLocalAt !== null && Date.now() - baseLocalAt <= 8000
+    const canComputeOffset = gameState.phase === 'playing' && timeOffsetMsRef.current === 0 && withinStartWindow
+    if (canComputeOffset && baseTimer !== null) {
+      const rawTimer = finiteOr(gameState.timeRemainingMs, DEFAULT_MATCH_MS)
+      const delta = baseTimer - rawTimer
+      const shouldApply = delta > 0 && delta <= 6000
+      const nextOffset = (
+        {
+          true: delta,
+          false: 0,
+        } as const
+      )[String(shouldApply) as 'true' | 'false']
+      const shouldSet = nextOffset > 0
+      if (shouldSet) {
+        timeOffsetMsRef.current = nextOffset
+      }
+    }
+
+    if (phaseChanged || secChanged) {
+      prevPhaseRef.current = gameState.phase
+      prevHeaderSecRef.current = headerSec
+    }
+  }, [gameState])
 
   // 接続 & マッチメイキング開始
   useEffect(() => {
@@ -780,9 +788,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const getAttackProgress = (unit: Unit | null) => (unit ? Math.min(100, unit.attackGauge * 100) : 0)
 
   const syncedServerNowMs = getSyncedServerNowMs(gameState, lastGameStateReceivedAtRef.current)
-  const displayHeaderTimerMs = finiteOr(getHeaderTimerMsFromServer(gameState), 0)
+  const rawHeaderTimerMs = finiteOr(getHeaderTimerMsFromServer(gameState), 0)
+  const offsetHeaderTimerMs = rawHeaderTimerMs + timeOffsetMsRef.current
+  const displayHeaderTimerMs = Math.min(DEFAULT_MATCH_MS, Math.max(0, offsetHeaderTimerMs))
   const gameStartForUi = finiteOr(gameState.gameStartTime, syncedServerNowMs)
-  const mainBattleStarted = syncedServerNowMs >= gameStartForUi
+  const mainBattleStarted = gameState.phase === 'playing' && syncedServerNowMs >= gameStartForUi
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">

@@ -5,24 +5,6 @@ import GameBoard from '@/components/GameBoard'
 import OnlineGameBoard from '@/components/OnlineGameBoard'
 import { getDeck } from '@/utils/deckStorage'
 
-// #region agent log
-function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
-    body: JSON.stringify({
-      sessionId: '306588',
-      runId: 'pre-fix',
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
-}
-// #endregion
-
 export default function BattlePage() {
   const router = useRouter()
   const [hasDeck, setHasDeck] = useState(false)
@@ -55,20 +37,6 @@ export default function BattlePage() {
       false: false,
     } as const
   )[String(Boolean(isOnline && onlineProps)) as 'true' | 'false']
-
-  // #region agent log
-  useEffect(() => {
-    __agentLog('H0', 'pages/battle.tsx:modeAndOnlineProps', 'battle page mode/onlineProps snapshot', {
-      rawMode: typeof rawMode === 'string' ? rawMode : null,
-      mode,
-      isOnline,
-      hasOnlineProps: Boolean(onlineProps),
-      onlinePropsPlayerId: onlineProps?.playerId ?? null,
-      hasDeck,
-      loading,
-    })
-  }, [hasDeck, isOnline, loading, mode, onlineProps, rawMode])
-  // #endregion
 
   useEffect(() => {
     // モード判定

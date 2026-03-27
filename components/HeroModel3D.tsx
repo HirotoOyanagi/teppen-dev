@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo, useRef, useEffect } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { Canvas } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import type { Group } from 'three'
@@ -21,24 +21,6 @@ const FACE_ROTATION: Record<string, number> = {
   right: Math.PI - TILT_LEFT,
 }
 
-// #region agent log
-function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
-    body: JSON.stringify({
-      sessionId: '306588',
-      runId: 'pre-fix',
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {})
-}
-// #endregion
-
 function AnimatedModel({
   url,
   variant,
@@ -55,18 +37,6 @@ function AnimatedModel({
   const clonedScene = useMemo(() => {
     return SkeletonUtils.clone(scene)
   }, [scene])
-
-  // #region agent log
-  useEffect(() => {
-    __agentLog('H5', 'components/HeroModel3D.tsx:sceneClone', 'gltf scene clone uuids', {
-      url: typeof url === 'string' ? url.slice(0, 90) : null,
-      variant,
-      side,
-      originalSceneUuid: (scene as unknown as { uuid?: string }).uuid ?? null,
-      clonedSceneUuid: (clonedScene as unknown as { uuid?: string }).uuid ?? null,
-    })
-  }, [clonedScene, scene, side, url, variant])
-  // #endregion
 
   useEffect(() => {
     if (animations.length === 0) return
@@ -113,53 +83,9 @@ function BattleCamera() {
   return null
 }
 
-function AgentCanvasProbe({ variant, side }: { variant: HeroModelVariant; side?: 'left' | 'right' }) {
-  const { gl, size } = useThree()
-  useEffect(() => {
-    const c = gl.getContext()
-    const ctxAttrs = typeof c.getContextAttributes === 'function' ? c.getContextAttributes() : null
-    __agentLog('H4', 'components/HeroModel3D.tsx:AgentCanvasProbe', 'canvas/gl snapshot', {
-      variant,
-      side,
-      size,
-      isWebGL2: typeof (window as unknown as { WebGL2RenderingContext?: unknown }).WebGL2RenderingContext !== 'undefined' && c instanceof WebGL2RenderingContext,
-      contextAttributes: ctxAttrs,
-    })
-  }, [gl, side, size, variant])
-  return null
-}
-
 function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className }: HeroModel3DProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  // #region agent log
-  useEffect(() => {
-    const el = rootRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    __agentLog('H3', 'components/HeroModel3D.tsx:rootRect', 'HeroModel3D root rect snapshot', {
-      variant,
-      side,
-      className: className ?? null,
-      modelUrl: typeof modelUrl === 'string' ? modelUrl.slice(0, 90) : null,
-      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-    })
-    requestAnimationFrame(() => {
-      const el2 = rootRef.current
-      if (!el2) return
-      const rect2 = el2.getBoundingClientRect()
-      __agentLog('H3', 'components/HeroModel3D.tsx:rootRectRaf', 'HeroModel3D root rect snapshot (raf)', {
-        variant,
-        side,
-        rect: { x: rect2.x, y: rect2.y, width: rect2.width, height: rect2.height },
-      })
-    })
-  }, [className, modelUrl, side, variant])
-  // #endregion
-
   return (
     <div
-      ref={rootRef}
       className={className}
       style={{
         width: '100%',
@@ -176,7 +102,6 @@ function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className
         gl={{ alpha: true, antialias: true }}
       >
         {variant === 'battle' && <BattleCamera />}
-        <AgentCanvasProbe variant={variant} side={side} />
         <ambientLight intensity={1} />
         <directionalLight position={[3, 4, 5]} intensity={1.2} />
         <directionalLight position={[-2, 3, 2]} intensity={0.6} />
