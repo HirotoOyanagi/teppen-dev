@@ -22,7 +22,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-active-tab={activeTab}>
       <Head>
         <title>TEPPEN - {title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />

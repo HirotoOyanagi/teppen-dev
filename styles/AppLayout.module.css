@@ -192,6 +192,10 @@
   align-self: stretch;
 }
 
+.container[data-active-tab='cards'] .bannerArea {
+  grid-template-rows: 1.1fr 0.9fr 1.4fr;
+}
+
 .bannerLarge {
   background: linear-gradient(to right, rgba(0,0,0,0.6), transparent), url('/images/cards/Cor001.png') center/cover;
   border: 2px solid rgba(255,255,255,0.3);
