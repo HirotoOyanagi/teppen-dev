@@ -96,9 +96,39 @@ interface HeroPortraitProps {
   cardMap?: Map<string, CardDefinition>
 }
 
+// #region agent log
+function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
+    body: JSON.stringify({
+      sessionId: '306588',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
+
 const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) => {
   const isLeft = side === 'left'
   const [shake, setShake] = useState(false)
+
+  // #region agent log
+  useEffect(() => {
+    __agentLog('H2', 'components/HeroPortrait.tsx:renderProps', 'HeroPortrait render props snapshot', {
+      playerId: player.playerId,
+      side,
+      heroId: player.hero?.id,
+      heroName: player.hero?.name,
+      modelUrl: player.hero?.modelUrl ? String(player.hero.modelUrl).slice(0, 80) : null,
+    })
+  }, [player.playerId, player.hero?.id, player.hero?.modelUrl, player.hero?.name, side])
+  // #endregion
 
   useEffect(() => {
     setShake(true)

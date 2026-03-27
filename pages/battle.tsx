@@ -5,6 +5,24 @@ import GameBoard from '@/components/GameBoard'
 import OnlineGameBoard from '@/components/OnlineGameBoard'
 import { getDeck } from '@/utils/deckStorage'
 
+// #region agent log
+function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
+    body: JSON.stringify({
+      sessionId: '306588',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
+
 export default function BattlePage() {
   const router = useRouter()
   const [hasDeck, setHasDeck] = useState(false)
@@ -17,6 +35,40 @@ export default function BattlePage() {
     deckCardIds: string[]
   } | null>(null)
   const [bgm, setBgm] = useState<HTMLAudioElement | null>(null)
+
+  const rawMode = router.query.mode
+  const mode = (
+    {
+      true: rawMode,
+      false: '',
+    } as const
+  )[String(typeof rawMode === 'string') as 'true' | 'false']
+  const isTest = (
+    {
+      true: true,
+      false: false,
+    } as const
+  )[String(mode === 'test') as 'true' | 'false']
+  const isOnlineReady = (
+    {
+      true: true,
+      false: false,
+    } as const
+  )[String(Boolean(isOnline && onlineProps)) as 'true' | 'false']
+
+  // #region agent log
+  useEffect(() => {
+    __agentLog('H0', 'pages/battle.tsx:modeAndOnlineProps', 'battle page mode/onlineProps snapshot', {
+      rawMode: typeof rawMode === 'string' ? rawMode : null,
+      mode,
+      isOnline,
+      hasOnlineProps: Boolean(onlineProps),
+      onlinePropsPlayerId: onlineProps?.playerId ?? null,
+      hasDeck,
+      loading,
+    })
+  }, [hasDeck, isOnline, loading, mode, onlineProps, rawMode])
+  // #endregion
 
   useEffect(() => {
     // モード判定
@@ -87,9 +139,14 @@ export default function BattlePage() {
     return null
   }
 
-  const rawMode = router.query.mode
-  const mode = typeof rawMode === 'string' ? rawMode : ''
-  const isTest = mode === 'test'
+  if (!isOnlineReady && mode === 'online') {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white">
+        <div className="text-2xl font-orbitron">オンライン対戦を準備中...</div>
+      </div>
+    )
+  }
+
   const titleSuffix = (
     {
       true: 'オンラインバトル',
@@ -99,7 +156,7 @@ export default function BattlePage() {
 
   const board = (
     {
-      true: (
+      true: () => (
         <OnlineGameBoard
           playerId={onlineProps!.playerId}
           heroId={onlineProps!.heroId}
@@ -107,7 +164,7 @@ export default function BattlePage() {
           onMulliganComplete={handleMulliganComplete}
         />
       ),
-      false: (
+      false: () => (
         <GameBoard
           onMulliganComplete={handleMulliganComplete}
           testMode={isTest}
@@ -115,7 +172,7 @@ export default function BattlePage() {
         />
       ),
     } as const
-  )[String(Boolean(isOnline && onlineProps)) as 'true' | 'false']
+  )[String(isOnlineReady) as 'true' | 'false']()
 
   return (
     <>

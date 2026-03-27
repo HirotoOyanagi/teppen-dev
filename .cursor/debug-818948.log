@@ -48,3 +48,13 @@
 {"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774546167436}
 {"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckListScreen.tsx:mount","message":"DeckListScreen mount","data":{},"timestamp":1774546171502}
 {"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckListScreen.tsx:unmount","message":"DeckListScreen unmount","data":{},"timestamp":1774546176050}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:mount","message":"DeckSelectScreen mount","data":{},"timestamp":1774626106812}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774626108411}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:mount","message":"DeckSelectScreen mount","data":{},"timestamp":1774626110512}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:mount","message":"DeckSelectScreen mount","data":{},"timestamp":1774626118620}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774626120967}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774626123661}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:mount","message":"DeckSelectScreen mount","data":{},"timestamp":1774626243281}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:mount","message":"DeckSelectScreen mount","data":{},"timestamp":1774626255331}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774626259786}
+{"sessionId":"818948","runId":"background-debug-1","hypothesisId":"H1_unmount_prev_screen","location":"DeckSelectScreen.tsx:unmount","message":"DeckSelectScreen unmount","data":{},"timestamp":1774626264686}

@@ -23,6 +23,24 @@ import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
 
 const DEFAULT_MATCH_MS = 5 * 60 * 1000
 
+// #region agent log
+function __agentLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7243/ingest/cc79b691-8d01-4584-b34b-11aee04a0385', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '306588' },
+    body: JSON.stringify({
+      sessionId: '306588',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
+
 function finiteOr(value: number | undefined, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -256,6 +274,32 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const abilityHoveredUnitIdRef = useRef<string | null>(null)
+
+  // #region agent log
+  useEffect(() => {
+    if (!gameState) return
+    if (!Array.isArray(gameState.players)) return
+    if (gameState.players.length < 2) return
+    const p0 = gameState.players[0]
+    const p1 = gameState.players[1]
+    const players = gameState.players.map((p) => ({
+      playerId: p.playerId,
+      heroId: p.hero?.id,
+      heroName: p.hero?.name,
+      hasModelUrl: Boolean(p.hero?.modelUrl && String(p.hero?.modelUrl).trim().length > 0),
+    }))
+    __agentLog('H1', 'components/OnlineGameBoard.tsx:playersIndexing', 'players[] indexing snapshot', {
+      propPlayerId: playerId,
+      players,
+      uiAssumesPlayerIndex: 0,
+      uiAssumesOpponentIndex: 1,
+      uiPlayerId: p0.playerId,
+      uiOpponentId: p1.playerId,
+      propHeroId: heroId,
+    })
+  }, [gameState, heroId, playerId])
+  // #endregion
+
   // 接続 & マッチメイキング開始
   useEffect(() => {
     if (cardsLoading) return
