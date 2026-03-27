@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
-import type { GameInput, CardDefinition, Unit, PlayerState } from '@/core/types'
+import type { GameInput, CardDefinition, Unit, PlayerState, GameEvent } from '@/core/types'
 import type { SanitizedGameState, SanitizedPlayerState } from '@/core/protocol'
 import { useCards } from '@/utils/useCards'
 import { useGameSocket } from '@/utils/useGameSocket'
@@ -63,11 +63,13 @@ function CardTooltip({
   side,
   unit,
   onClose,
+  dismissOnClick = true,
 }: {
   card: CardDefinition
   side: 'left' | 'right'
   unit?: Unit
   onClose: () => void
+  dismissOnClick?: boolean
 }) {
   const attributeColors: Record<string, string> = {
     red: 'border-red-500 bg-red-950/95',
@@ -134,7 +136,7 @@ function CardTooltip({
   return (
     <div
       className={`absolute ${positionClass} z-[100] w-48 p-2 rounded border-2 shadow-lg backdrop-blur-sm ${attributeColors[card.attribute] || attributeColors.black} animate-in fade-in duration-100`}
-      onClick={onClose}
+      onClick={dismissOnClick ? onClose : undefined}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-white font-bold text-[10px] truncate flex-1">{card.name}</span>
@@ -220,6 +222,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     matchStatus,
     gameState,
     lastGameStateReceivedAtRef,
+    gameEvents,
     opponentDisconnected,
     errorMessage,
     connect,
@@ -231,6 +234,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     card: CardDefinition
     side: 'left' | 'right'
     unit?: Unit
+  } | null>(null)
+  const [opponentPlayedActionCard, setOpponentPlayedActionCard] = useState<{
+    card: CardDefinition
+    timestamp: number
   } | null>(null)
   const [dragging, setDragging] = useState<{ cardId: string; cardDef: CardDefinition; idx: number; fromExPocket?: boolean } | null>(null)
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
@@ -307,6 +314,39 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       prevHeaderSecRef.current = headerSec
     }
   }, [gameState])
+
+  const processEvents = useCallback((events: GameEvent[]) => {
+    const now = Date.now()
+
+    for (const ev of events) {
+      if (ev.type !== 'card_played' || ev.playerId === playerId) {
+        continue
+      }
+
+      const cardDef = resolveCardDefinition(cardMap, ev.cardId)
+      if (cardDef?.type !== 'action') {
+        continue
+      }
+
+      setOpponentPlayedActionCard({ card: cardDef, timestamp: now })
+      setDetailCard((prev) => (prev?.side === 'right' ? null : prev))
+    }
+  }, [cardMap, playerId])
+
+  useEffect(() => {
+    if (gameEvents.length === 0) return
+    processEvents(gameEvents)
+  }, [gameEvents, processEvents])
+
+  const OPPONENT_ACTION_DISPLAY_MS = 3000
+  useEffect(() => {
+    if (!opponentPlayedActionCard) return
+    const timer = setTimeout(
+      () => setOpponentPlayedActionCard(null),
+      OPPONENT_ACTION_DISPLAY_MS
+    )
+    return () => clearTimeout(timer)
+  }, [opponentPlayedActionCard])
 
   // 接続 & マッチメイキング開始
   useEffect(() => {
@@ -1398,6 +1438,16 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
       {/* Card Detail Tooltip */}
       {detailCard && !dragging && <CardTooltip card={detailCard.card} side={detailCard.side} unit={detailCard.unit} onClose={() => setDetailCard(null)} />}
+
+      {/* 相手がアクションカードを使用したときの効果説明（AI対戦と同じ挙動） */}
+      {opponentPlayedActionCard && (
+        <CardTooltip
+          card={opponentPlayedActionCard.card}
+          side="right"
+          onClose={() => setOpponentPlayedActionCard(null)}
+          dismissOnClick={false}
+        />
+      )}
 
       {/* Dragging Card */}
       {dragging && <DraggingCard card={dragging.cardDef} position={dragPos} />}
