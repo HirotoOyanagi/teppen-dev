@@ -776,8 +776,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
 
   if (connectionStatus === 'connecting') {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0a0f0a] text-white font-orbitron">
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0a0f0a] text-white font-orbitron gap-4 px-6">
         <div className="text-2xl">サーバーに接続中...</div>
+        {errorMessage && (
+          <div className="max-w-md text-center text-sm text-gray-300 leading-relaxed">
+            {errorMessage}
+          </div>
+        )}
       </div>
     )
   }

@@ -10,10 +10,11 @@ import { WebSocketServer, type WebSocket } from 'ws'
 import { loadCardsFromCsv } from '../core/csvLoader'
 import { createCardMap } from '../core/cards'
 import { GameServer } from './gameServer'
+import { formatAllowedOrigins, isOriginAllowed, parseAllowedOrigins } from './allowedOrigins'
 import type { ClientMessage } from '../core/protocol'
 
 const PORT = parseInt(process.env.PORT || '8080', 10)
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',')
+const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.ALLOWED_ORIGINS)
 
 // CSVからカードデータを読み込み（クライアントと同じファイルを使用）
 function loadCardDefinitions() {
@@ -28,7 +29,7 @@ const server = createServer((req, res) => {
   const origin = req.headers.origin || ''
 
   // CORS
-  if (ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) {
+  if (isOriginAllowed(origin, ALLOWED_ORIGINS)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
@@ -67,8 +68,11 @@ const wss = new WebSocketServer({
   server,
   verifyClient: (info: { origin: string }) => {
     const origin = info.origin || ''
-    if (ALLOWED_ORIGINS.includes('*')) return true
-    return ALLOWED_ORIGINS.includes(origin)
+    const allowed = isOriginAllowed(origin, ALLOWED_ORIGINS)
+    if (!allowed) {
+      console.warn(`[Server] Rejected WebSocket origin: ${origin || '(empty)'}`)
+    }
+    return allowed
   },
 })
 
@@ -98,5 +102,5 @@ wss.on('connection', (ws: WebSocket) => {
 // サーバー起動
 server.listen(PORT, () => {
   console.log(`[Server] TEPPEN Game Server running on port ${PORT}`)
-  console.log(`[Server] Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`)
+  console.log(`[Server] Allowed origins: ${formatAllowedOrigins(ALLOWED_ORIGINS)}`)
 })

@@ -12,6 +12,7 @@ node_modules/
 
 # Production
 /build
+server/dist/
 
 # Misc
 .DS_Store
@@ -35,7 +36,6 @@ next-env.d.ts
 
 # AI tool local config
 .claude/
-
 
 
 
