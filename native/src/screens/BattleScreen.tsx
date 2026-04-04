@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { setAudioModeAsync } from 'expo-audio'
 
 import { getCardTargetType, cardRequiresTargetSelection, type CardTargetType } from '@/core/cardTargeting'
 import { resolveCardDefinition } from '@/core/cardId'
@@ -20,6 +21,35 @@ import { usePracticeBattle } from '../hooks/usePracticeBattle'
 import { getDeck } from '../storage/decks'
 import { colors, spacing } from '../theme'
 import { CardDetailModal, CardTile, PrimaryButton, SecondaryButton, Surface } from '../components/common'
+import { HeroModel3D } from '../components/HeroModel3D'
+
+type BattleBgmPlayer = {
+  loop: boolean
+  volume: number
+  play: () => void
+  pause: () => void
+  remove?: () => void
+}
+
+/** Web `pages/battle.tsx` と同じ「マリガン完了後」BGM（`battle-practice-bgm.mp3` は実ファイルへの symlink） */
+function createBattleBgmPlayer(): BattleBgmPlayer | null {
+  const AudioModule = require('expo-audio/build/AudioModule').default as {
+    AudioPlayer: new (...args: unknown[]) => BattleBgmPlayer
+  }
+  const { resolveSource } = require('expo-audio/build/utils/resolveSource') as {
+    resolveSource: (source: number) => unknown
+  }
+  const source = resolveSource(require('../../../public/muzic/battle-practice-bgm.mp3'))
+  const candidateArgs: unknown[][] = [[source, 500, true, 0], [source, 500, true], [source, 500]]
+  for (const args of candidateArgs) {
+    try {
+      return new AudioModule.AudioPlayer(...args)
+    } catch {
+      /* try next constructor arity */
+    }
+  }
+  return null
+}
 
 type BattlePlayerView = {
   playerId: string
@@ -47,6 +77,7 @@ type BattleStateView = {
     currentPlayerId: string | null
     stack: Array<{ cardId: string; playerId: string }>
     timer: number
+    currentResolvingItem?: { cardId: string; playerId: string } | null
   }
   gameStartTime: number
   timeRemainingMs: number
@@ -104,6 +135,41 @@ function PracticeBattleScene({
   const { cardMap, isLoading: cardsLoading, error: cardsError } = useNativeCards()
   const { replace } = useNativeNavigation()
   const practice = usePracticeBattle({ deckId, cardMap })
+  const battleBgmRef = useRef<BattleBgmPlayer | null>(null)
+  const prevPhaseRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    void setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      interruptionMode: 'mixWithOthers',
+    })
+  }, [])
+
+  useEffect(() => {
+    const phase = practice.gameState?.phase
+    const prev = prevPhaseRef.current
+    const startedMatch = prev === 'mulligan' && phase === 'playing'
+    if (startedMatch) {
+      const bgm = createBattleBgmPlayer()
+      if (bgm) {
+        battleBgmRef.current?.pause()
+        battleBgmRef.current = bgm
+        bgm.loop = true
+        bgm.volume = 0.6
+        bgm.play()
+      }
+    }
+    prevPhaseRef.current = phase
+  }, [practice.gameState?.phase])
+
+  useEffect(() => {
+    return () => {
+      battleBgmRef.current?.pause()
+      battleBgmRef.current?.remove?.()
+      battleBgmRef.current = null
+    }
+  }, [])
 
   const errorMessage = cardsError?.message || practice.error
   if (cardsLoading || practice.isLoading) {
@@ -121,12 +187,15 @@ function PracticeBattleScene({
     )
   }
 
+  const opponentName = practice.gameState.players[1]?.hero?.name ?? 'AI'
+
   return (
     <BattleBoard
       title="プラクティス"
       subtitle="ローカルAI対戦"
       state={practice.gameState}
       cardMap={cardMap}
+      banner={opponentName}
       onExit={() => replace({ name: 'deck-select', battleMode: battleMode || 'practice' })}
       onMulligan={(replaceAll) => practice.mulligan(replaceAll)}
       onPlayCard={(payload) => practice.playCard(payload)}
@@ -387,8 +456,25 @@ function BattleBoard({
   const opponent = state.players[1]
   const countdown = Math.max(0, Math.ceil((state.gameStartTime - now) / 1000))
   const hasCountdown = state.phase === 'playing' && state.gameStartTime > now
-  const timeText = formatTimer(state.timeRemainingMs)
+  let displayTimeMs = state.timeRemainingMs
+  if (state.activeResponse.isActive) {
+    displayTimeMs = state.activeResponse.timer
+  }
+  const timeText = formatTimer(displayTimeMs)
+  const showBattleTimer = state.phase === 'playing' && now >= state.gameStartTime
   const isPlayerTurnInAr = state.activeResponse.isActive && state.activeResponse.currentPlayerId === player.playerId
+  const resolvingItem = state.activeResponse.currentResolvingItem
+  const resolvingCardName =
+    resolvingItem != null ? resolveCardDefinition(cardMap, resolvingItem.cardId)?.name : undefined
+
+  let arStripLabel = ''
+  if (state.activeResponse.isActive) {
+    const arTitleByStatus: Record<string, string> = {
+      building: 'アクティブレスポンス',
+      resolving: '効果解決中',
+    }
+    arStripLabel = arTitleByStatus[state.activeResponse.status] ?? 'アクティブレスポンス'
+  }
 
   const handleSelectCard = (cardId: string, fromExPocket?: boolean) => {
     const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -622,167 +708,358 @@ function BattleBoard({
 
   const pendingMessage = getPendingMessage(pendingAction)
 
+  let resultHeadline = 'YOU LOSE'
+  if (state.phase === 'ended') {
+    const outcomeMap: Record<string, string> = {
+      win: 'YOU WIN',
+      draw: 'DRAW',
+      lose: 'YOU LOSE',
+    }
+    let outcomeKey = 'lose'
+    if (state.gameEndedWinner === player.playerId) {
+      outcomeKey = 'win'
+    } else if (state.gameEndedReason === 'draw') {
+      outcomeKey = 'draw'
+    }
+    resultHeadline = outcomeMap[outcomeKey]
+  }
+
+  const timerUrgent = displayTimeMs <= 10_000
+  const laneHighlightActive =
+    pendingAction?.kind === 'card' && pendingAction.cardDef.type === 'unit'
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.boardContainer}>
         <View style={styles.background} />
+        <View style={styles.gradientOverlay} pointerEvents="none" />
 
-        {/* Top Info Bar */}
-        <View style={styles.topInfoBar}>
-          <Pressable onPress={onExit} style={styles.backButton}>
-            <Text style={styles.backButtonText}>戻る</Text>
+        {/* Web GameBoard 風ヘッダー: BATTLE + タイマー */}
+        <View style={styles.battleHeader}>
+          <Pressable onPress={onExit} style={styles.battleHeaderBack}>
+            <Text style={styles.battleHeaderBackText}>戻る</Text>
           </Pressable>
-          <View style={styles.opponentInfo}>
-            <Text style={styles.opponentName}>{banner || '対戦相手'}</Text>
-            <View style={styles.opponentHand}>
+          <View style={styles.battleHeaderCenter}>
+            <View style={styles.battleTitleBadge}>
+              <Text style={styles.battleTitleText}>BATTLE</Text>
+            </View>
+            {showBattleTimer ? (
+              <View style={styles.timerBox}>
+                <Text style={[styles.timerBoxText, timerUrgent ? styles.timerBoxTextUrgent : null]}>
+                  {timeText}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.battleHeaderRight}>
+            <Text style={styles.opponentLabelText} numberOfLines={1}>
+              {banner || opponent.hero.name}
+            </Text>
+            <View style={styles.opponentHandMini}>
               {[...Array(opponent.hand.length)].map((_, i) => (
-                <View key={i} style={styles.handCardBack} />
+                <View key={`oh_${i}`} style={styles.handCardBack} />
               ))}
             </View>
           </View>
-          <View style={styles.battleTimer}>
-            <Text style={styles.battleTimerText}>{timeText}</Text>
-          </View>
         </View>
 
-        {/* Battlefield */}
-        <View style={styles.battlefieldArea} ref={battlefieldRef}>
-          {[0, 1, 2].map((lane) => {
-            const enemyUnit = opponent.units.find((u) => u.lane === lane)
-            const playerUnit = player.units.find((u) => u.lane === lane)
-            const enemyCard = enemyUnit ? resolveCardDefinition(cardMap, enemyUnit.cardId) : null
-            const playerCard = playerUnit ? resolveCardDefinition(cardMap, playerUnit.cardId) : null
-            
-            return (
-              <View key={lane} style={styles.laneRow}>
-                {/* Enemy Unit Slot */}
-                <View 
-                  ref={(node) => { enemyUnitRefs.current[lane] = node }}
-                  style={styles.unitSlotWrapper}
-                >
-                  <Pressable
-                    onPress={() => enemyUnit && enemyCard ? handleUnitOrHeroTarget(enemyUnit.id, 'enemy', enemyCard) : undefined}
-                    onLongPress={() => enemyCard ? setDetailCard(enemyCard) : undefined}
-                    style={[styles.unitSlot, styles.enemyUnitSlot, enemyUnit ? styles.unitActive : null]}
-                  >
-                    {enemyUnit && enemyCard ? (
-                      <UnitView unit={enemyUnit} cardDef={enemyCard} isEnemy />
-                    ) : null}
-                  </Pressable>
-                </View>
-
-                {/* Lane Arrow / Center Area */}
-                <View 
-                  ref={(node) => { laneRefs.current[lane] = node }}
-                  style={styles.laneCenter}
-                >
-                  <Pressable 
-                    onPress={() => handleLanePress(lane)}
-                    style={[
-                      styles.laneTarget, 
-                      pendingAction?.kind === 'card' && pendingAction.cardDef.type === 'unit' ? styles.laneTargetActive : null
-                    ]}
-                  >
-                    <View style={styles.laneLine} />
-                  </Pressable>
-                </View>
-
-                {/* Player Unit Slot */}
-                <View 
-                  ref={(node) => { friendlyUnitRefs.current[lane] = node }}
-                  style={styles.unitSlotWrapper}
-                >
-                  <Pressable
-                    onPress={() => playerUnit && playerCard ? handleUnitOrHeroTarget(playerUnit.id, 'friendly', playerCard) : undefined}
-                    onLongPress={() => playerCard ? setDetailCard(playerCard) : undefined}
-                    style={[styles.unitSlot, styles.playerUnitSlot, playerUnit ? styles.unitActive : null]}
-                  >
-                    {playerUnit && playerCard ? (
-                      <UnitView unit={playerUnit} cardDef={playerCard} />
-                    ) : null}
-                  </Pressable>
-                </View>
-              </View>
-            )
-          })}
-        </View>
-
-        {/* Side Info / Heroes */}
-        <View style={styles.sideArea}>
-          {/* Enemy Hero */}
-          <View ref={enemyHeroRef} style={styles.enemyHeroArea}>
-            <Pressable 
-              onPress={() => handleUnitOrHeroTarget(opponent.playerId, 'enemy')}
-              style={styles.heroAvatar}
-            >
-              <View style={[styles.heroHpBar, { height: `${(opponent.hp / opponent.maxHp) * 100}%` }]} />
-              <Text style={styles.heroHpText}>{opponent.hp}</Text>
-            </Pressable>
-          </View>
-
-          {/* Player Hero */}
-          <View ref={friendlyHeroRef} style={styles.playerHeroArea}>
-            <Pressable 
-              onPress={() => handleUnitOrHeroTarget(player.playerId, 'friendly')}
-              style={styles.heroAvatar}
-            >
-              <View style={[styles.heroHpBar, { height: `${(player.hp / player.maxHp) * 100}%` }]} />
-              <Text style={styles.heroHpText}>{player.hp}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Bottom Area: Hand & MP */}
-        <View style={styles.bottomArea}>
-          <View style={styles.mpContainer}>
-            <View style={styles.mpBarBackground}>
-              <View style={[styles.mpBarFill, { width: `${(player.mp / player.maxMp) * 100}%` }]} />
-              {player.blueMp > 0 && (
-                <View style={[styles.mpBarBlue, { width: `${(player.blueMp / player.maxMp) * 100}%`, left: `${(player.mp / player.maxMp) * 100}%` }]} />
-              )}
+        {/* アクティブレスポンス: Web 同様トップストリップ */}
+        {state.activeResponse.isActive ? (
+          <View style={styles.arTopStrip}>
+            <View style={styles.arStripTimerTrack}>
+              <View
+                style={[
+                  styles.arStripTimerFill,
+                  { width: `${Math.min(100, (state.activeResponse.timer / 10_000) * 100)}%` },
+                ]}
+              />
             </View>
-            <Text style={styles.mpText}>{Math.floor(player.mp)}</Text>
+            <Text style={styles.arStripTitle}>{arStripLabel}</Text>
+            {resolvingCardName ? (
+              <Text style={styles.arStripSub} numberOfLines={2}>
+                発動中: {resolvingCardName}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {state.activeResponse.isActive &&
+        state.activeResponse.status === 'building' &&
+        isPlayerTurnInAr ? (
+          <View style={styles.arResolveFloating} pointerEvents="box-none">
+            <Pressable style={styles.arResolveBtn} onPress={onEndActiveResponse}>
+              <Text style={styles.arResolveBtnText}>解決</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* メイン: 左ヒーロー | レーン（自分左・敵右）| 右ヒーロー */}
+        <View style={styles.mainBattleRow}>
+          <View style={styles.heroColumn} collapsable={false}>
+            <View ref={friendlyHeroRef} style={styles.heroColumnInner} collapsable={false}>
+              <Pressable
+                style={styles.heroTouchFill}
+                onPress={() => handleUnitOrHeroTarget(player.playerId, 'friendly')}
+              >
+                <HeroModel3D
+                  modelUrl={player.hero.modelUrl}
+                  variant="battle"
+                  side="left"
+                  style={styles.heroModelFrame}
+                  fallbackLabel={player.hero.name}
+                />
+                <View style={styles.heroHpBadge}>
+                  <Text style={styles.heroHpText}>{player.hp}</Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
 
-          <View style={styles.handContainer}>
-            {player.hand.filter(Boolean).map((cardId, index) => {
-              const cardDef = resolveCardDefinition(cardMap, cardId)
-              if (!cardDef) return null
-              const availableMp = mpAvailableForCardPlay(player, state, cardDef)
-              const canPlay = availableMp >= cardDef.cost && (cardDef.type === 'action' || !state.activeResponse.isActive)
+          <View style={styles.battlefieldArea} ref={battlefieldRef}>
+            {[0, 1, 2].map((lane) => {
+              const enemyUnit = opponent.units.find((u) => u.lane === lane)
+              const playerUnit = player.units.find((u) => u.lane === lane)
+              const enemyCard = enemyUnit ? resolveCardDefinition(cardMap, enemyUnit.cardId) : null
+              const playerCard = playerUnit ? resolveCardDefinition(cardMap, playerUnit.cardId) : null
+
               return (
-                <DraggableBattleCard
-                  key={`${cardId}_${index}`}
-                  card={cardDef}
-                  disabled={!canPlay}
-                  selected={pendingAction?.kind === 'card' && pendingAction.cardId === cardId}
-                  dragging={draggingCard?.cardId === cardId}
-                  onPress={() => handleSelectCard(cardId)}
-                  onLongPress={() => setDetailCard(cardDef)}
-                  onDragStart={(x, y) => handleDragStart(cardId, cardDef, x, y)}
-                  onDragMove={handleDragMove}
-                  onDragEnd={handleCardDrop}
-                />
+                <View key={lane} style={styles.laneRow}>
+                  <View
+                    ref={(node) => {
+                      friendlyUnitRefs.current[lane] = node
+                    }}
+                    style={styles.unitSlotWrapper}
+                  >
+                    <Pressable
+                      onPress={() =>
+                        playerUnit && playerCard
+                          ? handleUnitOrHeroTarget(playerUnit.id, 'friendly', playerCard)
+                          : undefined
+                      }
+                      onLongPress={() => (playerCard ? setDetailCard(playerCard) : undefined)}
+                      style={[
+                        styles.unitSlot,
+                        styles.playerUnitSlot,
+                        playerUnit ? styles.unitActive : null,
+                      ]}
+                    >
+                      {playerUnit && playerCard ? (
+                        <UnitView unit={playerUnit} cardDef={playerCard} />
+                      ) : null}
+                    </Pressable>
+                  </View>
+
+                  <View
+                    ref={(node) => {
+                      laneRefs.current[lane] = node
+                    }}
+                    style={styles.laneCenter}
+                  >
+                    <Pressable
+                      onPress={() => handleLanePress(lane)}
+                      style={[styles.laneTarget, laneHighlightActive ? styles.laneTargetActive : null]}
+                    >
+                      <View style={styles.laneLine} />
+                    </Pressable>
+                  </View>
+
+                  <View
+                    ref={(node) => {
+                      enemyUnitRefs.current[lane] = node
+                    }}
+                    style={styles.unitSlotWrapper}
+                  >
+                    <Pressable
+                      onPress={() =>
+                        enemyUnit && enemyCard
+                          ? handleUnitOrHeroTarget(enemyUnit.id, 'enemy', enemyCard)
+                          : undefined
+                      }
+                      onLongPress={() => (enemyCard ? setDetailCard(enemyCard) : undefined)}
+                      style={[
+                        styles.unitSlot,
+                        styles.enemyUnitSlot,
+                        enemyUnit ? styles.unitActive : null,
+                      ]}
+                    >
+                      {enemyUnit && enemyCard ? (
+                        <UnitView unit={enemyUnit} cardDef={enemyCard} isEnemy />
+                      ) : null}
+                    </Pressable>
+                  </View>
+                </View>
               )
             })}
           </View>
 
-          <View style={styles.heroArtsContainer}>
-             <Pressable 
-              style={[styles.artButton, player.ap < (player.hero.heroArt?.cost || 0) ? styles.artButtonDisabled : null]}
-              onPress={handleHeroArt}
-            >
-              <Text style={styles.artButtonText}>ART</Text>
-              <Text style={styles.artApText}>{player.ap}</Text>
-            </Pressable>
+          <View style={styles.heroColumn} collapsable={false}>
+            <View ref={enemyHeroRef} style={styles.heroColumnInner} collapsable={false}>
+              <Pressable
+                style={styles.heroTouchFill}
+                onPress={() => handleUnitOrHeroTarget(opponent.playerId, 'enemy')}
+              >
+                <HeroModel3D
+                  modelUrl={opponent.hero.modelUrl}
+                  variant="battle"
+                  side="right"
+                  style={styles.heroModelFrame}
+                  fallbackLabel={opponent.hero.name}
+                />
+                <View style={styles.heroHpBadge}>
+                  <Text style={styles.heroHpText}>{opponent.hp}</Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
         </View>
 
-        {/* Overlays */}
-        {state.phase === 'mulligan' && (
+        {/* 必殺技・おとも（Web 同様左下フロート） */}
+        {state.phase === 'playing' && (player.hero.heroArt || player.hero.companion) ? (
+          <View style={styles.floatingArtsRow} pointerEvents="box-none">
+            {player.hero.heroArt ? (
+              <View style={styles.artCluster}>
+                <Pressable
+                  style={[
+                    styles.artCardBtn,
+                    styles.artCardBtnHero,
+                    player.ap < player.hero.heroArt.cost ? styles.artCardBtnDisabled : null,
+                  ]}
+                  onPress={handleHeroArt}
+                >
+                  <Text style={styles.artCardCost}>{player.hero.heroArt.cost}AP</Text>
+                </Pressable>
+                <View
+                  style={[
+                    styles.apHex,
+                    player.ap >= player.hero.heroArt.cost ? styles.apHexActiveHero : styles.apHexIdle,
+                  ]}
+                >
+                  <Text style={styles.apHexLabel}>AP</Text>
+                  <Text style={styles.apHexVal}>{player.ap}</Text>
+                  <Text style={styles.apHexSep}>/</Text>
+                  <Text style={styles.apHexNeed}>{player.hero.heroArt.cost}</Text>
+                </View>
+              </View>
+            ) : null}
+            {player.hero.companion ? (
+              <View style={styles.artCluster}>
+                <Pressable
+                  style={[
+                    styles.artCardBtn,
+                    styles.artCardBtnBuddy,
+                    player.ap < player.hero.companion.cost ? styles.artCardBtnDisabled : null,
+                  ]}
+                  onPress={handleCompanion}
+                >
+                  <Text style={styles.artCardCost}>{player.hero.companion.cost}AP</Text>
+                </Pressable>
+                <View
+                  style={[
+                    styles.apHex,
+                    player.ap >= player.hero.companion.cost ? styles.apHexActiveBuddy : styles.apHexIdle,
+                  ]}
+                >
+                  <Text style={styles.apHexLabel}>AP</Text>
+                  <Text style={styles.apHexVal}>{player.ap}</Text>
+                  <Text style={styles.apHexSep}>/</Text>
+                  <Text style={styles.apHexNeed}>{player.hero.companion.cost}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* フッター: 手札 + EX + ManaBar（Web 風） */}
+        <View style={styles.footerArea}>
+          <View style={styles.handExRow}>
+            <View style={styles.handContainer}>
+              {player.hand.filter(Boolean).map((cardId, index) => {
+                const cardDef = resolveCardDefinition(cardMap, cardId)
+                if (!cardDef) {
+                  return null
+                }
+                const availableMp = mpAvailableForCardPlay(player, state, cardDef)
+                const canPlay =
+                  availableMp >= cardDef.cost &&
+                  (cardDef.type === 'action' || !state.activeResponse.isActive)
+                const isDraggingThis = draggingCard?.cardId === cardId && !draggingCard.fromExPocket
+                return (
+                  <DraggableBattleCard
+                    key={`${cardId}_${index}`}
+                    card={cardDef}
+                    disabled={!canPlay}
+                    selected={pendingAction?.kind === 'card' && pendingAction.cardId === cardId}
+                    dragging={isDraggingThis}
+                    onPress={() => handleSelectCard(cardId)}
+                    onLongPress={() => setDetailCard(cardDef)}
+                    onDragStart={(x, y) => handleDragStart(cardId, cardDef, x, y)}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleCardDrop}
+                  />
+                )
+              })}
+            </View>
+            <View style={styles.exPocketRow}>
+              {[0, 1].map((slotIdx) => {
+                const rawId = player.exPocket[slotIdx]
+                const filled = Boolean(rawId && String(rawId).trim().length > 0)
+                if (!filled) {
+                  return (
+                    <View key={`ex_e_${slotIdx}`} style={styles.exPocketEmpty}>
+                      <Text style={styles.exPocketEmptyText}>EX</Text>
+                    </View>
+                  )
+                }
+                const cardDef = resolveCardDefinition(cardMap, rawId)
+                if (!cardDef) {
+                  return (
+                    <View key={`ex_u_${slotIdx}`} style={styles.exPocketEmpty}>
+                      <Text style={styles.exPocketEmptyText}>?</Text>
+                    </View>
+                  )
+                }
+                const availableMp = mpAvailableForCardPlay(player, state, cardDef)
+                const canPlay =
+                  availableMp >= cardDef.cost &&
+                  (cardDef.type === 'action' || !state.activeResponse.isActive)
+                const isDraggingThis =
+                  draggingCard?.cardId === rawId && draggingCard.fromExPocket === true
+                return (
+                  <DraggableBattleCard
+                    key={`ex_${slotIdx}_${rawId}`}
+                    card={cardDef}
+                    disabled={!canPlay}
+                    selected={
+                      pendingAction?.kind === 'card' &&
+                      pendingAction.cardId === rawId &&
+                      pendingAction.fromExPocket === true
+                    }
+                    dragging={isDraggingThis}
+                    onPress={() => handleSelectCard(rawId, true)}
+                    onLongPress={() => setDetailCard(cardDef)}
+                    onDragStart={(x, y) => handleDragStart(rawId, cardDef, x, y, true)}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleCardDrop}
+                  />
+                )
+              })}
+            </View>
+          </View>
+          <ManaBarBattle
+            mp={player.mp}
+            maxMp={player.maxMp}
+            blueMp={player.blueMp}
+            showAmpSlot={state.activeResponse.isActive}
+          />
+        </View>
+
+        {state.phase === 'mulligan' ? (
           <View style={styles.mulliganOverlay}>
             <Surface style={styles.mulliganPanel}>
-              <Text style={styles.mulliganTitle}>マリガン</Text>
+              <View style={styles.mulliganBadge}>
+                <Text style={styles.mulliganBadgeText}>マリガン</Text>
+              </View>
+              <Text style={styles.mulliganHeading}>初期手札を確認してください</Text>
               <View style={styles.mulliganHand}>
                 {player.hand.filter(Boolean).map((cardId, i) => (
                   <CardTile key={i} card={resolveCardDefinition(cardMap, cardId)!} compact />
@@ -790,53 +1067,87 @@ function BattleBoard({
               </View>
               {!state.mulliganDone[0] ? (
                 <View style={styles.mulliganActions}>
-                  <SecondaryButton label="交換する" onPress={() => onMulligan(true)} />
-                  <PrimaryButton label="キープ" onPress={() => onMulligan(false)} />
+                  <SecondaryButton label="全て交換" onPress={() => onMulligan(true)} />
+                  <PrimaryButton label="このまま" onPress={() => onMulligan(false)} />
                 </View>
               ) : (
                 <Text style={styles.waitingText}>対戦相手を待っています...</Text>
               )}
             </Surface>
           </View>
-        )}
+        ) : null}
 
-        {state.activeResponse.isActive && (
-          <View style={styles.arOverlay}>
-            <View style={styles.arTimerBar}>
-              <View style={[styles.arTimerFill, { width: `${(state.activeResponse.timer / 10000) * 100}%` }]} />
-            </View>
-            <Text style={styles.arTitle}>ACTIVE RESPONSE</Text>
-            {isPlayerTurnInAr && (
-              <PrimaryButton label="解決（パス）" onPress={onEndActiveResponse} />
-            )}
-          </View>
-        )}
-
-        {state.phase === 'ended' && (
+        {state.phase === 'ended' ? (
           <View style={styles.resultOverlay}>
-            <Text style={styles.resultTitle}>
-              {state.gameEndedWinner === player.playerId ? 'YOU WIN' : state.gameEndedReason === 'draw' ? 'DRAW' : 'YOU LOSE'}
-            </Text>
+            <Text style={styles.resultTitle}>{resultHeadline}</Text>
             <PrimaryButton label="終了" onPress={onExit} />
           </View>
-        )}
+        ) : null}
 
-        {pendingMessage && (
+        {pendingMessage ? (
           <View style={styles.pendingMessageArea}>
             <Text style={styles.pendingMessageText}>{pendingMessage}</Text>
           </View>
-        )}
+        ) : null}
 
-        {hasCountdown && (
+        {hasCountdown ? (
           <View style={styles.countdownOverlay}>
+            <Text style={styles.countdownBattleStart}>BATTLE START</Text>
             <Text style={styles.countdownValue}>{countdown}</Text>
           </View>
-        )}
+        ) : null}
       </View>
 
       {draggingCard ? <DragCardGhost cardDef={draggingCard.cardDef} x={draggingCard.x} y={draggingCard.y} /> : null}
       <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />
     </SafeAreaView>
+  )
+}
+
+function ManaBarBattle({
+  mp,
+  maxMp,
+  blueMp,
+  showAmpSlot,
+}: {
+  mp: number
+  maxMp: number
+  blueMp: number
+  showAmpSlot: boolean
+}) {
+  const currentMpInt = Math.floor(mp)
+  const currentProgress = (mp % 1) * 100
+  const pips = []
+  for (let i = 0; i < maxMp; i += 1) {
+    const filled = i < currentMpInt
+    const charging = i === currentMpInt && !filled
+    pips.push(
+      <View key={`mp_${i}`} style={styles.mpPipOuter}>
+        {filled ? <View style={styles.mpPipFilled} /> : null}
+        {charging ? (
+          <View style={[styles.mpPipCharging, { width: `${currentProgress}%` }]} />
+        ) : null}
+      </View>
+    )
+  }
+
+  const showAmp = showAmpSlot || blueMp > 0
+
+  return (
+    <View style={styles.manaBarWrap}>
+      <View style={styles.manaBarTopRow}>
+        <View style={styles.mpIntBadge}>
+          <Text style={styles.mpIntBadgeText}>{currentMpInt}</Text>
+        </View>
+        {showAmp ? (
+          <View style={[styles.ampBadge, blueMp > 0 ? styles.ampBadgeActive : styles.ampBadgeInactive]}>
+            <Text style={styles.ampBadgeLabel}>AMP</Text>
+            <Text style={styles.ampBadgeVal}>{blueMp}</Text>
+          </View>
+        ) : null}
+        <View style={styles.mpPipsRow}>{pips}</View>
+      </View>
+    </View>
   )
 }
 
@@ -1124,38 +1435,88 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.background,
+    backgroundColor: '#0a0f0a',
   },
-  topInfoBar: {
-    height: 40,
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    backgroundColor: 'rgba(10,15,10,0.35)',
+  },
+  battleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 10,
-  },
-  backButton: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     paddingHorizontal: spacing.sm,
+    zIndex: 20,
   },
-  backButtonText: {
-    color: colors.textMuted,
-    fontSize: 12,
+  battleHeaderBack: {
+    position: 'absolute',
+    left: spacing.sm,
+    top: spacing.sm,
+    zIndex: 25,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  opponentInfo: {
+  battleHeaderBackText: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  battleHeaderCenter: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
   },
-  opponentName: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
+  battleTitleBadge: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(234,179,8,0.5)',
   },
-  opponentHand: {
+  battleTitleText: {
+    color: '#facc15',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  timerBox: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(234,179,8,0.35)',
+  },
+  timerBoxText: {
+    color: '#fde047',
+    fontSize: 20,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  timerBoxTextUrgent: {
+    color: '#f87171',
+  },
+  battleHeaderRight: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: spacing.xs,
+    alignItems: 'flex-end',
+    maxWidth: '38%',
+    zIndex: 24,
+  },
+  opponentLabelText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  opponentHandMini: {
     flexDirection: 'row',
     gap: 2,
+    marginTop: 4,
   },
   handCardBack: {
     width: 14,
@@ -1165,29 +1526,127 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  battleTimer: {
-    width: 60,
-    alignItems: 'flex-end',
+  arTopStrip: {
+    marginHorizontal: spacing.sm,
+    marginBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(2,6,23,0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(34,211,238,0.45)',
+    zIndex: 22,
+    borderRadius: 4,
   },
-  battleTimerText: {
-    color: colors.accent,
-    fontSize: 14,
+  arStripTimerTrack: {
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 2,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  arStripTimerFill: {
+    height: '100%',
+    backgroundColor: '#22d3ee',
+  },
+  arStripTitle: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '800',
+    textAlign: 'center',
+  },
+  arStripSub: {
+    color: '#a5f3fc',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  arResolveFloating: {
+    position: 'absolute',
+    bottom: 200,
+    left: spacing.md,
+    zIndex: 40,
+  },
+  arResolveBtn: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(251,191,36,0.85)',
+  },
+  arResolveBtnText: {
+    color: '#000',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  mainBattleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    minHeight: 0,
+    zIndex: 10,
+    paddingBottom: 168,
+  },
+  heroColumn: {
+    width: '24%',
+    maxWidth: 132,
+    minWidth: 88,
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  heroColumnInner: {
+    flex: 1,
+    minHeight: 160,
+    maxHeight: 320,
+    marginVertical: spacing.xs,
+  },
+  heroTouchFill: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  heroModelFrame: {
+    flex: 1,
+    minHeight: 140,
+  },
+  heroHpBadge: {
+    position: 'absolute',
+    bottom: 6,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(250,204,21,0.35)',
+  },
+  heroHpText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   battlefieldArea: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
+    minWidth: 0,
   },
   laneRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 80, // Space for heroes on sides
+    paddingHorizontal: spacing.xs,
   },
   unitSlotWrapper: {
-    width: 140,
-    height: '85%',
+    width: '30%',
+    maxWidth: 112,
+    minWidth: 72,
+    height: '82%',
   },
   unitSlot: {
     flex: 1,
@@ -1231,123 +1690,222 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  sideArea: {
-    ...StyleSheet.absoluteFillObject,
-    pointerEvents: 'box-none',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  enemyHeroArea: {
-    alignSelf: 'flex-start',
-    marginTop: 60,
-  },
-  playerHeroArea: {
-    alignSelf: 'flex-end',
-    marginBottom: 100,
-  },
-  heroAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.panel,
-    borderWidth: 3,
-    borderColor: colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  heroHpBar: {
+  floatingArtsRow: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.danger,
-    opacity: 0.5,
-  },
-  heroHpText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '900',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  bottomArea: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
+    bottom: 178,
+    left: 4,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    gap: 8,
+    zIndex: 35,
   },
-  mpContainer: {
-    width: 120,
+  artCluster: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  mpBarBackground: {
-    width: '100%',
-    height: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 6,
+  artCardBtn: {
+    width: 56,
+    height: 84,
+    borderRadius: 8,
+    borderWidth: 2,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    padding: 4,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
-  mpBarFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
+  artCardBtnHero: {
+    borderColor: '#facc15',
+    backgroundColor: 'rgba(234,179,8,0.35)',
   },
-  mpBarBlue: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#4ba3f2',
+  artCardBtnBuddy: {
+    borderColor: '#22d3ee',
+    backgroundColor: 'rgba(6,182,212,0.35)',
   },
-  mpText: {
-    color: colors.accent,
-    fontSize: 24,
+  artCardBtnDisabled: {
+    opacity: 0.45,
+    borderColor: '#525252',
+  },
+  artCardCost: {
+    fontSize: 9,
     fontWeight: '900',
+    color: '#000',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderTopLeftRadius: 4,
+    overflow: 'hidden',
+  },
+  apHex: {
+    width: 36,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  apHexIdle: {
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  apHexActiveHero: {
+    borderColor: '#facc15',
+    backgroundColor: 'rgba(234,179,8,0.22)',
+  },
+  apHexActiveBuddy: {
+    borderColor: '#22d3ee',
+    backgroundColor: 'rgba(6,182,212,0.2)',
+  },
+  apHexLabel: {
+    fontSize: 5,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.55)',
+  },
+  apHexVal: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#fde68a',
+  },
+  apHexSep: {
+    fontSize: 6,
+    color: 'rgba(255,255,255,0.35)',
+  },
+  apHexNeed: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fcd34d',
+  },
+  footerArea: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    zIndex: 30,
+  },
+  handExRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   handContainer: {
     flex: 1,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  heroArtsContainer: {
-    width: 80,
+  exPocketRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'flex-end',
+  },
+  exPocketEmpty: {
+    width: 44,
+    height: 68,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(168,85,247,0.45)',
+    backgroundColor: 'rgba(88,28,135,0.2)',
     alignItems: 'center',
-  },
-  artButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.purple,
     justifyContent: 'center',
+  },
+  exPocketEmptyText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: 'rgba(196,181,253,0.45)',
+  },
+  manaBarWrap: {
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    marginTop: 2,
   },
-  artButtonDisabled: {
-    opacity: 0.5,
-    backgroundColor: colors.black,
+  manaBarTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  artButtonText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '900',
+  mpIntBadge: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#27272a',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ skewX: '-0.15rad' }],
   },
-  artApText: {
+  mpIntBadgeText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '900',
+  },
+  ampBadge: {
+    minWidth: 30,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    transform: [{ skewX: '-0.15rad' }],
+  },
+  ampBadgeActive: {
+    backgroundColor: '#2563eb',
+    borderColor: 'rgba(96,165,250,0.6)',
+  },
+  ampBadgeInactive: {
+    backgroundColor: 'rgba(30,58,138,0.45)',
+    borderColor: 'rgba(59,130,246,0.35)',
+  },
+  ampBadgeLabel: {
+    fontSize: 6,
+    fontWeight: '800',
+    color: 'rgba(224,231,255,0.9)',
+  },
+  ampBadgeVal: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#e0f2fe',
+  },
+  mpPipsRow: {
+    flexDirection: 'row',
+    gap: 3,
+    alignItems: 'flex-end',
+    height: 14,
+    flexShrink: 1,
+  },
+  mpPipOuter: {
+    width: 18,
+    height: 12,
+    borderWidth: 1,
+    borderColor: '#000',
+    backgroundColor: '#18181b',
+    overflow: 'hidden',
+    transform: [{ skewX: '-0.2rad' }],
+  },
+  mpPipFilled: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f97316',
+    shadowColor: '#f97316',
+    shadowOpacity: 0.55,
+    shadowRadius: 6,
+  },
+  mpPipCharging: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(251,146,60,0.65)',
   },
   mulliganOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1362,10 +1920,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.lg,
   },
-  mulliganTitle: {
-    color: colors.text,
-    fontSize: 24,
+  mulliganBadge: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(234,179,8,0.5)',
+    marginBottom: spacing.md,
+  },
+  mulliganBadgeText: {
+    color: '#facc15',
+    fontSize: 18,
     fontWeight: '900',
+    letterSpacing: 3,
+    textAlign: 'center',
+  },
+  mulliganHeading: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: spacing.md,
+    textAlign: 'center',
   },
   mulliganHand: {
     flexDirection: 'row',
@@ -1378,33 +1953,6 @@ const styles = StyleSheet.create({
   waitingText: {
     color: colors.textMuted,
     fontSize: 16,
-  },
-  arOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 50,
-  },
-  arTimerBar: {
-    position: 'absolute',
-    top: 50,
-    width: '60%',
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  arTimerFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-  },
-  arTitle: {
-    color: colors.accentStrong,
-    fontSize: 40,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    marginBottom: 40,
-    textShadowColor: '#000',
-    textShadowRadius: 10,
   },
   resultOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1421,11 +1969,12 @@ const styles = StyleSheet.create({
   },
   pendingMessageArea: {
     position: 'absolute',
-    top: 50,
+    top: 112,
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 60,
+    paddingHorizontal: spacing.md,
   },
   pendingMessageText: {
     backgroundColor: colors.accent,
@@ -1441,12 +1990,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 30,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  countdownBattleStart: {
+    color: '#facc15',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 3,
+    marginBottom: 12,
   },
   countdownValue: {
-    color: colors.accentStrong,
-    fontSize: 120,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 48,
     fontWeight: '900',
-    opacity: 0.5,
   },
   unitView: {
     flex: 1,
