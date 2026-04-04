@@ -521,8 +521,6 @@ function BattleBoard({
   const battlefieldRef = useRef<View | null>(null)
   const friendlyHeroRef = useRef<View | null>(null)
   const enemyHeroRef = useRef<View | null>(null)
-  const laneRowRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
-  const laneRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const friendlyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const enemyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
 
@@ -648,13 +646,7 @@ function BattleBoard({
 
     const resolveLane = async () => {
       for (const pt of tryCoords) {
-        const lane = await findLaneDrop(
-          laneRowRefs.current,
-          laneRefs.current,
-          friendlyUnitRefs.current,
-          pt.x,
-          pt.y
-        )
+        const lane = await findLaneDropOnFriendlySlotOnly(friendlyUnitRefs.current, pt.x, pt.y)
         if (typeof lane === 'number') {
           return lane
         }
@@ -954,7 +946,8 @@ function BattleBoard({
     pendingAction.cardDef.type === 'unit' &&
     typeof pendingAction.lane !== 'number'
 
-  const laneRowGlowByIndex = [0, 1, 2].map((lane) => {
+  /** ユニット配置: 味方スロットのみハイライト（レーン行・中央は光らせない） */
+  const friendlyUnitDropGlowByLane = [0, 1, 2].map((lane) => {
     let glow = false
     if (draggingCard && canDragCardPlay && draggingCardDef?.type === 'unit') {
       glow = canDropUnitOnLane(draggingCardDef, player, lane)
@@ -992,6 +985,12 @@ function BattleBoard({
   )
   const glowFriendlyHero =
     actionGlowFromDrag.glowFriendlyHero || actionGlowFromPending.glowFriendlyHero
+
+  const friendlyUnitSlotHighlightByFlag = {
+    0: null,
+    1: styles.unitSlotDropTarget,
+  } as const
+  type FriendlyUnitSlotHighlightKey = keyof typeof friendlyUnitSlotHighlightByFlag
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1137,14 +1136,7 @@ function BattleBoard({
               const playerCard = playerUnit ? resolveCardDefinition(cardMap, playerUnit.cardId) : null
 
               return (
-                <View
-                  key={lane}
-                  ref={(node) => {
-                    laneRowRefs.current[lane] = node
-                  }}
-                  style={[styles.laneRow, laneRowGlowByIndex[lane] ? styles.laneRowDropGlow : null]}
-                  collapsable={false}
-                >
+                <View key={lane} style={styles.laneRow} collapsable={false}>
                   {/* Hexagonal decoration behind each lane */}
                   <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' }}>
                     <View style={styles.laneHexDecoration} />
@@ -1158,17 +1150,29 @@ function BattleBoard({
                     collapsable={false}
                   >
                     <Pressable
-                      onPress={() =>
-                        playerUnit && playerCard
-                          ? handleUnitOrHeroTarget(playerUnit.id, 'friendly', playerCard)
-                          : undefined
-                      }
+                      onPress={() => {
+                        if (
+                          pendingUnitPickLane &&
+                          pendingAction?.kind === 'card' &&
+                          canDropUnitOnLane(pendingAction.cardDef, player, lane)
+                        ) {
+                          handleLanePress(lane)
+                          return
+                        }
+                        if (playerUnit && playerCard) {
+                          handleUnitOrHeroTarget(playerUnit.id, 'friendly', playerCard)
+                        }
+                      }}
                       onLongPress={() => (playerCard ? setDetailCard(playerCard) : undefined)}
                       style={[
                         styles.unitSlot,
                         styles.playerUnitSlot,
                         playerUnit ? styles.unitActive : null,
-                        glowFriendlyUnitSlots[lane] ? styles.unitSlotDropTarget : null,
+                        friendlyUnitSlotHighlightByFlag[
+                          Number(
+                            Boolean(glowFriendlyUnitSlots[lane] || friendlyUnitDropGlowByLane[lane])
+                          ) as FriendlyUnitSlotHighlightKey
+                        ],
                       ]}
                     >
                       {playerUnit && playerCard ? (
@@ -1177,22 +1181,10 @@ function BattleBoard({
                     </Pressable>
                   </View>
 
-                  <View
-                    ref={(node) => {
-                      laneRefs.current[lane] = node
-                    }}
-                    style={styles.laneCenter}
-                    collapsable={false}
-                  >
-                    <Pressable
-                      onPress={() => handleLanePress(lane)}
-                      style={[
-                        styles.laneTarget,
-                        laneRowGlowByIndex[lane] ? styles.laneTargetDropGlow : null,
-                      ]}
-                    >
+                  <View style={styles.laneCenter} collapsable={false}>
+                    <View style={styles.laneTarget}>
                       <View style={styles.laneLine} />
-                    </Pressable>
+                    </View>
                   </View>
 
                   <View
@@ -1933,33 +1925,19 @@ async function isPointInsideRef(ref: View | null, pageX: number, pageY: number) 
   return isInsideFrame(await measureRefFrame(ref), pageX, pageY)
 }
 
-/** レーン行全体 → 中央エリア → 味方スロットの順で当たり判定（ドロップしやすくする） */
-async function findLaneDrop(
-  laneRowRefs: Record<number, View | null>,
-  laneCenterRefs: Record<number, View | null>,
+/** 味方ユニットスロット内のみドロップ可能（レーン行・中央ラインは対象外） */
+async function findLaneDropOnFriendlySlotOnly(
   friendlySlotRefs: Record<number, View | null>,
   pageX: number,
   pageY: number
 ): Promise<number | null> {
-  const tryLanes = async (getter: (lane: number) => View | null) => {
-    for (const lane of [0, 1, 2]) {
-      const frame = await measureRefFrame(getter(lane))
-      if (isInsideFrame(frame, pageX, pageY)) {
-        return lane
-      }
+  for (const lane of [0, 1, 2]) {
+    const frame = await measureRefFrame(friendlySlotRefs[lane])
+    if (isInsideFrame(frame, pageX, pageY)) {
+      return lane
     }
-    return null
   }
-
-  const fromRow = await tryLanes((lane) => laneRowRefs[lane])
-  if (typeof fromRow === 'number') {
-    return fromRow
-  }
-  const fromCenter = await tryLanes((lane) => laneCenterRefs[lane])
-  if (typeof fromCenter === 'number') {
-    return fromCenter
-  }
-  return tryLanes((lane) => friendlySlotRefs[lane])
+  return null
 }
 
 async function findTargetDrop({
@@ -2259,12 +2237,6 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingHorizontal: spacing.xs,
   },
-  laneRowDropGlow: {
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(34,211,238,0.5)',
-    backgroundColor: 'rgba(34,211,238,0.07)',
-  },
   /** ユニット枠サイズ（Web の GameBoard とは独立。モバイルのみここで調整） */
   unitSlotWrapper: {
     width: '30%',
@@ -2320,10 +2292,6 @@ const styles = StyleSheet.create({
   },
   laneTargetActive: {
     backgroundColor: 'rgba(242,184,75,0.1)',
-  },
-  laneTargetDropGlow: {
-    backgroundColor: 'rgba(34,211,238,0.14)',
-    borderRadius: 10,
   },
   laneLine: {
     width: '100%',
