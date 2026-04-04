@@ -3,12 +3,12 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import type { CardAttribute, CardDefinition } from '@/core/types'
 
@@ -207,10 +207,31 @@ export function CardTile({
           {imageUri ? (
             <Image source={{ uri: imageUri }} resizeMode="cover" style={styles.cardImage} />
           ) : (
-            <View style={[styles.cardFallback, { backgroundColor: ATTR_COLORS[card.attribute] }]} />
+            <View
+              style={[
+                styles.cardFallback,
+                styles.cardFallbackFill,
+                { backgroundColor: ATTR_COLORS[card.attribute] },
+              ]}
+            />
           )}
           <View style={styles.cardCostBadge}>
             <Text style={styles.cardCostText}>{card.cost}</Text>
+          </View>
+          {count ? (
+            <View style={[styles.cardCountBadge, styles.cardCountBadgeHand]}>
+              <Text style={styles.cardCountText}>x{count}</Text>
+            </View>
+          ) : null}
+          <View style={styles.cardHandMeta}>
+            <Text style={styles.cardHandName} numberOfLines={2}>
+              {card.name}
+            </Text>
+            <Text style={styles.cardHandType}>
+              {card.type === 'unit' && card.unitStats
+                ? `${card.unitStats.attack}/${card.unitStats.hp}`
+                : 'Action'}
+            </Text>
           </View>
           <View style={[styles.cardAttributeStripe, { backgroundColor: ATTR_COLORS[card.attribute] }]} />
         </View>
@@ -483,6 +504,27 @@ const styles = StyleSheet.create({
     width: 64,
     height: 90,
   },
+  cardHandMeta: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(5, 11, 18, 0.84)',
+  },
+  cardHandName: {
+    color: colors.text,
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 11,
+  },
+  cardHandType: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 8,
+    fontWeight: '700',
+  },
   cardAttributeStripe: {
     position: 'absolute',
     bottom: 0,
@@ -493,6 +535,10 @@ const styles = StyleSheet.create({
   cardFallback: {
     flex: 1,
     opacity: 0.85,
+  },
+  cardFallbackFill: {
+    width: '100%',
+    height: '100%',
   },
   cardImage: {
     width: '100%',
@@ -525,6 +571,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 11,
     fontWeight: '700',
+  },
+  cardCountBadgeHand: {
+    top: 6,
+    right: 6,
+    bottom: 'auto',
   },
   cardInfo: {
     flex: 1,

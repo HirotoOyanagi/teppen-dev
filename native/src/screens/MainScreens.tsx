@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native'
+import { setAudioModeAsync } from 'expo-audio'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { calculateMaxMp, validateDeck } from '@/core/cards'
 import { HEROES } from '@/core/heroes'
@@ -16,6 +17,7 @@ import type { CardAttribute, CardDefinition } from '@/core/types'
 import type { SavedDeck } from '@/shared/decks'
 
 import { useNativeNavigation, type BattleEntryMode } from '../app/navigation'
+import { HeroModel3D } from '../components/HeroModel3D'
 import { useNativeCards } from '../hooks/useCards'
 import {
   deleteDeck,
@@ -48,18 +50,88 @@ const battleModeLabelMap: Record<BattleEntryMode, string> = {
   room: 'ルームマッチ',
 }
 
+type TitleBgmPlayer = {
+  loop: boolean
+  volume: number
+  play: () => void
+  pause: () => void
+  remove?: () => void
+}
+
+function createTitleBgmPlayer(): TitleBgmPlayer | null {
+  const AudioModule = require('expo-audio/build/AudioModule').default as {
+    AudioPlayer: new (...args: unknown[]) => TitleBgmPlayer
+  }
+  const { resolveSource } = require('expo-audio/build/utils/resolveSource') as {
+    resolveSource: (source: number) => unknown
+  }
+  const source = resolveSource(require('../../../public/muzic/Clockwork of the Last Dawn (Loop).mp3'))
+  const candidateArgs: unknown[][] = [
+    [source, 500, true, 0],
+    [source, 500, true],
+    [source, 500],
+  ]
+
+  let lastError: unknown = null
+  for (const args of candidateArgs) {
+    try {
+      return new AudioModule.AudioPlayer(...args)
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  console.warn('タイトルBGMプレイヤーの生成に失敗しました', lastError)
+  return null
+}
+
 function sortDecks(items: SavedDeck[]) {
   return [...items].sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
+function resolveHero(heroId?: string) {
+  return HEROES.find((item) => item.id === heroId) || HEROES[0]
+}
+
 function HeroSummary({ heroId }: { heroId: string }) {
-  const hero = HEROES.find((item) => item.id === heroId) || HEROES[0]
+  const hero = resolveHero(heroId)
   return (
     <View style={styles.heroSummary}>
       <View style={[styles.heroBadge, { backgroundColor: ATTR_COLORS[hero.attribute] }]} />
       <View style={styles.heroSummaryText}>
         <Text style={styles.heroName}>{hero.name}</Text>
         <Text style={styles.heroDescription}>{hero.heroArt?.name || hero.description}</Text>
+      </View>
+    </View>
+  )
+}
+
+function HeroShowcase({
+  heroId,
+  title,
+  subtitle,
+}: {
+  heroId: string
+  title?: string
+  subtitle?: string
+}) {
+  const hero = resolveHero(heroId)
+
+  return (
+    <View style={styles.heroShowcase}>
+      <HeroModel3D
+        modelUrl={hero.modelUrl}
+        variant="home"
+        side="right"
+        style={styles.heroShowcaseModel}
+        fallbackLabel={hero.name}
+      />
+      <View style={styles.heroShowcaseOverlay}>
+        {title ? <Text style={styles.heroShowcaseEyebrow}>{title}</Text> : null}
+        <Text style={styles.heroShowcaseTitle}>{hero.name}</Text>
+        <Text style={styles.heroShowcaseSubtitle}>
+          {subtitle || hero.heroArt?.name || hero.description || '3Dモデル準備中'}
+        </Text>
       </View>
     </View>
   )
@@ -115,9 +187,54 @@ function DeckCardSummary({
 
 export function TitleScreen() {
   const { replace } = useNativeNavigation()
+  const bgmRef = useRef<TitleBgmPlayer | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const start = async () => {
+      try {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          interruptionMode: 'mixWithOthers',
+        })
+
+        if (cancelled) {
+          return
+        }
+
+        const bgm = createTitleBgmPlayer()
+        if (!bgm) {
+          return
+        }
+
+        bgmRef.current = bgm
+        bgm.loop = true
+        bgm.volume = 0.5
+        bgm.play()
+      } catch (error) {
+        console.warn('タイトルBGMの初期化に失敗しました', error)
+      }
+    }
+
+    void start()
+
+    return () => {
+      cancelled = true
+      bgmRef.current?.pause()
+      bgmRef.current?.remove?.()
+      bgmRef.current = null
+    }
+  }, [])
+
+  const handleStart = () => {
+    bgmRef.current?.pause()
+    replace({ name: 'home' })
+  }
 
   return (
-    <Pressable style={styles.titleContainer} onPress={() => replace({ name: 'home' })}>
+    <Pressable style={styles.titleContainer} onPress={handleStart}>
       <View style={styles.background} />
       
       <View style={styles.titleLogoArea}>
@@ -141,6 +258,29 @@ export function TitleScreen() {
 
 export function HomeScreen() {
   const { navigate } = useNativeNavigation()
+  const [featuredHeroId, setFeaturedHeroId] = useState(HEROES[0].id)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadFeaturedHero = async () => {
+      const deckId = await getSelectedDeckId()
+      if (!deckId) {
+        return
+      }
+
+      const deck = await getDeck(deckId)
+      if (mounted && deck) {
+        setFeaturedHeroId(deck.heroId)
+      }
+    }
+
+    void loadFeaturedHero()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   return (
     <SafeAreaView style={styles.homeSafeArea}>
@@ -172,9 +312,7 @@ export function HomeScreen() {
       <View style={styles.homeMainContent}>
         {/* Left: Character Area */}
         <View style={styles.homeCharacterArea}>
-          <View style={styles.homeCharacterPlaceholder}>
-            <Text style={styles.homeCharacterText}>CHARACTER</Text>
-          </View>
+          <HeroShowcase heroId={featuredHeroId} title="FEATURED HERO" />
           <View style={styles.homeEventBanner}>
             <Text style={styles.homeEventTitle}>ECHOES OF ADVENTURE</Text>
             <Text style={styles.homeEventSubtitle}>新マップ＆チャレンジ追加！</Text>
@@ -375,7 +513,7 @@ export function DeckListScreen() {
   useEffect(() => { void load() }, [])
 
   const selectedDeck = decks.find((d) => d.id === selectedDeckId) || null
-  const selectedHero = HEROES.find((h) => h.id === selectedDeck?.heroId) || HEROES[0]
+  const selectedHero = resolveHero(selectedDeck?.heroId)
   const maxMp = selectedDeck ? calculateMaxMp(selectedHero.attribute, selectedDeck.cardIds, cardMap) : 0
 
   const handleDelete = () => {
@@ -416,13 +554,18 @@ export function DeckListScreen() {
           </View>
         </View>
         <View style={styles.deckMainArea}>
-          <View style={styles.heroModelPlaceholder}><Text style={styles.heroModelText}>HERO MODEL</Text></View>
+          <HeroShowcase
+            heroId={selectedHero.id}
+            title="DECK HERO"
+            subtitle={selectedHero.heroArt?.name || selectedHero.description}
+          />
           {selectedDeck && (
             <View style={styles.deckDetailsWrapper}>
               <View style={styles.deckDetailsBox}>
                 <View style={styles.deckDetailRow}><Text style={styles.deckDetailLabel}>デッキ名</Text><Text style={styles.deckDetailValue}>{selectedDeck.name}</Text></View>
                 <View style={styles.deckDetailRow}><Text style={styles.deckDetailLabel}>ヒーロー</Text><Text style={styles.deckDetailValue}>{selectedHero.name}</Text></View>
                 <View style={styles.deckDetailRow}><Text style={styles.deckDetailLabel}>ヒーローアーツ</Text><Text style={styles.deckDetailValue}>{selectedHero.heroArt?.name ?? ''}</Text></View>
+                <View style={styles.deckDetailRow}><Text style={styles.deckDetailLabel}>最大MP</Text><Text style={styles.deckDetailValue}>{maxMp}</Text></View>
                 <View style={styles.deckDetailStats}>
                   <Text style={styles.deckDetailStatText}>📄 {selectedDeck.cardIds.length} / 30</Text>
                   <Text style={[styles.deckDetailStatText, { color: ATTR_COLORS[selectedHero.attribute] }]}>● {selectedHero.attribute.toUpperCase()}</Text>
@@ -465,6 +608,9 @@ export function DeckEditScreen({ deckId }: { deckId?: string }) {
       setDeckCardIds(deck.cardIds)
     })
   }, [deckId])
+
+  const selectedHero = resolveHero(selectedHeroId)
+  const maxMp = calculateMaxMp(selectedHero.attribute, deckCardIds, cardMap)
 
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
@@ -518,6 +664,33 @@ export function DeckEditScreen({ deckId }: { deckId?: string }) {
       <View style={styles.splitLayout}>
         <View style={styles.deckSidebar}>
           <TextInput value={deckName} onChangeText={setDeckName} style={styles.sidebarInput} placeholder="デッキ名" placeholderTextColor={colors.textMuted} />
+          <Text style={styles.sectionLabel}>ヒーロー</Text>
+          <View style={styles.heroPickerGrid}>
+            {HEROES.map((hero) => {
+              const isSelected = hero.id === selectedHeroId
+              return (
+                <Pressable
+                  key={hero.id}
+                  onPress={() => setSelectedHeroId(hero.id)}
+                  style={[styles.heroOption, isSelected ? styles.heroOptionSelected : null]}
+                >
+                  <View style={[styles.heroBadgeLarge, { backgroundColor: ATTR_COLORS[hero.attribute] }]} />
+                  <View style={styles.heroSummaryText}>
+                    <Text style={styles.heroOptionName}>{hero.name}</Text>
+                    <Text style={styles.heroDescription}>
+                      {hero.heroArt?.name || hero.description || ''}
+                    </Text>
+                  </View>
+                </Pressable>
+              )
+            })}
+          </View>
+          <Text style={styles.sectionLabel}>ヒーロー情報</Text>
+          <View style={styles.errorBox}>
+            <Text style={styles.heroName}>{selectedHero.name}</Text>
+            <Text style={styles.heroDescription}>{selectedHero.heroArt?.description || selectedHero.description || ''}</Text>
+            <Text style={styles.hintText}>最大MP {maxMp}</Text>
+          </View>
           <View style={styles.deckSummaryHeader}>
             <Text style={styles.deckSummaryHeaderText}>{deckCardIds.length} / 30枚</Text>
           </View>
@@ -532,6 +705,8 @@ export function DeckEditScreen({ deckId }: { deckId?: string }) {
               <AttributeChip key={attr} attribute={attr} active={selectedAttribute === attr} onPress={() => setSelectedAttribute(attr)} />
             ))}
           </View>
+          {isLoading ? <Text style={styles.emptyText}>読込中...</Text> : null}
+          {error ? <Text style={styles.errorText}>{error.message}</Text> : null}
           <View style={styles.cardGrid}>
             {filteredCards.map((card) => {
               const count = cardCounts.get(card.id) || 0
@@ -597,7 +772,7 @@ export function DeckSelectScreen({ battleMode = 'rank' }: { battleMode?: BattleE
   }, [])
 
   const selectedDeck = decks.find((d) => d.id === selectedDeckId) || null
-  const hero = HEROES.find((item) => item.id === selectedDeck?.heroId) || HEROES[0]
+  const hero = resolveHero(selectedDeck?.heroId)
   const canStartBattle = Boolean(selectedDeck) && selectedDeck?.cardIds.length === 30
   const isPractice = battleMode === 'practice'
 
@@ -634,7 +809,11 @@ export function DeckSelectScreen({ battleMode = 'rank' }: { battleMode?: BattleE
           </View>
         </View>
         <View style={styles.deckMainArea}>
-          <View style={styles.heroModelPlaceholder}><Text style={styles.heroModelText}>HERO MODEL</Text></View>
+          <HeroShowcase
+            heroId={hero.id}
+            title="BATTLE HERO"
+            subtitle={battleModeLabelMap[battleMode]}
+          />
           {selectedDeck && (
             <View style={styles.deckDetailsWrapper}>
               <View style={styles.deckDetailsBox}>
@@ -1028,21 +1207,43 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  homeCharacterPlaceholder: {
+  heroShowcase: {
     flex: 1,
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
   },
-  homeCharacterText: {
-    color: 'rgba(255,255,255,0.3)',
+  heroShowcaseModel: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroShowcaseOverlay: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    gap: 4,
+    padding: spacing.sm,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  heroShowcaseEyebrow: {
+    color: colors.accentStrong,
+    fontSize: 11,
     fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  heroShowcaseTitle: {
+    color: colors.text,
     fontSize: 24,
+    fontWeight: '900',
+  },
+  heroShowcaseSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   homeEventBanner: {
     position: 'absolute',
@@ -1363,17 +1564,6 @@ const styles = StyleSheet.create({
   deckMainArea: {
     flex: 1,
     position: 'relative',
-  },
-  heroModelPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.1,
-  },
-  heroModelText: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: '900',
   },
   deckDetailsWrapper: {
     position: 'absolute',

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import {
   PanResponder,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { getCardTargetType, cardRequiresTargetSelection, type CardTargetType } from '@/core/cardTargeting'
 import { resolveCardDefinition } from '@/core/cardId'

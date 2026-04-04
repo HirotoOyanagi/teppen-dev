@@ -1,4 +1,5 @@
 import { StatusBar } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { NativeNavigationProvider, useNativeNavigation } from './navigation'
 import { TitleScreen, HomeScreen, CardsScreen, CardListScreen, DeckListScreen, DeckEditScreen, DeckViewScreen, DeckSelectScreen, MatchmakingScreen } from '../screens/MainScreens'
@@ -42,9 +43,11 @@ function ScreenRenderer() {
 
 export default function AppShell() {
   return (
-    <NativeNavigationProvider>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <ScreenRenderer />
-    </NativeNavigationProvider>
+    <SafeAreaProvider>
+      <NativeNavigationProvider>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <ScreenRenderer />
+      </NativeNavigationProvider>
+    </SafeAreaProvider>
   )
 }
