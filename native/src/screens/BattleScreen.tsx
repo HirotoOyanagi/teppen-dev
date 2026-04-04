@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import {
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -20,7 +21,14 @@ import { useNativeGameSocket } from '../hooks/useNativeGameSocket'
 import { usePracticeBattle } from '../hooks/usePracticeBattle'
 import { getDeck } from '../storage/decks'
 import { colors, spacing } from '../theme'
-import { CardDetailModal, CardTile, PrimaryButton, SecondaryButton, Surface } from '../components/common'
+import {
+  ATTR_COLORS,
+  CardDetailModal,
+  CardTile,
+  PrimaryButton,
+  SecondaryButton,
+  Surface,
+} from '../components/common'
 import { HeroModel3D } from '../components/HeroModel3D'
 
 type BattleBgmPlayer = {
@@ -108,6 +116,77 @@ type DraggingCardState = {
   x: number
   y: number
 }
+
+type DraggingAbilityState = {
+  abilityType: 'hero_art' | 'companion'
+  name: string
+  x: number
+  y: number
+}
+
+function canDropUnitOnLane(cardDef: CardDefinition, player: BattlePlayerView, lane: number): boolean {
+  if (cardDef.type !== 'unit') {
+    return false
+  }
+  const existingUnit = player.units.find((u) => u.lane === lane)
+  const hasAwakening = cardDef.effectFunctions?.includes('awakening:') ?? false
+  return (
+    !existingUnit ||
+    (hasAwakening && !existingUnit.statusEffects?.includes('indestructible'))
+  )
+}
+
+type ActionDropGlows = {
+  battlefieldActionGlow: boolean
+  glowFriendlyUnitSlots: boolean[]
+  glowEnemyUnitSlots: boolean[]
+  glowFriendlyHero: boolean
+}
+
+const EMPTY_ACTION_DROP_GLOWS: ActionDropGlows = {
+  battlefieldActionGlow: false,
+  glowFriendlyUnitSlots: [false, false, false],
+  glowEnemyUnitSlots: [false, false, false],
+  glowFriendlyHero: false,
+}
+
+function computeActionTargetGlows(
+  cardDef: CardDefinition,
+  player: BattlePlayerView,
+  opponent: BattlePlayerView
+): ActionDropGlows {
+  if (cardDef.type !== 'action') {
+    return EMPTY_ACTION_DROP_GLOWS
+  }
+  const tt = getCardTargetType(cardDef)
+  if (tt == null) {
+    return {
+      ...EMPTY_ACTION_DROP_GLOWS,
+      battlefieldActionGlow: true,
+    }
+  }
+  const glowEnemyUnitSlots = [0, 1, 2].map((l) => opponent.units.some((u) => u.lane === l))
+  const glowFriendlyUnitSlots = [0, 1, 2].map((l) => player.units.some((u) => u.lane === l))
+  const typeGlowMap: Record<Exclude<CardTargetType, null>, () => ActionDropGlows> = {
+    enemy_unit: () => ({
+      ...EMPTY_ACTION_DROP_GLOWS,
+      glowEnemyUnitSlots,
+    }),
+    friendly_unit: () => ({
+      ...EMPTY_ACTION_DROP_GLOWS,
+      glowFriendlyUnitSlots,
+    }),
+    friendly_hero: () => ({
+      ...EMPTY_ACTION_DROP_GLOWS,
+      glowFriendlyHero: true,
+    }),
+  }
+  return typeGlowMap[tt]()
+}
+
+const DRAG_COMMIT_PX = 12
+const LONG_PRESS_MS = 280
+const TAP_MAX_MS = 420
 
 export function BattleScreen({
   deckId,
@@ -436,9 +515,13 @@ function BattleBoard({
   const [detailCard, setDetailCard] = useState<CardDefinition | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null)
+  const [draggingAbility, setDraggingAbility] = useState<DraggingAbilityState | null>(null)
+  /** ドラッグ終了直後に効果テキストを表示（レーン外ドロップでも見える） */
+  const [dragReleasedPreview, setDragReleasedPreview] = useState<CardDefinition | null>(null)
   const battlefieldRef = useRef<View | null>(null)
   const friendlyHeroRef = useRef<View | null>(null)
   const enemyHeroRef = useRef<View | null>(null)
+  const laneRowRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const laneRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const friendlyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const enemyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
@@ -449,7 +532,17 @@ function BattleBoard({
   }, [])
 
   useEffect(() => {
+    if (!dragReleasedPreview) {
+      return undefined
+    }
+    const t = setTimeout(() => setDragReleasedPreview(null), 4500)
+    return () => clearTimeout(t)
+  }, [dragReleasedPreview])
+
+  useEffect(() => {
     setPendingAction(null)
+    setDraggingAbility(null)
+    setDragReleasedPreview(null)
   }, [state.phase, state.activeResponse.isActive])
 
   const player = state.players[0]
@@ -519,6 +612,8 @@ function BattleBoard({
   const handleDragStart = (cardId: string, cardDef: CardDefinition, x: number, y: number, fromExPocket?: boolean) => {
     setPendingAction(null)
     setDetailCard(null)
+    setDraggingAbility(null)
+    setDragReleasedPreview(null)
     setDraggingCard({
       cardId,
       cardDef,
@@ -539,11 +634,36 @@ function BattleBoard({
       return
     }
 
-    const { cardId, cardDef, fromExPocket } = current
+    const { cardId, cardDef, fromExPocket, x: lastDragX, y: lastDragY } = current
+    setDragReleasedPreview(cardDef)
+
+    await waitForLayouts()
+
+    const tryCoords = [
+      { x: pageX, y: pageY },
+      { x: lastDragX, y: lastDragY },
+    ]
+
     const targetType = getCardTargetType(cardDef)
 
+    const resolveLane = async () => {
+      for (const pt of tryCoords) {
+        const lane = await findLaneDrop(
+          laneRowRefs.current,
+          laneRefs.current,
+          friendlyUnitRefs.current,
+          pt.x,
+          pt.y
+        )
+        if (typeof lane === 'number') {
+          return lane
+        }
+      }
+      return null
+    }
+
     if (cardDef.type === 'unit') {
-      const lane = await findLaneDrop(laneRefs.current, pageX, pageY)
+      const lane = await resolveLane()
       if (typeof lane !== 'number') {
         return
       }
@@ -565,18 +685,24 @@ function BattleBoard({
     }
 
     if (targetType) {
-      const target = await findTargetDrop({
-        targetType,
-        friendlyHeroRef,
-        enemyHeroRef,
-        friendlyUnitRefs,
-        enemyUnitRefs,
-        friendlyUnits: player.units,
-        enemyUnits: opponent.units,
-        pageX,
-        pageY,
-        playerId: player.playerId,
-      })
+      let target: string | null = null
+      for (const pt of tryCoords) {
+        target = await findTargetDrop({
+          targetType,
+          friendlyHeroRef,
+          enemyHeroRef,
+          friendlyUnitRefs,
+          enemyUnitRefs,
+          friendlyUnits: player.units,
+          enemyUnits: opponent.units,
+          pageX: pt.x,
+          pageY: pt.y,
+          playerId: player.playerId,
+        })
+        if (target) {
+          break
+        }
+      }
 
       if (target) {
         onPlayCard({ cardId, target, fromExPocket })
@@ -593,9 +719,17 @@ function BattleBoard({
       return
     }
 
-    const inBattlefield = await isPointInsideRef(battlefieldRef.current, pageX, pageY)
-    if (inBattlefield) {
-      onPlayCard({ cardId, fromExPocket })
+    let played = false
+    for (const pt of tryCoords) {
+      const inBattlefield = await isPointInsideRef(battlefieldRef.current, pt.x, pt.y)
+      if (inBattlefield) {
+        onPlayCard({ cardId, fromExPocket })
+        played = true
+        break
+      }
+    }
+    if (!played) {
+      /* dragReleasedPreview は既に表示済み */
     }
   }
 
@@ -706,6 +840,87 @@ function BattleBoard({
     setPendingAction(null)
   }
 
+  const handleAbilityDragStart = (abilityType: 'hero_art' | 'companion', name: string, x: number, y: number) => {
+    setPendingAction(null)
+    setDetailCard(null)
+    setDraggingCard(null)
+    setDraggingAbility({ abilityType, name, x, y })
+  }
+
+  const handleAbilityDragMove = (x: number, y: number) => {
+    setDraggingAbility((prev) => (prev ? { ...prev, x, y } : prev))
+  }
+
+  const handleAbilityDragEnd = async (abilityType: 'hero_art' | 'companion', pageX: number, pageY: number) => {
+    setDraggingAbility(null)
+
+    const art = abilityType === 'hero_art' ? player.hero.heroArt : player.hero.companion
+    if (!art || player.ap < art.cost) {
+      return
+    }
+
+    if (abilityType === 'hero_art') {
+      if (!art.requiresTarget) {
+        const onField = await isPointInsideRef(battlefieldRef.current, pageX, pageY)
+        const onEnemyHero = await isPointInsideRef(enemyHeroRef.current, pageX, pageY)
+        if (onField || onEnemyHero) {
+          onHeroArt()
+        }
+        return
+      }
+      const targetUnit = await findTargetDrop({
+        targetType: 'enemy_unit',
+        friendlyHeroRef,
+        enemyHeroRef,
+        friendlyUnitRefs,
+        enemyUnitRefs,
+        friendlyUnits: player.units,
+        enemyUnits: opponent.units,
+        pageX,
+        pageY,
+        playerId: player.playerId,
+      })
+      if (targetUnit) {
+        onHeroArt(targetUnit)
+        return
+      }
+      const onEnemyHero = await isPointInsideRef(enemyHeroRef.current, pageX, pageY)
+      if (onEnemyHero) {
+        onHeroArt(opponent.playerId)
+      }
+      return
+    }
+
+    if (!art.requiresTarget) {
+      const onField = await isPointInsideRef(battlefieldRef.current, pageX, pageY)
+      const onFriendlyHero = await isPointInsideRef(friendlyHeroRef.current, pageX, pageY)
+      if (onField || onFriendlyHero) {
+        onCompanion()
+      }
+      return
+    }
+    const targetUnit = await findTargetDrop({
+      targetType: 'friendly_unit',
+      friendlyHeroRef,
+      enemyHeroRef,
+      friendlyUnitRefs,
+      enemyUnitRefs,
+      friendlyUnits: player.units,
+      enemyUnits: opponent.units,
+      pageX,
+      pageY,
+      playerId: player.playerId,
+    })
+    if (targetUnit) {
+      onCompanion(targetUnit)
+      return
+    }
+    const onFriendlyHero = await isPointInsideRef(friendlyHeroRef.current, pageX, pageY)
+    if (onFriendlyHero) {
+      onCompanion(player.playerId)
+    }
+  }
+
   const pendingMessage = getPendingMessage(pendingAction)
 
   let resultHeadline = 'YOU LOSE'
@@ -725,8 +940,58 @@ function BattleBoard({
   }
 
   const timerUrgent = displayTimeMs <= 10_000
-  const laneHighlightActive =
-    pendingAction?.kind === 'card' && pendingAction.cardDef.type === 'unit'
+
+  const draggingCardDef = draggingCard?.cardDef
+  let canDragCardPlay = false
+  if (draggingCardDef != null) {
+    const mpOk = mpAvailableForCardPlay(player, state, draggingCardDef) >= draggingCardDef.cost
+    const arOk = draggingCardDef.type === 'action' || !state.activeResponse.isActive
+    canDragCardPlay = mpOk && arOk
+  }
+
+  const pendingUnitPickLane =
+    pendingAction?.kind === 'card' &&
+    pendingAction.cardDef.type === 'unit' &&
+    typeof pendingAction.lane !== 'number'
+
+  const laneRowGlowByIndex = [0, 1, 2].map((lane) => {
+    let glow = false
+    if (draggingCard && canDragCardPlay && draggingCardDef?.type === 'unit') {
+      glow = canDropUnitOnLane(draggingCardDef, player, lane)
+    }
+    if (!glow && pendingUnitPickLane && pendingAction?.kind === 'card') {
+      glow = canDropUnitOnLane(pendingAction.cardDef, player, lane)
+    }
+    return glow
+  })
+
+  let actionGlowFromDrag = EMPTY_ACTION_DROP_GLOWS
+  if (draggingCard && canDragCardPlay && draggingCardDef?.type === 'action') {
+    actionGlowFromDrag = computeActionTargetGlows(draggingCardDef, player, opponent)
+  }
+
+  const pendingNeedsTargetGlow =
+    pendingAction?.kind === 'card' &&
+    pendingAction.targetType != null &&
+    (pendingAction.cardDef.type === 'action' ||
+      (pendingAction.cardDef.type === 'unit' && typeof pendingAction.lane === 'number'))
+
+  let actionGlowFromPending = EMPTY_ACTION_DROP_GLOWS
+  if (pendingNeedsTargetGlow && pendingAction?.kind === 'card') {
+    actionGlowFromPending = computeActionTargetGlows(pendingAction.cardDef, player, opponent)
+  }
+
+  const battlefieldActionGlow =
+    actionGlowFromDrag.battlefieldActionGlow || actionGlowFromPending.battlefieldActionGlow
+  const glowFriendlyUnitSlots = [0, 1, 2].map(
+    (i) =>
+      actionGlowFromDrag.glowFriendlyUnitSlots[i] || actionGlowFromPending.glowFriendlyUnitSlots[i]
+  )
+  const glowEnemyUnitSlots = [0, 1, 2].map(
+    (i) => actionGlowFromDrag.glowEnemyUnitSlots[i] || actionGlowFromPending.glowEnemyUnitSlots[i]
+  )
+  const glowFriendlyHero =
+    actionGlowFromDrag.glowFriendlyHero || actionGlowFromPending.glowFriendlyHero
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -798,7 +1063,7 @@ function BattleBoard({
           <View style={styles.heroColumn} collapsable={false}>
             <View ref={friendlyHeroRef} style={styles.heroColumnInner} collapsable={false}>
               <Pressable
-                style={styles.heroTouchFill}
+                style={[styles.heroTouchFill, glowFriendlyHero ? styles.heroDropGlow : null]}
                 onPress={() => handleUnitOrHeroTarget(player.playerId, 'friendly')}
               >
                 <HeroModel3D
@@ -815,7 +1080,11 @@ function BattleBoard({
             </View>
           </View>
 
-          <View style={styles.battlefieldArea} ref={battlefieldRef}>
+          <View
+            style={[styles.battlefieldArea, battlefieldActionGlow ? styles.battlefieldDropGlow : null]}
+            ref={battlefieldRef}
+            collapsable={false}
+          >
             {[0, 1, 2].map((lane) => {
               const enemyUnit = opponent.units.find((u) => u.lane === lane)
               const playerUnit = player.units.find((u) => u.lane === lane)
@@ -823,12 +1092,20 @@ function BattleBoard({
               const playerCard = playerUnit ? resolveCardDefinition(cardMap, playerUnit.cardId) : null
 
               return (
-                <View key={lane} style={styles.laneRow}>
+                <View
+                  key={lane}
+                  ref={(node) => {
+                    laneRowRefs.current[lane] = node
+                  }}
+                  style={[styles.laneRow, laneRowGlowByIndex[lane] ? styles.laneRowDropGlow : null]}
+                  collapsable={false}
+                >
                   <View
                     ref={(node) => {
                       friendlyUnitRefs.current[lane] = node
                     }}
                     style={styles.unitSlotWrapper}
+                    collapsable={false}
                   >
                     <Pressable
                       onPress={() =>
@@ -841,6 +1118,7 @@ function BattleBoard({
                         styles.unitSlot,
                         styles.playerUnitSlot,
                         playerUnit ? styles.unitActive : null,
+                        glowFriendlyUnitSlots[lane] ? styles.unitSlotDropTarget : null,
                       ]}
                     >
                       {playerUnit && playerCard ? (
@@ -854,10 +1132,14 @@ function BattleBoard({
                       laneRefs.current[lane] = node
                     }}
                     style={styles.laneCenter}
+                    collapsable={false}
                   >
                     <Pressable
                       onPress={() => handleLanePress(lane)}
-                      style={[styles.laneTarget, laneHighlightActive ? styles.laneTargetActive : null]}
+                      style={[
+                        styles.laneTarget,
+                        laneRowGlowByIndex[lane] ? styles.laneTargetDropGlow : null,
+                      ]}
                     >
                       <View style={styles.laneLine} />
                     </Pressable>
@@ -868,6 +1150,7 @@ function BattleBoard({
                       enemyUnitRefs.current[lane] = node
                     }}
                     style={styles.unitSlotWrapper}
+                    collapsable={false}
                   >
                     <Pressable
                       onPress={() =>
@@ -880,6 +1163,7 @@ function BattleBoard({
                         styles.unitSlot,
                         styles.enemyUnitSlot,
                         enemyUnit ? styles.unitActive : null,
+                        glowEnemyUnitSlots[lane] ? styles.unitSlotDropTargetEnemy : null,
                       ]}
                     >
                       {enemyUnit && enemyCard ? (
@@ -918,16 +1202,23 @@ function BattleBoard({
           <View style={styles.floatingArtsRow} pointerEvents="box-none">
             {player.hero.heroArt ? (
               <View style={styles.artCluster}>
-                <Pressable
-                  style={[
-                    styles.artCardBtn,
-                    styles.artCardBtnHero,
-                    player.ap < player.hero.heroArt.cost ? styles.artCardBtnDisabled : null,
-                  ]}
-                  onPress={handleHeroArt}
+                <DraggableArtButton
+                  abilityType="hero_art"
+                  name={player.hero.heroArt.name}
+                  disabled={player.ap < player.hero.heroArt.cost}
+                  dragging={
+                    draggingAbility?.abilityType === 'hero_art' &&
+                    draggingAbility.name === player.hero.heroArt.name
+                  }
+                  cardStyle={[styles.artCardBtn, styles.artCardBtnHero]}
+                  disabledStyle={styles.artCardBtnDisabled}
+                  onTap={handleHeroArt}
+                  onDragStart={handleAbilityDragStart}
+                  onDragMove={handleAbilityDragMove}
+                  onDragEnd={handleAbilityDragEnd}
                 >
                   <Text style={styles.artCardCost}>{player.hero.heroArt.cost}AP</Text>
-                </Pressable>
+                </DraggableArtButton>
                 <View
                   style={[
                     styles.apHex,
@@ -943,16 +1234,23 @@ function BattleBoard({
             ) : null}
             {player.hero.companion ? (
               <View style={styles.artCluster}>
-                <Pressable
-                  style={[
-                    styles.artCardBtn,
-                    styles.artCardBtnBuddy,
-                    player.ap < player.hero.companion.cost ? styles.artCardBtnDisabled : null,
-                  ]}
-                  onPress={handleCompanion}
+                <DraggableArtButton
+                  abilityType="companion"
+                  name={player.hero.companion.name}
+                  disabled={player.ap < player.hero.companion.cost}
+                  dragging={
+                    draggingAbility?.abilityType === 'companion' &&
+                    draggingAbility.name === player.hero.companion.name
+                  }
+                  cardStyle={[styles.artCardBtn, styles.artCardBtnBuddy]}
+                  disabledStyle={styles.artCardBtnDisabled}
+                  onTap={handleCompanion}
+                  onDragStart={handleAbilityDragStart}
+                  onDragMove={handleAbilityDragMove}
+                  onDragEnd={handleAbilityDragEnd}
                 >
                   <Text style={styles.artCardCost}>{player.hero.companion.cost}AP</Text>
-                </Pressable>
+                </DraggableArtButton>
                 <View
                   style={[
                     styles.apHex,
@@ -1099,6 +1397,39 @@ function BattleBoard({
       </View>
 
       {draggingCard ? <DragCardGhost cardDef={draggingCard.cardDef} x={draggingCard.x} y={draggingCard.y} /> : null}
+      {draggingAbility ? (
+        <DragAbilityGhost
+          abilityType={draggingAbility.abilityType}
+          name={draggingAbility.name}
+          x={draggingAbility.x}
+          y={draggingAbility.y}
+        />
+      ) : null}
+      {dragReleasedPreview ? (
+        <Pressable
+          style={styles.effectPreviewBackdrop}
+          onPress={() => setDragReleasedPreview(null)}
+        >
+          <View style={styles.effectPreviewPanel} pointerEvents="box-none">
+            <View
+              style={[
+                styles.effectPreviewAccent,
+                { backgroundColor: ATTR_COLORS[dragReleasedPreview.attribute] },
+              ]}
+            />
+            <Text style={styles.effectPreviewTitle}>{dragReleasedPreview.name}</Text>
+            <Text style={styles.effectPreviewCost}>{dragReleasedPreview.cost} MP</Text>
+            <ScrollView style={styles.effectPreviewScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.effectPreviewBody}>
+                {dragReleasedPreview.description?.trim().length
+                  ? dragReleasedPreview.description
+                  : '効果テキストなし'}
+              </Text>
+            </ScrollView>
+            <Text style={styles.effectPreviewHint}>タップで閉じる</Text>
+          </View>
+        </Pressable>
+      ) : null}
       <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />
     </SafeAreaView>
   )
@@ -1191,6 +1522,145 @@ function BattleStateMessage({
   )
 }
 
+type ArtGestureRef = {
+  startX: number
+  startY: number
+  lastX: number
+  lastY: number
+  startT: number
+  dragCommitted: boolean
+  longFired: boolean
+  timer: ReturnType<typeof setTimeout> | null
+}
+
+function createArtGestureRef(): ArtGestureRef {
+  return {
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    startT: 0,
+    dragCommitted: false,
+    longFired: false,
+    timer: null,
+  }
+}
+
+function DraggableArtButton({
+  abilityType,
+  name,
+  disabled,
+  dragging,
+  cardStyle,
+  disabledStyle,
+  onTap,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  children,
+}: {
+  abilityType: 'hero_art' | 'companion'
+  name: string
+  disabled?: boolean
+  dragging?: boolean
+  cardStyle: object | object[]
+  disabledStyle?: object
+  onTap: () => void
+  onDragStart: (type: 'hero_art' | 'companion', label: string, x: number, y: number) => void
+  onDragMove: (x: number, y: number) => void
+  onDragEnd: (type: 'hero_art' | 'companion', pageX: number, pageY: number) => void
+  children: ReactNode
+}) {
+  const gRef = useRef<ArtGestureRef>(createArtGestureRef())
+
+  const clearTimer = () => {
+    const t = gRef.current.timer
+    if (t != null) {
+      clearTimeout(t)
+    }
+    gRef.current.timer = null
+  }
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !disabled,
+        onPanResponderGrant: (e) => {
+          const g = gRef.current
+          const { pageX, pageY } = e.nativeEvent
+          g.startX = pageX
+          g.startY = pageY
+          g.lastX = pageX
+          g.lastY = pageY
+          g.startT = Date.now()
+          g.dragCommitted = false
+          g.longFired = false
+          clearTimer()
+          g.timer = setTimeout(() => {
+            g.timer = null
+            if (!g.dragCommitted && !disabled) {
+              g.longFired = true
+            }
+          }, LONG_PRESS_MS)
+        },
+        onPanResponderMove: (e) => {
+          const g = gRef.current
+          const { pageX, pageY } = e.nativeEvent
+          g.lastX = pageX
+          g.lastY = pageY
+          const dx = pageX - g.startX
+          const dy = pageY - g.startY
+          if (dx * dx + dy * dy > DRAG_COMMIT_PX * DRAG_COMMIT_PX) {
+            clearTimer()
+            if (g.longFired) {
+              return
+            }
+            if (!g.dragCommitted) {
+              g.dragCommitted = true
+              onDragStart(abilityType, name, pageX, pageY)
+            }
+            onDragMove(pageX, pageY)
+          }
+        },
+        onPanResponderRelease: (e) => {
+          const g = gRef.current
+          clearTimer()
+          const { pageX, pageY } = e.nativeEvent
+          g.lastX = pageX
+          g.lastY = pageY
+          if (g.dragCommitted) {
+            onDragEnd(abilityType, pageX, pageY)
+          } else if (!g.longFired) {
+            const elapsed = Date.now() - g.startT
+            const dx = pageX - g.startX
+            const dy = pageY - g.startY
+            if (elapsed <= TAP_MAX_MS && dx * dx + dy * dy <= DRAG_COMMIT_PX * DRAG_COMMIT_PX) {
+              onTap()
+            }
+          }
+        },
+        onPanResponderTerminate: () => {
+          const g = gRef.current
+          clearTimer()
+          if (g.dragCommitted) {
+            onDragEnd(abilityType, g.lastX, g.lastY)
+          }
+        },
+      }),
+    [abilityType, disabled, name, onDragEnd, onDragMove, onDragStart, onTap]
+  )
+
+  return (
+    <View
+      collapsable={false}
+      style={[cardStyle, disabled ? disabledStyle : null, dragging ? styles.draggingOrigin : null]}
+      {...(!disabled ? panResponder.panHandlers : {})}
+    >
+      {children}
+    </View>
+  )
+}
+
 function DraggableBattleCard({
   card,
   disabled,
@@ -1212,40 +1682,98 @@ function DraggableBattleCard({
   onDragMove: (x: number, y: number) => void
   onDragEnd: (x: number, y: number) => void
 }) {
+  const gRef = useRef<ArtGestureRef>(createArtGestureRef())
+
+  const clearTimer = () => {
+    const t = gRef.current.timer
+    if (t != null) {
+      clearTimeout(t)
+    }
+    gRef.current.timer = null
+  }
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gestureState) => {
-          if (disabled) {
-            return false
+        onStartShouldSetPanResponder: () => !disabled,
+        onPanResponderGrant: (e) => {
+          const g = gRef.current
+          const { pageX, pageY } = e.nativeEvent
+          g.startX = pageX
+          g.startY = pageY
+          g.lastX = pageX
+          g.lastY = pageY
+          g.startT = Date.now()
+          g.dragCommitted = false
+          g.longFired = false
+          clearTimer()
+          g.timer = setTimeout(() => {
+            g.timer = null
+            if (!g.dragCommitted && !disabled) {
+              g.longFired = true
+              onLongPress()
+            }
+          }, LONG_PRESS_MS)
+        },
+        onPanResponderMove: (e) => {
+          const g = gRef.current
+          const { pageX, pageY } = e.nativeEvent
+          g.lastX = pageX
+          g.lastY = pageY
+          const dx = pageX - g.startX
+          const dy = pageY - g.startY
+          if (dx * dx + dy * dy > DRAG_COMMIT_PX * DRAG_COMMIT_PX) {
+            clearTimer()
+            if (g.longFired) {
+              return
+            }
+            if (!g.dragCommitted) {
+              g.dragCommitted = true
+              onDragStart(pageX, pageY)
+            }
+            onDragMove(pageX, pageY)
           }
-          return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6
         },
-        onPanResponderGrant: (event) => {
-          onDragStart(event.nativeEvent.pageX, event.nativeEvent.pageY)
+        onPanResponderRelease: (e) => {
+          const g = gRef.current
+          clearTimer()
+          const { pageX, pageY } = e.nativeEvent
+          g.lastX = pageX
+          g.lastY = pageY
+          if (g.dragCommitted) {
+            onDragEnd(pageX, pageY)
+          } else if (!g.longFired) {
+            const elapsed = Date.now() - g.startT
+            const dx = pageX - g.startX
+            const dy = pageY - g.startY
+            if (elapsed <= TAP_MAX_MS && dx * dx + dy * dy <= DRAG_COMMIT_PX * DRAG_COMMIT_PX) {
+              onPress()
+            }
+          }
         },
-        onPanResponderMove: (event) => {
-          onDragMove(event.nativeEvent.pageX, event.nativeEvent.pageY)
-        },
-        onPanResponderRelease: (event) => {
-          onDragEnd(event.nativeEvent.pageX, event.nativeEvent.pageY)
-        },
-        onPanResponderTerminate: (event) => {
-          onDragEnd(event.nativeEvent.pageX, event.nativeEvent.pageY)
+        onPanResponderTerminate: () => {
+          const g = gRef.current
+          clearTimer()
+          if (g.dragCommitted) {
+            onDragEnd(g.lastX, g.lastY)
+          }
         },
       }),
-    [disabled, onDragEnd, onDragMove, onDragStart]
+    [disabled, onDragEnd, onDragMove, onDragStart, onLongPress, onPress]
   )
 
   return (
-    <View style={dragging ? styles.draggingOrigin : null} {...(!disabled ? panResponder.panHandlers : {})}>
+    <View
+      style={dragging ? styles.draggingOrigin : null}
+      collapsable={false}
+      {...(!disabled ? panResponder.panHandlers : {})}
+    >
       <CardTile
         card={card}
         disabled={disabled}
         selected={selected}
         variant="hand"
-        onPress={onPress}
-        onLongPress={onLongPress}
+        handNonInteractive
       />
     </View>
   )
@@ -1263,7 +1791,34 @@ function DragCardGhost({
   return (
     <View pointerEvents="none" style={styles.dragGhostWrap}>
       <View style={[styles.dragGhost, { left: x - 50, top: y - 70 }]}>
-        <CardTile card={cardDef} variant="hand" />
+        <CardTile card={cardDef} variant="hand" handNonInteractive />
+      </View>
+    </View>
+  )
+}
+
+function DragAbilityGhost({
+  abilityType,
+  name,
+  x,
+  y,
+}: {
+  abilityType: 'hero_art' | 'companion'
+  name: string
+  x: number
+  y: number
+}) {
+  const orbStyleMap: Record<string, object> = {
+    hero_art: styles.dragAbilityOrbHero,
+    companion: styles.dragAbilityOrbBuddy,
+  }
+  const orbExtra = orbStyleMap[abilityType]
+  return (
+    <View pointerEvents="none" style={styles.dragGhostWrap}>
+      <View style={[styles.dragAbilityOrb, orbExtra, { left: x - 44, top: y - 44 }]}>
+        <Text style={styles.dragAbilityOrbText} numberOfLines={3}>
+          {name}
+        </Text>
       </View>
     </View>
   )
@@ -1306,6 +1861,15 @@ function formatTimer(ms: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+/** measureInWindow 直前にレイアウトを確定（Android の 0 サイズ回避） */
+function waitForLayouts(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
 function measureRefFrame(ref: View | null): Promise<{ x: number; y: number; width: number; height: number } | null> {
   return new Promise((resolve) => {
     if (!ref) {
@@ -1344,18 +1908,33 @@ async function isPointInsideRef(ref: View | null, pageX: number, pageY: number) 
   return isInsideFrame(await measureRefFrame(ref), pageX, pageY)
 }
 
+/** レーン行全体 → 中央エリア → 味方スロットの順で当たり判定（ドロップしやすくする） */
 async function findLaneDrop(
-  laneRefs: Record<number, View | null>,
+  laneRowRefs: Record<number, View | null>,
+  laneCenterRefs: Record<number, View | null>,
+  friendlySlotRefs: Record<number, View | null>,
   pageX: number,
   pageY: number
-) {
-  for (const lane of [0, 1, 2]) {
-    const frame = await measureRefFrame(laneRefs[lane])
-    if (isInsideFrame(frame, pageX, pageY)) {
-      return lane
+): Promise<number | null> {
+  const tryLanes = async (getter: (lane: number) => View | null) => {
+    for (const lane of [0, 1, 2]) {
+      const frame = await measureRefFrame(getter(lane))
+      if (isInsideFrame(frame, pageX, pageY)) {
+        return lane
+      }
     }
+    return null
   }
-  return null
+
+  const fromRow = await tryLanes((lane) => laneRowRefs[lane])
+  if (typeof fromRow === 'number') {
+    return fromRow
+  }
+  const fromCenter = await tryLanes((lane) => laneCenterRefs[lane])
+  if (typeof fromCenter === 'number') {
+    return fromCenter
+  }
+  return tryLanes((lane) => friendlySlotRefs[lane])
 }
 
 async function findTargetDrop({
@@ -1563,7 +2142,7 @@ const styles = StyleSheet.create({
   },
   arResolveFloating: {
     position: 'absolute',
-    bottom: 200,
+    bottom: 258,
     left: spacing.md,
     zIndex: 40,
   },
@@ -1607,6 +2186,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
+  heroDropGlow: {
+    borderWidth: 3,
+    borderColor: 'rgba(34,211,238,0.85)',
+    backgroundColor: 'rgba(34,211,238,0.08)',
+  },
   heroModelFrame: {
     flex: 1,
     minHeight: 140,
@@ -1636,17 +2220,31 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     minWidth: 0,
   },
+  battlefieldDropGlow: {
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(34,211,238,0.55)',
+    backgroundColor: 'rgba(34,211,238,0.06)',
+  },
   laneRow: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     paddingHorizontal: spacing.xs,
+    minHeight: 192,
   },
+  laneRowDropGlow: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(34,211,238,0.5)',
+    backgroundColor: 'rgba(34,211,238,0.07)',
+  },
+  /** ユニット枠サイズ（Web の GameBoard とは独立。モバイルのみここで調整） */
   unitSlotWrapper: {
-    width: '30%',
-    maxWidth: 112,
-    minWidth: 72,
-    height: '82%',
+    width: '32%',
+    maxWidth: 136,
+    minWidth: 88,
+    height: '100%',
   },
   unitSlot: {
     flex: 1,
@@ -1670,20 +2268,36 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
+  unitSlotDropTarget: {
+    borderStyle: 'solid',
+    borderColor: 'rgba(34,211,238,0.85)',
+    backgroundColor: 'rgba(34,211,238,0.12)',
+  },
+  unitSlotDropTargetEnemy: {
+    borderStyle: 'solid',
+    borderColor: 'rgba(251,146,60,0.9)',
+    backgroundColor: 'rgba(251,146,60,0.12)',
+  },
   laneCenter: {
     flex: 1,
-    height: '100%',
+    minWidth: 0,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    alignSelf: 'stretch',
   },
   laneTarget: {
+    flex: 1,
     width: '100%',
-    height: 40,
+    minHeight: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
   laneTargetActive: {
     backgroundColor: 'rgba(242,184,75,0.1)',
+  },
+  laneTargetDropGlow: {
+    backgroundColor: 'rgba(34,211,238,0.14)',
+    borderRadius: 10,
   },
   laneLine: {
     width: '100%',
@@ -1692,7 +2306,7 @@ const styles = StyleSheet.create({
   },
   floatingArtsRow: {
     position: 'absolute',
-    bottom: 178,
+    bottom: 38,
     left: 4,
     flexDirection: 'row',
     gap: 8,
@@ -2051,5 +2665,92 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 64, 
     opacity: 0.92,
+  },
+  dragAbilityOrb: {
+    position: 'absolute',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    opacity: 0.95,
+  },
+  dragAbilityOrbHero: {
+    backgroundColor: 'rgba(234,179,8,0.92)',
+    borderColor: '#fde68a',
+    shadowColor: '#facc15',
+    shadowOpacity: 0.65,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dragAbilityOrbBuddy: {
+    backgroundColor: 'rgba(6,182,212,0.92)',
+    borderColor: '#a5f3fc',
+    shadowColor: '#22d3ee',
+    shadowOpacity: 0.55,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dragAbilityOrbText: {
+    color: '#000',
+    fontSize: 9,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  effectPreviewBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+    zIndex: 400,
+  },
+  effectPreviewPanel: {
+    backgroundColor: 'rgba(12,12,18,0.98)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    padding: spacing.md,
+    maxHeight: '42%',
+  },
+  effectPreviewAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 4,
+    borderRadius: 2,
+  },
+  effectPreviewTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 4,
+    paddingLeft: spacing.sm,
+  },
+  effectPreviewCost: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  effectPreviewScroll: {
+    maxHeight: 220,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  effectPreviewBody: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  effectPreviewHint: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    textAlign: 'center',
+    paddingTop: spacing.xs,
   },
 })

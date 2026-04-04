@@ -170,6 +170,62 @@ export function AttributeChip({
   )
 }
 
+function CardHandVisual({
+  card,
+  count,
+  disabled,
+  selected,
+}: {
+  card: CardDefinition
+  count?: number
+  disabled?: boolean
+  selected?: boolean
+}) {
+  const imageUri = resolveNativeCardImage(card)
+  return (
+    <View
+      style={[
+        styles.cardHand,
+        disabled ? styles.cardTileDisabled : null,
+        selected ? styles.cardTileSelected : null,
+      ]}
+    >
+      <View style={styles.cardVisualHand}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} resizeMode="cover" style={styles.cardImage} />
+        ) : (
+          <View
+            style={[
+              styles.cardFallback,
+              styles.cardFallbackFill,
+              { backgroundColor: ATTR_COLORS[card.attribute] },
+            ]}
+          />
+        )}
+        <View style={styles.cardCostBadge}>
+          <Text style={styles.cardCostText}>{card.cost}</Text>
+        </View>
+        {count ? (
+          <View style={[styles.cardCountBadge, styles.cardCountBadgeHand]}>
+            <Text style={styles.cardCountText}>x{count}</Text>
+          </View>
+        ) : null}
+        <View style={styles.cardHandMeta}>
+          <Text style={styles.cardHandName} numberOfLines={2}>
+            {card.name}
+          </Text>
+          <Text style={styles.cardHandType}>
+            {card.type === 'unit' && card.unitStats
+              ? `${card.unitStats.attack}/${card.unitStats.hp}`
+              : 'Action'}
+          </Text>
+        </View>
+        <View style={[styles.cardAttributeStripe, { backgroundColor: ATTR_COLORS[card.attribute] }]} />
+      </View>
+    </View>
+  )
+}
+
 export function CardTile({
   card,
   count,
@@ -179,6 +235,8 @@ export function CardTile({
   variant = 'row',
   onPress,
   onLongPress,
+  /** true のとき手札見た目のみ（親の PanResponder でドラッグ／タップを処理） */
+  handNonInteractive,
 }: {
   card: CardDefinition
   count?: number
@@ -188,10 +246,14 @@ export function CardTile({
   variant?: 'row' | 'hand'
   onPress?: () => void
   onLongPress?: () => void
+  handNonInteractive?: boolean
 }) {
   const imageUri = resolveNativeCardImage(card)
 
   if (variant === 'hand') {
+    if (handNonInteractive) {
+      return <CardHandVisual card={card} count={count} disabled={disabled} selected={selected} />
+    }
     return (
       <Pressable
         onPress={onPress}
