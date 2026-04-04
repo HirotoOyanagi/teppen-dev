@@ -45,7 +45,7 @@ export default function TitlePage() {
             <div className={styles.background} />
             <div className={styles.overlay} />
             <div className={styles.content}>
-              <p className={styles.subtitle}>TOUCH TO START</p>
+              <p className={styles.subtitle}>TAP TO START</p>
             </div>
           </div>
           {/* 実際の実装では以下のように動画を表示 */}

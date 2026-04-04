@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
-  Image,
+  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { setAudioModeAsync } from 'expo-audio'
@@ -188,6 +189,7 @@ function DeckCardSummary({
 export function TitleScreen() {
   const { replace } = useNativeNavigation()
   const bgmRef = useRef<TitleBgmPlayer | null>(null)
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions()
 
   useEffect(() => {
     let cancelled = false
@@ -233,25 +235,51 @@ export function TitleScreen() {
     replace({ name: 'home' })
   }
 
+  const titleLayoutProfileMap = {
+    compactLandscape: {
+      bottomPadRatio: 0.1,
+      subtitleStyle: styles.titleTouchTextLandscape,
+    },
+    normal: {
+      bottomPadRatio: 0.25,
+      subtitleStyle: null,
+    },
+  } as const
+
+  let titleLayoutProfileKey: keyof typeof titleLayoutProfileMap = 'normal'
+  if (windowWidth > windowHeight && windowHeight <= 500) {
+    titleLayoutProfileKey = 'compactLandscape'
+  }
+
+  const titleLayoutProfile = titleLayoutProfileMap[titleLayoutProfileKey]
+  const contentPaddingBottom = windowHeight * titleLayoutProfile.bottomPadRatio
+  const titleSubtitleExtraStyle = titleLayoutProfile.subtitleStyle
+
   return (
     <Pressable style={styles.titleContainer} onPress={handleStart}>
-      <View style={styles.background} />
-      
-      <View style={styles.titleLogoArea}>
-        <Image 
-          source={require('../../../public/title/chrono-reverse.png')} 
-          style={styles.titleLogo}
-        />
-      </View>
-
-      <View style={styles.titleTouchArea}>
-        <Text style={styles.titleTouchText}>TAP TO START</Text>
-      </View>
-
-      <View style={styles.titleFooter}>
-        <Text style={styles.titleCopyright}>© GungHo Online Entertainment, Inc. All Rights Reserved.</Text>
-        <Text style={styles.titleVersion}>v1.0.0</Text>
-      </View>
+      <ImageBackground
+        source={require('../../../public/title/chrono-reverse.png')}
+        style={styles.titleBackgroundImage}
+        resizeMode="cover"
+      >
+        <View
+          style={[
+            styles.titleContent,
+            {
+              paddingBottom: contentPaddingBottom,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.titleTouchText,
+              titleSubtitleExtraStyle,
+            ]}
+          >
+            TAP TO START
+          </Text>
+        </View>
+      </ImageBackground>
     </Pressable>
   )
 }
@@ -1364,45 +1392,29 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
     backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  titleLogoArea: {
-    flex: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  titleLogo: {
-    width: '70%',
-    height: '60%',
-    resizeMode: 'contain',
-  },
-  titleTouchArea: {
+  titleBackgroundImage: {
     flex: 1,
-    justifyContent: 'flex-start',
+    width: '100%',
+    height: '100%',
+  },
+  titleContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   titleTouchText: {
     color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 4.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
+  titleTouchTextLandscape: {
     fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 4,
-    opacity: 0.8,
-  },
-  titleFooter: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    alignItems: 'center',
-    gap: 4,
-  },
-  titleCopyright: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 10,
-  },
-  titleVersion: {
-    color: 'rgba(255,255,255,0.2)',
-    fontSize: 10,
   },
   pageHeader: {
     padding: spacing.md,
