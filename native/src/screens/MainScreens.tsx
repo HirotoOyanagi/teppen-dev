@@ -39,10 +39,17 @@ import {
   PrimaryButton,
   ScreenFrame,
   SecondaryButton,
-  Surface,
 } from '../components/common'
 
 const ATTRIBUTES: Array<CardAttribute | 'all'> = ['all', 'red', 'green', 'purple', 'black']
+
+/** Web `AppLayout.module.css` と同じホームバナー背景（カードイラスト） */
+const homeBattleBannerImages = {
+  rank: require('../../../public/images/cards/Cor001.png'),
+  practice: require('../../../public/images/cards/Cor013.png'),
+  free: require('../../../public/images/cards/Cor027.png'),
+  quick: require('../../../public/images/cards/Cor028.png'),
+} as const
 
 const battleModeLabelMap: Record<BattleEntryMode, string> = {
   rank: 'ランクマッチ',
@@ -347,33 +354,75 @@ export function HomeScreen() {
           </View>
         </View>
 
-        {/* Right: Banner Area */}
+        {/* Right: Banner Area（Web `pages/home` / AppLayout と同じカード画像） */}
         <View style={styles.homeBannerArea}>
-          <Surface style={styles.homeBannerLarge}>
-            <Text style={styles.homeBannerLargeTitle}>Thank You for Playing!</Text>
-            <Text style={styles.homeBannerLargeBody}>〈ランクマッチ〉 開催終了いたしました</Text>
-          </Surface>
+          <Pressable
+            style={styles.homeBannerLargeOuter}
+            onPress={() => navigate({ name: 'deck-select', battleMode: 'rank' })}
+          >
+            <ImageBackground
+              source={homeBattleBannerImages.rank}
+              style={styles.homeBannerLargeBg}
+              imageStyle={styles.homeBannerImageRadius}
+              resizeMode="cover"
+            >
+              <View style={styles.homeBannerLargeOverlay}>
+                <Text style={styles.homeBannerLargeTitle}>ランクマッチ</Text>
+                <Text style={styles.homeBannerLargeBody}>レートを賭けて真剣勝負</Text>
+              </View>
+            </ImageBackground>
+          </Pressable>
 
-          <View style={styles.homeBannerMedium}>
-            <View style={styles.homeFloorBadge}>
-              <Text style={styles.homeFloorBadgeText}>FLOOR 17 UNLIMITED</Text>
-            </View>
-            <Text style={styles.homeCountdown}>残り時間 7日17時間23分</Text>
-            <Text style={styles.homePointMatchTitle}>ポイントマッチ "誇り高き孤高の英雄たち"</Text>
-          </View>
+          <Pressable
+            style={styles.homeBannerMediumOuter}
+            onPress={() => navigate({ name: 'deck-select', battleMode: 'practice' })}
+          >
+            <ImageBackground
+              source={homeBattleBannerImages.practice}
+              style={styles.homeBannerMediumBg}
+              imageStyle={styles.homeBannerImageRadius}
+              resizeMode="cover"
+            >
+              <View style={styles.homeBannerMediumOverlay}>
+                <View style={styles.homeFloorBadgeAbsolute}>
+                  <Text style={styles.homeFloorBadgeText}>ポイントマッチ</Text>
+                </View>
+                <Text style={styles.homeCountdown}>AI対戦でデッキ調整</Text>
+                <Text style={styles.homePointMatchTitle}>ルール確認や試運転に最適</Text>
+              </View>
+            </ImageBackground>
+          </Pressable>
 
           <View style={styles.homeSmallBannerRow}>
-            <Pressable 
-              style={styles.homeSmallBanner}
+            <Pressable
+              style={styles.homeSmallBannerOuter}
               onPress={() => navigate({ name: 'deck-select', battleMode: 'free' })}
             >
-              <Text style={styles.homeSmallBannerText}>フリーマッチ</Text>
+              <ImageBackground
+                source={homeBattleBannerImages.free}
+                style={styles.homeSmallBannerBg}
+                imageStyle={styles.homeSmallBannerImageRadius}
+                resizeMode="cover"
+              >
+                <View style={styles.homeSmallBannerOverlay}>
+                  <Text style={styles.homeSmallBannerText}>フリーマッチ</Text>
+                </View>
+              </ImageBackground>
             </Pressable>
-            <Pressable 
-              style={styles.homeSmallBanner}
+            <Pressable
+              style={styles.homeSmallBannerOuter}
               onPress={() => navigate({ name: 'matchmaking' })}
             >
-              <Text style={styles.homeSmallBannerText}>クイック開始</Text>
+              <ImageBackground
+                source={homeBattleBannerImages.quick}
+                style={styles.homeSmallBannerBg}
+                imageStyle={styles.homeSmallBannerImageRadius}
+                resizeMode="cover"
+              >
+                <View style={styles.homeSmallBannerOverlay}>
+                  <Text style={styles.homeSmallBannerText}>クイック開始</Text>
+                </View>
+              </ImageBackground>
             </Pressable>
           </View>
         </View>
@@ -1297,70 +1346,126 @@ const styles = StyleSheet.create({
     flex: 1.2,
     gap: spacing.md,
   },
-  homeBannerLarge: {
+  homeBannerLargeOuter: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  homeBannerLargeBg: {
+    flex: 1,
+    minHeight: 0,
+  },
+  homeBannerImageRadius: {
+    borderRadius: 10,
+  },
+  homeBannerLargeOverlay: {
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.panelElevated,
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   homeBannerLargeTitle: {
-    color: colors.accentStrong,
-    fontSize: 20,
+    color: '#fff',
+    fontSize: 22,
     fontWeight: '900',
-    marginBottom: 4,
+    fontStyle: 'italic',
+    marginBottom: 6,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   homeBannerLargeBody: {
-    color: colors.text,
+    color: '#e0e0e0',
     fontSize: 13,
+    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  homeBannerMedium: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  homeBannerMediumOuter: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#d4af37',
+  },
+  homeBannerMediumBg: {
+    flex: 1,
+    minHeight: 0,
+  },
+  homeBannerMediumOverlay: {
+    flex: 1,
+    justifyContent: 'space-between',
     padding: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    paddingTop: 36,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  homeFloorBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 6,
+  homeFloorBadgeAbsolute: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   homeFloorBadgeText: {
     color: '#000',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
   },
   homeCountdown: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: '#ffff00',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
     marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   homePointMatchTitle: {
-    color: colors.text,
-    fontSize: 14,
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '800',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   homeSmallBannerRow: {
     flexDirection: 'row',
     gap: spacing.md,
+    minHeight: 72,
   },
-  homeSmallBanner: {
+  homeSmallBannerOuter: {
     flex: 1,
-    height: 50,
-    backgroundColor: colors.panel,
-    borderRadius: 14,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  homeSmallBannerBg: {
+    flex: 1,
+    minHeight: 72,
+  },
+  homeSmallBannerImageRadius: {
+    borderRadius: 9,
+  },
+  homeSmallBannerOverlay: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    minHeight: 72,
   },
   homeSmallBannerText: {
-    color: colors.text,
+    color: '#fff',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 15,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   homeBottomBar: {
     height: 64,
