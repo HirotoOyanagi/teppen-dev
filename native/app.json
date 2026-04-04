@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Chrono Reverse",
+    "slug": "chrono-reverse",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b121d"
+      }
+    }
+  }
+}

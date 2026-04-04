@@ -27,6 +27,28 @@ npm run type-check
 npm run build
 ```
 
+## React Native 版
+
+`native/` に Expo ベースの React Native UI を追加しています。`core/` のゲームエンジン、`server/` の WebSocket プロトコル、デッキ保存のデータ構造はそのまま使い、UI レイヤーだけをネイティブ向けに再構成しています。
+
+### 起動手順
+
+```bash
+cd native
+npm install
+cp .env.example .env
+npm run start
+```
+
+### 環境変数
+
+- `EXPO_PUBLIC_ASSET_BASE_URL`
+  - カード画像と CSV を配信しているフロント資産のベースURL
+- `EXPO_PUBLIC_CARD_DATA_URL`
+  - 任意。未指定時は `EXPO_PUBLIC_ASSET_BASE_URL + /新カードCore - カードデータのスプレッドシート化.csv`
+- `EXPO_PUBLIC_GAME_SERVER_URL`
+  - 既存ゲームサーバーの WebSocket URL
+
 ## プロジェクト構造
 
 ```
@@ -66,7 +88,6 @@ teppen/
 ## 参考
 
 詳細な要件定義は `teppen.md` を参照してください。
-
 
 
 
