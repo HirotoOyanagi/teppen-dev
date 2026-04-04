@@ -999,23 +999,27 @@ function BattleBoard({
         <View style={styles.background} />
         <View style={styles.gradientOverlay} pointerEvents="none" />
 
-        {/* Web GameBoard 風ヘッダー: BATTLE + タイマー */}
+        {/* --- Arched Frame Background --- */}
+        <View style={styles.archBackground} pointerEvents="none">
+          <View style={styles.archCircle} />
+          <View style={styles.archCircleInner} />
+        </View>
+
+        {/* Integrated Top Timer */}
+        {showBattleTimer ? (
+          <View style={styles.timerIntegrated}>
+            <Text style={[styles.timerTextLarge, timerUrgent ? styles.timerBoxTextUrgent : null]}>
+              {timeText}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Top Header Buttons & Info */}
         <View style={styles.battleHeader}>
           <Pressable onPress={onExit} style={styles.battleHeaderBack}>
             <Text style={styles.battleHeaderBackText}>戻る</Text>
           </Pressable>
-          <View style={styles.battleHeaderCenter}>
-            <View style={styles.battleTitleBadge}>
-              <Text style={styles.battleTitleText}>BATTLE</Text>
-            </View>
-            {showBattleTimer ? (
-              <View style={styles.timerBox}>
-                <Text style={[styles.timerBoxText, timerUrgent ? styles.timerBoxTextUrgent : null]}>
-                  {timeText}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+          <View style={{ flex: 1 }} />
           <View style={styles.battleHeaderRight}>
             <Text style={styles.opponentLabelText} numberOfLines={1}>
               {banner || opponent.hero.name}
@@ -1058,6 +1062,50 @@ function BattleBoard({
           </View>
         ) : null}
 
+        {/* --- Hero HP & AP Displays (Arched Style) --- */}
+        <View style={[styles.heroStatsContainer, styles.heroStatsLeft]} pointerEvents="none">
+          <View style={styles.heroHpGlow} />
+          <Text style={styles.heroHpLarge}>{player.hp}</Text>
+          <View style={styles.heroSubStats}>
+            <View style={styles.heroSubStatBadge}>
+              <Text style={styles.heroSubStatText}>25</Text>
+            </View>
+            <View style={styles.heroSubStatBadge}>
+              <Text style={styles.heroSubStatText}>0</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.heroStatsContainer, styles.heroStatsRight]} pointerEvents="none">
+          <View style={styles.heroHpGlow} />
+          <Text style={styles.heroHpLarge}>{opponent.hp}</Text>
+          <View style={styles.heroSubStats}>
+            <View style={styles.heroSubStatBadge}>
+              <Text style={styles.heroSubStatText}>25</Text>
+            </View>
+            <View style={styles.heroSubStatBadge}>
+              <Text style={styles.heroSubStatText}>0</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* AP Badges */}
+        <View style={[styles.apBadgeHex, styles.apBadgeLeft]}>
+          <View style={styles.apBadgeHexInner}>
+            <Text style={styles.apLabelSmall}>AP</Text>
+            <Text style={styles.apValueLarge}>{player.ap}</Text>
+            <Text style={styles.apMaxSmall}>{player.hero.heroArt?.cost || 20}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.apBadgeHex, styles.apBadgeRight]}>
+          <View style={styles.apBadgeHexInner}>
+            <Text style={styles.apLabelSmall}>AP</Text>
+            <Text style={styles.apValueLarge}>{opponent.ap}</Text>
+            <Text style={styles.apMaxSmall}>{opponent.hero.heroArt?.cost || 20}</Text>
+          </View>
+        </View>
+
         {/* メイン: 左ヒーロー | レーン（自分左・敵右）| 右ヒーロー */}
         <View style={styles.mainBattleRow}>
           <View style={styles.heroColumn} collapsable={false}>
@@ -1073,9 +1121,6 @@ function BattleBoard({
                   style={styles.heroModelFrame}
                   fallbackLabel={player.hero.name}
                 />
-                <View style={styles.heroHpBadge}>
-                  <Text style={styles.heroHpText}>{player.hp}</Text>
-                </View>
               </Pressable>
             </View>
           </View>
@@ -1100,6 +1145,11 @@ function BattleBoard({
                   style={[styles.laneRow, laneRowGlowByIndex[lane] ? styles.laneRowDropGlow : null]}
                   collapsable={false}
                 >
+                  {/* Hexagonal decoration behind each lane */}
+                  <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.laneHexDecoration} />
+                  </View>
+
                   <View
                     ref={(node) => {
                       friendlyUnitRefs.current[lane] = node
@@ -1189,15 +1239,12 @@ function BattleBoard({
                   style={styles.heroModelFrame}
                   fallbackLabel={opponent.hero.name}
                 />
-                <View style={styles.heroHpBadge}>
-                  <Text style={styles.heroHpText}>{opponent.hp}</Text>
-                </View>
               </Pressable>
             </View>
           </View>
         </View>
 
-        {/* 必殺技・おとも（Web 同様左下フロート） */}
+        {/* 必殺技・おとも（左下フロート） */}
         {state.phase === 'playing' && (player.hero.heroArt || player.hero.companion) ? (
           <View style={styles.floatingArtsRow} pointerEvents="box-none">
             {player.hero.heroArt ? (
@@ -1217,19 +1264,8 @@ function BattleBoard({
                   onDragMove={handleAbilityDragMove}
                   onDragEnd={handleAbilityDragEnd}
                 >
-                  <Text style={styles.artCardCost}>{player.hero.heroArt.cost}AP</Text>
+                  <Text style={styles.artCardCost}>{player.hero.heroArt.cost} AP</Text>
                 </DraggableArtButton>
-                <View
-                  style={[
-                    styles.apHex,
-                    player.ap >= player.hero.heroArt.cost ? styles.apHexActiveHero : styles.apHexIdle,
-                  ]}
-                >
-                  <Text style={styles.apHexLabel}>AP</Text>
-                  <Text style={styles.apHexVal}>{player.ap}</Text>
-                  <Text style={styles.apHexSep}>/</Text>
-                  <Text style={styles.apHexNeed}>{player.hero.heroArt.cost}</Text>
-                </View>
               </View>
             ) : null}
             {player.hero.companion ? (
@@ -1249,19 +1285,8 @@ function BattleBoard({
                   onDragMove={handleAbilityDragMove}
                   onDragEnd={handleAbilityDragEnd}
                 >
-                  <Text style={styles.artCardCost}>{player.hero.companion.cost}AP</Text>
+                  <Text style={styles.artCardCost}>{player.hero.companion.cost} AP</Text>
                 </DraggableArtButton>
-                <View
-                  style={[
-                    styles.apHex,
-                    player.ap >= player.hero.companion.cost ? styles.apHexActiveBuddy : styles.apHexIdle,
-                  ]}
-                >
-                  <Text style={styles.apHexLabel}>AP</Text>
-                  <Text style={styles.apHexVal}>{player.ap}</Text>
-                  <Text style={styles.apHexSep}>/</Text>
-                  <Text style={styles.apHexNeed}>{player.hero.companion.cost}</Text>
-                </View>
               </View>
             ) : null}
           </View>
@@ -2439,79 +2464,79 @@ const styles = StyleSheet.create({
   },
   manaBarWrap: {
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
   manaBarTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
     justifyContent: 'center',
   },
   mpIntBadge: {
-    width: 30,
-    height: 30,
-    backgroundColor: '#27272a',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
+    width: 32,
+    height: 32,
+    backgroundColor: '#18181b',
+    borderWidth: 2,
+    borderColor: '#f97316',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ skewX: '-0.15rad' }],
+    shadowColor: '#f97316',
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
   },
   mpIntBadgeText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   ampBadge: {
-    minWidth: 30,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    borderRadius: 4,
+    minWidth: 32,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
     borderWidth: 1,
     alignItems: 'center',
-    transform: [{ skewX: '-0.15rad' }],
+    backgroundColor: '#1e3a8a',
+    borderColor: '#3b82f6',
   },
   ampBadgeActive: {
     backgroundColor: '#2563eb',
-    borderColor: 'rgba(96,165,250,0.6)',
+    borderColor: '#60a5fa',
   },
   ampBadgeInactive: {
-    backgroundColor: 'rgba(30,58,138,0.45)',
-    borderColor: 'rgba(59,130,246,0.35)',
+    opacity: 0.5,
   },
   ampBadgeLabel: {
     fontSize: 6,
     fontWeight: '800',
-    color: 'rgba(224,231,255,0.9)',
+    color: '#bfdbfe',
   },
   ampBadgeVal: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#e0f2fe',
+    color: '#fff',
   },
   mpPipsRow: {
     flexDirection: 'row',
-    gap: 3,
-    alignItems: 'flex-end',
-    height: 14,
-    flexShrink: 1,
+    gap: 4,
+    alignItems: 'center',
+    height: 16,
   },
   mpPipOuter: {
-    width: 18,
-    height: 12,
+    width: 20,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: 'rgba(24,24,27,0.8)',
     borderWidth: 1,
-    borderColor: '#000',
-    backgroundColor: '#18181b',
+    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
-    transform: [{ skewX: '-0.2rad' }],
   },
   mpPipFilled: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#f97316',
     shadowColor: '#f97316',
-    shadowOpacity: 0.55,
+    shadowOpacity: 0.8,
     shadowRadius: 6,
   },
   mpPipCharging: {
@@ -2519,7 +2544,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(251,146,60,0.65)',
+    backgroundColor: 'rgba(249,115,22,0.4)',
   },
   mulliganOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -2752,5 +2777,150 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     paddingTop: spacing.xs,
+  },
+  // --- New Arched UI Styles ---
+  archBackground: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  archCircle: {
+    width: 800,
+    height: 800,
+    borderRadius: 400,
+    borderWidth: 20,
+    borderColor: 'rgba(64,64,64,0.4)',
+    position: 'absolute',
+    top: '5%',
+  },
+  archCircleInner: {
+    width: 760,
+    height: 760,
+    borderRadius: 380,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    position: 'absolute',
+    top: '7.5%',
+  },
+  heroStatsContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 25,
+  },
+  heroStatsLeft: {
+    left: '8%',
+    top: '45%',
+  },
+  heroStatsRight: {
+    right: '8%',
+    top: '45%',
+  },
+  heroHpLarge: {
+    fontSize: 52,
+    fontWeight: '900',
+    color: '#fff',
+    textShadowColor: 'rgba(34,211,238,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
+  },
+  heroHpGlow: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(34,211,238,0.15)',
+    zIndex: -1,
+  },
+  heroSubStats: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: -4,
+  },
+  heroSubStatBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  heroSubStatText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  apBadgeHex: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    backgroundColor: 'rgba(20,20,20,0.9)',
+    borderWidth: 2,
+    borderColor: '#facc15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 26,
+    // 六角形風に見せるための変形（簡易）
+    transform: [{ rotate: '45deg' }],
+  },
+  apBadgeHexInner: {
+    transform: [{ rotate: '-45deg' }],
+    alignItems: 'center',
+  },
+  apBadgeLeft: {
+    bottom: 180,
+    left: 20,
+  },
+  apBadgeRight: {
+    top: 40,
+    right: 20,
+    borderColor: '#22d3ee',
+  },
+  apLabelSmall: {
+    fontSize: 8,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '800',
+  },
+  apValueLarge: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: '900',
+  },
+  apMaxSmall: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  laneHexDecoration: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderWidth: 1,
+    borderColor: 'rgba(234,179,8,0.15)',
+    transform: [{ rotate: '45deg' }],
+    zIndex: -1,
+  },
+  timerIntegrated: {
+    position: 'absolute',
+    top: 30,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(30,30,30,0.85)',
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: 'rgba(255,255,255,0.2)',
+    zIndex: 100,
+  },
+  timerTextLarge: {
+    color: '#facc15',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 })
