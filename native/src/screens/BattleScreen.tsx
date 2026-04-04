@@ -2252,11 +2252,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34,211,238,0.06)',
   },
   laneRow: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 70,
     flexDirection: 'row',
     alignItems: 'stretch',
     paddingHorizontal: spacing.xs,
-    minHeight: 192,
   },
   laneRowDropGlow: {
     borderRadius: 12,
@@ -2266,9 +2267,9 @@ const styles = StyleSheet.create({
   },
   /** ユニット枠サイズ（Web の GameBoard とは独立。モバイルのみここで調整） */
   unitSlotWrapper: {
-    width: '32%',
-    maxWidth: 136,
-    minWidth: 88,
+    width: '30%',
+    maxWidth: 112,
+    minWidth: 72,
     height: '100%',
   },
   unitSlot: {
@@ -2313,7 +2314,7 @@ const styles = StyleSheet.create({
   laneTarget: {
     flex: 1,
     width: '100%',
-    minHeight: 120,
+    minHeight: 72,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2646,12 +2647,12 @@ const styles = StyleSheet.create({
   unitView: {
     flex: 1,
     width: '100%',
-    padding: 6,
+    padding: 4,
     justifyContent: 'space-between',
   },
   unitViewName: {
     color: colors.text,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -2663,12 +2664,12 @@ const styles = StyleSheet.create({
   unitViewAtk: {
     color: colors.accent,
     fontWeight: '900',
-    fontSize: 18,
+    fontSize: 15,
   },
   unitViewHp: {
     color: colors.text,
     fontWeight: '900',
-    fontSize: 18,
+    fontSize: 15,
   },
   unitGaugeContainer: {
     width: '100%',
@@ -2896,8 +2897,8 @@ const styles = StyleSheet.create({
   },
   laneHexDecoration: {
     position: 'absolute',
-    width: 140,
-    height: 140,
+    width: 108,
+    height: 108,
     borderWidth: 1,
     borderColor: 'rgba(234,179,8,0.15)',
     transform: [{ rotate: '45deg' }],
