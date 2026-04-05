@@ -1488,10 +1488,10 @@ export default function GameBoard(props: GameBoardProps) {
                 {/* Lane Line (背景) */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
 
-                {/* Attack Progress Bar - 左から右へ (自分のユニット) */}
+                {/* Attack Progress Bar - 左から右へ (自分のユニット) — 敵ゲージと矢印が重ならないようやや上 */}
                 {leftUnit && (
                   <div 
-                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    className="absolute top-[calc(50%-7px)] -translate-y-1/2 h-2 pointer-events-none z-10"
                     style={{
                       left: 'calc(4rem + 7rem)', // px-16 + w-28 (ユニットスロットの右端)
                       width: 'calc(100% - 8rem - 14rem)', // 全幅 - 両側パディング - 両側ユニットスロット
@@ -1512,10 +1512,10 @@ export default function GameBoard(props: GameBoardProps) {
                   </div>
                 )}
 
-                {/* Attack Progress Bar - 右から左へ (相手のユニット) */}
+                {/* Attack Progress Bar - 右から左へ (相手のユニット) — 味方ゲージと矢印が重ならないようやや下 */}
                 {rightUnit && (
                   <div 
-                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    className="absolute top-[calc(50%+7px)] -translate-y-1/2 h-2 pointer-events-none z-10"
                     style={{
                       right: 'calc(4rem + 7rem)', // px-16 + w-28 (ユニットスロットの左端)
                       width: 'calc(100% - 8rem - 14rem)', // 全幅 - 両側パディング - 両側ユニットスロット

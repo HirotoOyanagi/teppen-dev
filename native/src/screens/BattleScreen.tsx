@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import {
+  Animated,
+  Easing,
   PanResponder,
   Pressable,
   ScrollView,
@@ -183,6 +185,54 @@ function computeActionTargetGlows(
   }
   return typeGlowMap[tt]()
 }
+
+/** レーン中央の攻撃ゲージ（影・三角なし、幅のみアニメで軽量） */
+const LaneAttackGauge = memo(function LaneAttackGauge({
+  side,
+  attackGauge,
+}: {
+  side: 'friendly' | 'enemy'
+  attackGauge: number
+}) {
+  const target = Math.min(1, Math.max(0, attackGauge))
+  const anim = useRef(new Animated.Value(target)).current
+
+  useEffect(() => {
+    const run = Animated.timing(anim, {
+      toValue: target,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    })
+    run.start()
+    return () => run.stop()
+  }, [target, anim])
+
+  const widthInterpolated = useMemo(
+    () =>
+      anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '100%'],
+      }),
+    [anim]
+  )
+
+  const wrapStyleBySide = {
+    friendly: styles.laneAtkWrapFriendly,
+    enemy: styles.laneAtkWrapEnemy,
+  } as const
+  const fillStyleBySide = {
+    friendly: styles.laneAtkFillFriendly,
+    enemy: styles.laneAtkFillEnemy,
+  } as const
+
+  return (
+    <View style={wrapStyleBySide[side]} pointerEvents="none" collapsable={false}>
+      <View style={styles.laneAtkTrackBg} />
+      <Animated.View style={[fillStyleBySide[side], { width: widthInterpolated }]} />
+    </View>
+  )
+})
 
 const DRAG_COMMIT_PX = 12
 const LONG_PRESS_MS = 280
@@ -511,7 +561,6 @@ function BattleBoard({
   onCompanion: (target?: string) => void
   onEndActiveResponse: () => void
 }) {
-  const [now, setNow] = useState(Date.now())
   const [detailCard, setDetailCard] = useState<CardDefinition | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null)
@@ -523,11 +572,6 @@ function BattleBoard({
   const enemyHeroRef = useRef<View | null>(null)
   const friendlyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
   const enemyUnitRefs = useRef<Record<number, View | null>>({ 0: null, 1: null, 2: null })
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     if (!dragReleasedPreview) {
@@ -545,14 +589,10 @@ function BattleBoard({
 
   const player = state.players[0]
   const opponent = state.players[1]
-  const countdown = Math.max(0, Math.ceil((state.gameStartTime - now) / 1000))
-  const hasCountdown = state.phase === 'playing' && state.gameStartTime > now
   let displayTimeMs = state.timeRemainingMs
   if (state.activeResponse.isActive) {
     displayTimeMs = state.activeResponse.timer
   }
-  const timeText = formatTimer(displayTimeMs)
-  const showBattleTimer = state.phase === 'playing' && now >= state.gameStartTime
   const isPlayerTurnInAr = state.activeResponse.isActive && state.activeResponse.currentPlayerId === player.playerId
   const resolvingItem = state.activeResponse.currentResolvingItem
   const resolvingCardName =
@@ -931,8 +971,6 @@ function BattleBoard({
     resultHeadline = outcomeMap[outcomeKey]
   }
 
-  const timerUrgent = displayTimeMs <= 10_000
-
   const draggingCardDef = draggingCard?.cardDef
   let canDragCardPlay = false
   if (draggingCardDef != null) {
@@ -1004,14 +1042,11 @@ function BattleBoard({
           <View style={styles.archCircleInner} />
         </View>
 
-        {/* Integrated Top Timer */}
-        {showBattleTimer ? (
-          <View style={styles.timerIntegrated}>
-            <Text style={[styles.timerTextLarge, timerUrgent ? styles.timerBoxTextUrgent : null]}>
-              {timeText}
-            </Text>
-          </View>
-        ) : null}
+        <BattleClock
+          phase={state.phase}
+          gameStartTime={state.gameStartTime}
+          displayTimeMs={displayTimeMs}
+        />
 
         {/* Top Header Buttons & Info */}
         <View style={styles.battleHeader}>
@@ -1185,6 +1220,12 @@ function BattleBoard({
                     <View style={styles.laneTarget}>
                       <View style={styles.laneLine} />
                     </View>
+                    {playerUnit ? (
+                      <LaneAttackGauge side="friendly" attackGauge={playerUnit.attackGauge} />
+                    ) : null}
+                    {enemyUnit ? (
+                      <LaneAttackGauge side="enemy" attackGauge={enemyUnit.attackGauge} />
+                    ) : null}
                   </View>
 
                   <View
@@ -1405,12 +1446,6 @@ function BattleBoard({
           </View>
         ) : null}
 
-        {hasCountdown ? (
-          <View style={styles.countdownOverlay}>
-            <Text style={styles.countdownBattleStart}>BATTLE START</Text>
-            <Text style={styles.countdownValue}>{countdown}</Text>
-          </View>
-        ) : null}
       </View>
 
       {draggingCard ? <DragCardGhost cardDef={draggingCard.cardDef} x={draggingCard.x} y={draggingCard.y} /> : null}
@@ -1499,17 +1534,13 @@ function ManaBarBattle({
   )
 }
 
-function UnitView({ unit, cardDef, isEnemy }: { unit: Unit; cardDef: CardDefinition; isEnemy?: boolean }) {
-  const gauge = `${Math.round(unit.attackGauge * 100)}%` as any
+function UnitView({ unit, cardDef }: { unit: Unit; cardDef: CardDefinition; isEnemy?: boolean }) {
   return (
     <View style={styles.unitView}>
       <Text style={styles.unitViewName} numberOfLines={1}>{cardDef.name}</Text>
       <View style={styles.unitViewStats}>
         <Text style={styles.unitViewAtk}>{unit.attack}</Text>
         <Text style={styles.unitViewHp}>{unit.hp}</Text>
-      </View>
-      <View style={styles.unitGaugeContainer}>
-        <View style={[styles.unitGaugeFill, { width: gauge, backgroundColor: isEnemy ? colors.red : colors.green }]} />
       </View>
     </View>
   )
@@ -2282,6 +2313,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'stretch',
     alignSelf: 'stretch',
+    position: 'relative',
+  },
+  laneAtkWrapFriendly: {
+    position: 'absolute',
+    left: 3,
+    right: 3,
+    top: 10,
+    height: 3,
+    zIndex: 4,
+    justifyContent: 'flex-end',
+  },
+  laneAtkWrapEnemy: {
+    position: 'absolute',
+    left: 3,
+    right: 3,
+    bottom: 10,
+    height: 3,
+    zIndex: 4,
+    justifyContent: 'flex-end',
+  },
+  laneAtkTrackBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  laneAtkFillFriendly: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    height: 2,
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
+    backgroundColor: '#5eead4',
+  },
+  laneAtkFillEnemy: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    height: 2,
+    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 2,
+    backgroundColor: '#fb7185',
   },
   laneTarget: {
     flex: 1,
@@ -2639,16 +2716,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 15,
   },
-  unitGaugeContainer: {
-    width: '100%',
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  unitGaugeFill: {
-    height: '100%',
-  },
   draggingOrigin: {
     opacity: 0.18,
   },
@@ -2893,3 +2960,62 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 })
+
+/** カウントダウン／残り時間だけ自前で tick し、盤面全体の再描画を避ける */
+function BattleClock({
+  phase,
+  gameStartTime,
+  displayTimeMs,
+}: {
+  phase: BattleStateView['phase']
+  gameStartTime: number
+  displayTimeMs: number
+}) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (phase !== 'playing') {
+      setNow(Date.now())
+      return undefined
+    }
+    if (gameStartTime <= Date.now()) {
+      setNow(Date.now())
+      return undefined
+    }
+    const id = setInterval(() => {
+      const t = Date.now()
+      setNow(t)
+      if (gameStartTime <= t) {
+        clearInterval(id)
+      }
+    }, 120)
+    return () => clearInterval(id)
+  }, [phase, gameStartTime])
+
+  const showBattleTimer = phase === 'playing' && now >= gameStartTime
+  const hasCountdown = phase === 'playing' && gameStartTime > now
+  const countdown = Math.max(0, Math.ceil((gameStartTime - now) / 1000))
+  const timeText = formatTimer(displayTimeMs)
+
+  const timerUrgentExtraByFlag = {
+    true: styles.timerBoxTextUrgent,
+    false: null,
+  } as const
+  const urgentKey = String(displayTimeMs <= 10_000) as 'true' | 'false'
+
+  return (
+    <>
+      {showBattleTimer ? (
+        <View style={styles.timerIntegrated}>
+          <Text style={[styles.timerTextLarge, timerUrgentExtraByFlag[urgentKey]]}>{timeText}</Text>
+        </View>
+      ) : null}
+      {hasCountdown ? (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownBattleStart}>BATTLE START</Text>
+          <Text style={styles.countdownValue}>{String(countdown)}</Text>
+        </View>
+      ) : null}
+    </>
+  )
+}

@@ -1145,10 +1145,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               <div key={lane} className="relative h-44 ls:h-24 w-full flex items-center justify-between px-16 ls:px-8">
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
 
-                {/* Attack Progress Bar - Left */}
+                {/* Attack Progress Bar - Left（敵ゲージ・矢印と縦位置をずらす） */}
                 {leftUnit && (
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    className="absolute top-[calc(50%-7px)] -translate-y-1/2 h-2 pointer-events-none z-10"
                     style={{ left: 'calc(4rem + 7rem)', width: 'calc(100% - 8rem - 14rem)' }}
                   >
                     <div className="h-1 bg-gradient-to-r from-cyan-400 to-cyan-300 shadow-[0_0_12px_cyan] rounded-full" style={{ width: `${leftProgress}%` }} />
@@ -1158,10 +1158,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   </div>
                 )}
 
-                {/* Attack Progress Bar - Right */}
+                {/* Attack Progress Bar - Right（味方ゲージ・矢印と縦位置をずらす） */}
                 {rightUnit && (
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10"
+                    className="absolute top-[calc(50%+7px)] -translate-y-1/2 h-2 pointer-events-none z-10"
                     style={{ right: 'calc(4rem + 7rem)', width: 'calc(100% - 8rem - 14rem)' }}
                   >
                     <div className="h-1 bg-gradient-to-l from-red-500 to-red-400 shadow-[0_0_12px_red] rounded-full ml-auto" style={{ width: `${rightProgress}%` }} />
