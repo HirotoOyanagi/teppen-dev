@@ -42,6 +42,30 @@ const FACE_ROTATION: Record<'left' | 'right', number> = {
   left: TILT_LEFT,
   right: Math.PI - TILT_LEFT,
 }
+const MODEL_BASE_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -0.24,
+  battle: -0.62,
+}
+const MODEL_BOB_AMPLITUDE_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 0.03,
+  battle: 0.025,
+}
+const CAMERA_LOOK_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -0.16,
+  battle: -0.42,
+}
+const CAMERA_POS_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -0.08,
+  battle: 0.2,
+}
+const CAMERA_POS_Z_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 2,
+  battle: 2.2,
+}
+const CAMERA_FOV_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 42,
+  battle: 46,
+}
 
 class ModelErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false }
@@ -98,14 +122,16 @@ function AnimatedModel({
     }
 
     const t = state.clock.getElapsedTime()
-    group.position.y = variant === 'battle' ? -0.46 + Math.sin(t * 0.5) * 0.03 : Math.sin(t * 0.5) * 0.04
+    const baseY = MODEL_BASE_Y_BY_VARIANT[variant]
+    const bobAmp = MODEL_BOB_AMPLITUDE_BY_VARIANT[variant]
+    group.position.y = baseY + Math.sin(t * 0.5) * bobAmp
     group.rotation.z = animations.length === 0 ? Math.sin(t * 0.7) * 0.03 : 0
   })
 
   return (
     <group
       ref={groupRef}
-      position={[variant === 'battle' ? (side === 'left' ? 0.15 : -0.15) : 0, variant === 'battle' ? -0.46 : 0, 0]}
+      position={[variant === 'battle' ? (side === 'left' ? 0.15 : -0.15) : 0, MODEL_BASE_Y_BY_VARIANT[variant], 0]}
       rotation={[0, FACE_ROTATION[side], 0]}
       scale={variant === 'battle' ? 1.1 : 1}
     >
@@ -116,7 +142,7 @@ function AnimatedModel({
 
 function CameraRig({ variant }: { variant: HeroModelVariant }) {
   useFrame(({ camera }) => {
-    camera.lookAt(0, variant === 'battle' ? -0.26 : 0.05, 0)
+    camera.lookAt(0, CAMERA_LOOK_Y_BY_VARIANT[variant], 0)
   })
 
   return null
@@ -205,8 +231,8 @@ export function HeroModel3D({
         <Canvas
           style={styles.canvas}
           camera={{
-            position: [0, variant === 'battle' ? 0.42 : 0.04, variant === 'battle' ? 2.2 : 2],
-            fov: variant === 'battle' ? 46 : 42,
+            position: [0, CAMERA_POS_Y_BY_VARIANT[variant], CAMERA_POS_Z_BY_VARIANT[variant]],
+            fov: CAMERA_FOV_BY_VARIANT[variant],
           }}
         >
           <CameraRig variant={variant} />

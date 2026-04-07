@@ -20,6 +20,30 @@ const FACE_ROTATION: Record<string, number> = {
   left: 0 + TILT_LEFT,
   right: Math.PI - TILT_LEFT,
 }
+const MODEL_BASE_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -1.24,
+  battle: -0.62,
+}
+const MODEL_BOB_AMPLITUDE_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 0.03,
+  battle: 0.025,
+}
+const CAMERA_LOOK_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -0.16,
+  battle: -0.42,
+}
+const CAMERA_POS_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: -0.08,
+  battle: 0.2,
+}
+const CAMERA_POS_Z_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 2,
+  battle: 2.2,
+}
+const CAMERA_FOV_BY_VARIANT: Record<HeroModelVariant, number> = {
+  home: 42,
+  battle: 46,
+}
 
 function AnimatedModel({
   url,
@@ -56,18 +80,20 @@ function AnimatedModel({
     const g = groupRef.current
     if (!g) return
     const t = (performance.now() / 1000) * 1.2
+    const baseY = MODEL_BASE_Y_BY_VARIANT[variant]
+    const bobAmp = MODEL_BOB_AMPLITUDE_BY_VARIANT[variant]
     if (!hasAnimations) {
-      g.position.y = Math.sin(t) * 0.06
+      g.position.y = baseY + Math.sin(t) * (bobAmp + 0.015)
       g.rotation.z = Math.sin(t * 0.7) * 0.03
     } else {
-      g.position.y = Math.sin(t * 0.5) * 0.03
+      g.position.y = baseY + Math.sin(t * 0.5) * bobAmp
     }
   })
 
   const faceRotation = side !== undefined ? FACE_ROTATION[side] : 0
-  const scale = variant === 'battle' ? 1.1 : 1
+  const scale = variant === 'battle' ? 1.5 : 1.5
   const offsetX = variant === 'battle' ? (side === 'left' ? 0.15 : -0.15) : 0
-  const offsetY = variant === 'battle' ? -0.5 : 0
+  const offsetY = MODEL_BASE_Y_BY_VARIANT[variant]
 
   return (
     <group ref={groupRef} position={[offsetX, offsetY, 0]} rotation={[0, faceRotation, 0]} scale={scale}>
@@ -78,7 +104,7 @@ function AnimatedModel({
 
 function BattleCamera() {
   useFrame(({ camera }) => {
-    camera.lookAt(0, -0.35, 0)
+    camera.lookAt(0, CAMERA_LOOK_Y_BY_VARIANT.battle, 0)
   })
   return null
 }
@@ -96,8 +122,8 @@ function HeroModel3DInner({ modelUrl, variant = 'home', side = 'left', className
     >
       <Canvas
         camera={{
-          position: [0, variant === 'battle' ? 0.45 : 0, variant === 'battle' ? 2.2 : 2],
-          fov: variant === 'battle' ? 46 : 42,
+          position: [0, CAMERA_POS_Y_BY_VARIANT[variant], CAMERA_POS_Z_BY_VARIANT[variant]],
+          fov: CAMERA_FOV_BY_VARIANT[variant],
         }}
         gl={{ alpha: true, antialias: true }}
       >

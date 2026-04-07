@@ -196,7 +196,7 @@ export default function DeckSelectScreen() {
               <HeroModel3D 
                 modelUrl={selectedHero.modelUrl} 
                 variant="home" 
-                side="right"
+                side="left"
               />
             )}
           </div>
