@@ -1,0 +1,54 @@
+{
+  "source": "chrono-reverse.png",
+  "generated_at": "2026-04-07",
+  "characters": [
+    {
+      "id": 1,
+      "name": "青髪メガネ魔導士",
+      "description": "青い髪、メガネ、白と青のローブ、光る青いオーブを持つ少年",
+      "url": "https://v3b.fal.media/files/b/0a954b60/GV_L6ZEcBS7rSdkrf0QAL_NcHIzO4U.png"
+    },
+    {
+      "id": 2,
+      "name": "金髪剣士",
+      "description": "金髪、赤いマント、暗い鎧、大剣を持つ騎士",
+      "url": "https://v3b.fal.media/files/b/0a954b60/Wtg79tu1mFNYQQHqF9S3i_51Bnr0P4.png"
+    },
+    {
+      "id": 3,
+      "name": "黒髪の主人公",
+      "description": "黒髪、暗いマント、ヒーロー的な風貌の青年",
+      "url": "https://v3b.fal.media/files/b/0a954b61/gU1fXMb-r7AzZf6c1crAb_dOoDETIH.png"
+    },
+    {
+      "id": 4,
+      "name": "緑髪の妖精女性",
+      "description": "長い緑髪、小さな翼、エルフ/妖精のような容姿の女性",
+      "url": "https://v3b.fal.media/files/b/0a954b61/_K9tAUkppoyWyBgwcSzL4_V66QjdaX.png"
+    },
+    {
+      "id": 5,
+      "name": "紫髪の闇魔導士",
+      "description": "長い紫/暗い髪、暗い衣装、紫の魔力に囲まれた男性",
+      "url": "https://v3b.fal.media/files/b/0a954b62/7IQ91XtgvnnoSzA0ItfHg_UpY8sRUw.png"
+    },
+    {
+      "id": 6,
+      "name": "黒髪のローグ",
+      "description": "短い黒髪、暗い青の衣装、武器を持つ盗賊風の青年",
+      "url": "https://v3b.fal.media/files/b/0a954b62/5Gqtnz8MUwKB4ORGslQIL_gmXJ4gfC.png"
+    },
+    {
+      "id": 7,
+      "name": "金髪女騎士",
+      "description": "短い金髪、金色の鎧、自信に満ちた女性騎士",
+      "url": "https://v3b.fal.media/files/b/0a954b62/I6li962cNK-4mBdl6lNOj_trbtRqE7.png"
+    },
+    {
+      "id": 8,
+      "name": "赤髪のバーサーカー",
+      "description": "野性的な赤/茶髪、筋肉質、炎に囲まれた猛々しい戦士",
+      "url": "https://v3b.fal.media/files/b/0a954b63/GIfGzIr0pMvmDBo5p0LTO_GEvI3dRh.png"
+    }
+  ]
+}
