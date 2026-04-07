@@ -4,6 +4,14 @@ import * as FileSystem from 'expo-file-system/legacy'
 const CARD_CSV_MODULE = require('../../public/新カードCore - カードデータのスプレッドシート化.csv')
 
 const HERO_MODEL_MODULES: Record<string, number> = {
+  '/images/heroes/1_blue-mage.glb': require('../../public/images/heroes/1_blue-mage.glb'),
+  '/images/heroes/2_golden-swordsman.glb': require('../../public/images/heroes/2_golden-swordsman.glb'),
+  '/images/heroes/3_dark-hero.glb': require('../../public/images/heroes/3_dark-hero.glb'),
+  '/images/heroes/4_green-fairy.glb': require('../../public/images/heroes/4_green-fairy.glb'),
+  '/images/heroes/5_dark-mage.glb': require('../../public/images/heroes/5_dark-mage.glb'),
+  '/images/heroes/6_dark-rogue.glb': require('../../public/images/heroes/6_dark-rogue.glb'),
+  '/images/heroes/7_golden-knight.glb': require('../../public/images/heroes/7_golden-knight.glb'),
+  '/images/heroes/8_red-berserker.glb': require('../../public/images/heroes/8_red-berserker.glb'),
   '/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb': require('../../public/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb'),
 }
 

@@ -11,7 +11,7 @@ export const HEROES: Hero[] = [
     name: 'レイシア',
     attribute: 'red',
     description: '不撓の正義を掲げる戦士',
-    modelUrl: '/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb',
+    modelUrl: '/images/heroes/7_golden-knight.glb',
     heroArt: {
       name: '不撓の正義',
       cost: 18,
@@ -30,6 +30,7 @@ export const HEROES: Hero[] = [
     name: 'カイゼル',
     attribute: 'red',
     description: '終焉の業火を操る者',
+    modelUrl: '/images/heroes/8_red-berserker.glb',
     heroArt: {
       name: '終焉の業火',
       cost: 25,
@@ -48,6 +49,7 @@ export const HEROES: Hero[] = [
     name: 'ミラ',
     attribute: 'green',
     description: '記憶の再生を司る者',
+    modelUrl: '/images/heroes/4_green-fairy.glb',
     heroArt: {
       name: '記憶の再生',
       cost: 16,
@@ -65,6 +67,7 @@ export const HEROES: Hero[] = [
     name: 'フィン',
     attribute: 'green',
     description: '柔軟な戦術の使い手',
+    modelUrl: '/images/heroes/3_dark-hero.glb',
     heroArt: {
       name: '柔軟な戦術',
       cost: 14,
@@ -84,6 +87,7 @@ export const HEROES: Hero[] = [
     name: 'ヴァルド',
     attribute: 'purple',
     description: '支配の戦略を駆使する知将',
+    modelUrl: '/images/heroes/6_dark-rogue.glb',
     heroArt: {
       name: '支配の戦略',
       cost: 25,
@@ -101,6 +105,7 @@ export const HEROES: Hero[] = [
     name: 'オルカ',
     attribute: 'purple',
     description: '構造の解明を追求する研究者',
+    modelUrl: '/images/heroes/1_blue-mage.glb',
     heroArt: {
       name: '構造の解明',
       cost: 24,
@@ -119,6 +124,7 @@ export const HEROES: Hero[] = [
     name: 'セラフ',
     attribute: 'black',
     description: '秩序の裁きを下す審判者',
+    modelUrl: '/images/heroes/2_golden-swordsman.glb',
     heroArt: {
       name: '秩序の裁き',
       cost: 19,
@@ -135,6 +141,7 @@ export const HEROES: Hero[] = [
     name: 'ノクス',
     attribute: 'black',
     description: '代償の取引を行う闇商人',
+    modelUrl: '/images/heroes/5_dark-mage.glb',
     heroArt: {
       name: '代償の取引',
       cost: 15,
