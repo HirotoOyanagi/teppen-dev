@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Head from 'next/head'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
 import { HEROES } from '@/core/heroes'
+import { getDeck } from '@/utils/deckStorage'
 import styles from '@/styles/AppLayout.module.css'
 
 const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
@@ -15,7 +16,34 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => {
   const router = useRouter()
-  const [currentHero] = useState(HEROES[0]) // Default hero
+  const [currentHero, setCurrentHero] = useState(HEROES[0])
+
+  useEffect(() => {
+    const resolveHeroFromLastDeck = () => {
+      const fallbackHero = HEROES[0]
+      const selectedDeckId = localStorage.getItem('teppen_selectedDeckId')
+      if (!selectedDeckId) {
+        setCurrentHero(fallbackHero)
+        return
+      }
+
+      const selectedDeck = getDeck(selectedDeckId)
+      if (!selectedDeck) {
+        setCurrentHero(fallbackHero)
+        return
+      }
+
+      const heroFromDeck = HEROES.find((hero) => hero.id === selectedDeck.heroId)
+      if (!heroFromDeck) {
+        setCurrentHero(fallbackHero)
+        return
+      }
+
+      setCurrentHero(heroFromDeck)
+    }
+
+    resolveHeroFromLastDeck()
+  }, [router.asPath, activeTab])
 
   const navigate = (path: string) => {
     router.push(path)
