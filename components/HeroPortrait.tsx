@@ -114,6 +114,17 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
   }
 
   const attributeColor = attributeColorMap[player.hero.attribute] || 'text-white'
+  const heroAccentPanelMap: Record<string, string> = {
+    red: 'border-red-400/40 bg-red-500/10',
+    green: 'border-emerald-300/40 bg-emerald-400/10',
+    purple: 'border-fuchsia-300/35 bg-fuchsia-400/10',
+    black: 'border-slate-300/30 bg-slate-300/10',
+  }
+  const heroAccentPanel = heroAccentPanelMap[player.hero.attribute] || heroAccentPanelMap.black
+  const modelFramePosition = isLeft ? 'right-[4%]' : 'left-[4%]'
+  const modelOffsetPosition = isLeft ? 'left-[-10%]' : 'right-[-10%]'
+  const overlayPosition = isLeft ? 'left-[6%]' : 'right-[6%]'
+  const bannerPosition = isLeft ? 'left-[4%] items-start' : 'right-[4%] items-end'
 
   return (
     <div
@@ -123,12 +134,15 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
     >
       {/* ヒーローエリア */}
       <div
-        className={`relative flex-1 w-full min-h-[200px] overflow-hidden ${
+        className={`relative flex-1 w-full min-h-[200px] overflow-visible ${
           isLeft ? 'pl-0' : 'pr-0'
         }`}
       >
+        <div
+          className={`absolute inset-y-[8%] z-0 w-[82%] rounded-[2.75rem] border border-white/8 bg-gradient-to-b from-white/10 via-white/[0.04] to-black/10 shadow-[0_20px_40px_rgba(0,0,0,0.24)] backdrop-blur-[10px] ${modelFramePosition}`}
+        />
         {player.hero.modelUrl ? (
-          <div className="absolute inset-0 w-full h-full min-h-[320px]">
+          <div className={`absolute inset-y-[2%] z-[1] w-[110%] min-h-[320px] ${modelOffsetPosition}`}>
             <HeroModel3D
               modelUrl={player.hero.modelUrl}
               variant="battle"
@@ -156,19 +170,19 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
 
       {/* HP + 直下にデッキ枚数（左）・墓地（右） */}
       <div
-        className={`absolute z-10 flex flex-col items-center gap-1 ${
-          isLeft ? 'bottom-2 left-2' : 'bottom-2 right-2'
-        } ls:bottom-1 ls:left-1 ls:right-1`}
+        className={`absolute top-[54%] z-10 flex -translate-y-1/2 flex-col items-center gap-3 ${
+          overlayPosition
+        } ls:top-[57%]`}
       >
         <div
-          className={`flex items-center justify-center rounded-full border-2 ${
-            player.hp < 10 ? 'border-red-500 bg-red-900/80 shadow-[0_0_12px_rgba(239,68,68,0.6)]' : 'border-green-500 bg-green-900/70 shadow-[0_0_12px_rgba(34,197,94,0.5)]'
+          className={`relative flex h-[5.25rem] w-[5.25rem] items-center justify-center rounded-full border-2 ${
+            player.hp < 10 ? 'border-red-400 bg-red-950/85 shadow-[0_0_24px_rgba(248,113,113,0.45)]' : 'border-emerald-300 bg-emerald-950/80 shadow-[0_0_24px_rgba(74,222,128,0.38)]'
           }`}
-          style={{ width: 80, height: 80 }}
         >
+          <div className="absolute inset-[0.35rem] rounded-full border border-white/12" />
           <span
             className={`font-orbitron font-bold text-3xl ls:text-2xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${
-              player.hp < 10 ? 'text-red-300' : 'text-green-100'
+              player.hp < 10 ? 'text-red-200' : 'text-emerald-50'
             }`}
           >
             {Math.max(0, player.hp)}
@@ -176,22 +190,23 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
         </div>
 
         {/* HPのすぐ下: デッキ・墓地を近づけて中央にまとめる */}
-        <div className="flex w-auto max-w-[5.5rem] items-end justify-center gap-1 ls:gap-0.5 px-0 py-0">
+        <div className="flex items-end justify-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 py-2 shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur-md">
           <div
             className="flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`残りデッキ ${player.deck.length}枚`}
           >
-            <DeckIcon className="w-7 h-5 ls:w-6 ls:h-4 opacity-70" />
-            <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-100/45 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+            <DeckIcon className="w-7 h-5 ls:w-6 ls:h-4 opacity-80" />
+            <span className="font-orbitron font-bold text-[10px] ls:text-[9px] text-cyan-100/70 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
               {player.deck.length}
             </span>
           </div>
+          <div className="h-7 w-px bg-white/10" />
           <div
             className="group relative flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`墓地 ${player.graveyard.length}枚`}
           >
-            <GraveyardIcon className="w-7 h-6 ls:w-6 ls:h-5 opacity-70" />
-            <span className="font-orbitron font-bold text-[9px] ls:text-[8px] text-amber-100/45 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+            <GraveyardIcon className="w-7 h-6 ls:w-6 ls:h-5 opacity-80" />
+            <span className="font-orbitron font-bold text-[9px] ls:text-[8px] text-amber-100/70 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
               {player.graveyard.length}
             </span>
             {player.graveyard.length > 0 && (
@@ -223,13 +238,15 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
 
       {/* ヒーロー名・シールド */}
       <div
-        className={`absolute top-1 z-10 ${isLeft ? 'left-1' : 'right-1'} ls:top-0.5 ls:left-0.5 ls:right-0.5`}
+        className={`absolute top-[6%] z-10 flex flex-col gap-2 ${bannerPosition} ls:top-[4%]`}
       >
-        <div className={`text-[10px] ls:text-[8px] font-orbitron font-bold ${attributeColor} drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]`}>
-          {player.hero.name}
+        <div className={`rounded-full border px-3 py-1 backdrop-blur-md shadow-[0_8px_18px_rgba(0,0,0,0.22)] ${heroAccentPanel}`}>
+          <div className={`text-[11px] ls:text-[9px] font-orbitron font-bold tracking-[0.22em] ${attributeColor} drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]`}>
+            {player.hero.name}
+          </div>
         </div>
         {player.shieldCount && player.shieldCount > 0 && (
-          <div className="mt-0.5 flex gap-0.5">
+          <div className="flex gap-1 rounded-full border border-white/8 bg-black/28 px-2 py-1 backdrop-blur-sm">
             {Array.from({ length: player.shieldCount }).map((_, idx) => (
               <span key={idx} className="text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
                 🛡️

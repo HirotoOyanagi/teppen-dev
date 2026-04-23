@@ -47,6 +47,51 @@ body {
   animation: scanline 4s linear infinite;
 }
 
+.battle-atmosphere {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(135, 255, 221, 0.18), transparent 18%),
+    radial-gradient(circle at 50% 86%, rgba(251, 191, 36, 0.16), transparent 24%),
+    radial-gradient(circle at 14% 52%, rgba(34, 211, 238, 0.12), transparent 22%),
+    radial-gradient(circle at 86% 50%, rgba(250, 204, 21, 0.1), transparent 20%),
+    linear-gradient(180deg, #12332b 0%, #081412 44%, #05070b 100%);
+}
+
+.battle-grid-overlay {
+  background-image:
+    linear-gradient(rgba(246, 201, 85, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(246, 201, 85, 0.06) 1px, transparent 1px);
+  background-size: 180px 148px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.95) 20%, transparent 75%);
+}
+
+.battle-portal {
+  border: 3px solid rgba(245, 223, 120, 0.2);
+  box-shadow:
+    0 0 0 8px rgba(8, 12, 15, 0.35),
+    0 0 0 20px rgba(255, 255, 255, 0.03),
+    0 0 60px rgba(250, 204, 21, 0.12);
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 48%, transparent 72%);
+}
+
+.battle-portal-inner {
+  border: 2px solid rgba(255, 244, 180, 0.22);
+  box-shadow:
+    inset 0 0 24px rgba(255, 255, 255, 0.04),
+    0 0 24px rgba(250, 204, 21, 0.08);
+}
+
+.battle-hud-shell {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.05)),
+    rgba(4, 8, 12, 0.72);
+  box-shadow:
+    0 -20px 60px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+}
+
 /* ===== 横画面スマホ対応 ===== */
 /* スマホ横画面: orientation:landscape かつ高さが小さいデバイス */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -71,4 +116,3 @@ body {
     padding-right: env(safe-area-inset-right);
   }
 }
-

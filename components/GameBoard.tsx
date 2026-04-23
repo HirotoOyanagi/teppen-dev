@@ -208,7 +208,7 @@ function TimerDisplay({ timeRemainingMs }: { timeRemainingMs: number }) {
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   return (
-    <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
+    <div className="rounded-full border border-amber-300/25 bg-amber-200/10 px-5 py-1.5 shadow-[0_10px_25px_rgba(0,0,0,0.28)] backdrop-blur-md">
       <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${remaining <= 10 * 1000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
         {m}:{String(s).padStart(2, '0')}
       </span>
@@ -1160,25 +1160,38 @@ export default function GameBoard(props: GameBoardProps) {
   }
 
   return (
-    <div className={`flex w-screen h-screen overflow-hidden bg-[#0a0f0a] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
-      <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
-      <div className="absolute inset-0 z-0 scanline pointer-events-none" />
+    <div className={`relative isolate flex h-screen w-screen overflow-hidden bg-[#05070b] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
+      <div className="absolute inset-0 z-0 battle-atmosphere" />
+      <div className="absolute inset-0 z-0 battle-grid-overlay opacity-90" />
+      <div className="absolute inset-x-0 top-0 z-0 h-40 bg-gradient-to-b from-sky-300/10 via-transparent to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 z-0 h-56 bg-gradient-to-t from-amber-500/10 via-transparent to-transparent" />
+      <div className="absolute left-1/2 top-[44%] z-0 h-[min(72vw,46rem)] w-[min(72vw,46rem)] -translate-x-1/2 -translate-y-1/2 rounded-full battle-portal pointer-events-none">
+        <div className="absolute inset-[7%] rounded-full battle-portal-inner" />
+        <div className="absolute inset-[20%] rounded-full border border-white/10" />
+        <div className="absolute inset-x-[18%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
+        <div className="absolute inset-y-[18%] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-amber-200/30 to-transparent" />
+      </div>
 
-      {/* Header - 参考画像風: BATTLE + 中央にタイマー */}
-      <div className="relative z-10 w-full flex justify-center items-center gap-4 pt-4 ls:pt-1">
-        <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
-          <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">BATTLE</span>
+      <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#05070b]/30 to-[#05070b]/65" />
+      <div className="absolute inset-0 z-0 scanline pointer-events-none opacity-35" />
+
+      {/* Header - 中央の情報密度を上げる */}
+      <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-2">
+        <div className="flex items-center gap-3 rounded-full border border-amber-300/20 bg-black/40 px-4 py-2 shadow-[0_16px_34px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <div className="rounded-full border border-amber-200/15 bg-black/45 px-6 py-1.5">
+            <span className="text-[1.65rem] ls:text-sm text-yellow-300 font-bold tracking-[0.32em]">BATTLE</span>
+          </div>
+          {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
+            <TimerDisplay
+              timeRemainingMs={
+                gameState.activeResponse.isActive
+                  ? gameState.activeResponse.timer
+                  : gameState.timeRemainingMs ?? 5 * 60 * 1000
+              }
+            />
+          )}
         </div>
-        {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
-          <TimerDisplay
-            timeRemainingMs={
-              gameState.activeResponse.isActive
-                ? gameState.activeResponse.timer
-                : gameState.timeRemainingMs ?? 5 * 60 * 1000
-            }
-          />
-        )}
       </div>
 
       {/* 開始演出（マリガン完了後、3秒待ってからバトル開始・オンライン対戦と同様） */}
@@ -1194,7 +1207,7 @@ export default function GameBoard(props: GameBoardProps) {
       )}
 
       {gameState.activeResponse.isActive && (
-        <div className="absolute inset-x-0 top-14 z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/95 via-slate-950/98 to-black/95 border-b border-cyan-500/45 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-lg">
+        <div className="absolute inset-x-4 top-20 z-20 rounded-[1.6rem] border border-cyan-300/20 bg-gradient-to-r from-black/90 via-slate-950/95 to-black/90 px-4 py-2.5 ls:top-14 ls:px-3 ls:py-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-xl">
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
@@ -1227,7 +1240,7 @@ export default function GameBoard(props: GameBoardProps) {
           <button
             type="button"
             onClick={() => handleEndActiveResponse('player1')}
-            className="absolute bottom-28 ls:bottom-20 left-4 z-30 px-4 py-2 bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors rounded shadow-lg border-2 border-amber-400/80"
+            className="absolute bottom-32 ls:bottom-20 left-6 z-30 rounded-full border-2 border-amber-300/75 bg-amber-400 px-5 py-2 text-sm font-bold text-black shadow-[0_14px_26px_rgba(0,0,0,0.26)] transition-colors hover:bg-amber-300"
           >
             解決
           </button>
@@ -1242,7 +1255,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
       {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
-        <div className="absolute bottom-20 ls:bottom-14 left-0 ls:left-0 z-30 flex gap-2 ls:gap-1 pl-1 ls:pl-0.5 pb-1">
+        <div className="absolute bottom-28 left-4 z-30 flex gap-3 rounded-[1.8rem] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_16px_36px_rgba(0,0,0,0.28)] backdrop-blur-xl ls:bottom-18 ls:left-2 ls:gap-1.5 ls:px-2 ls:py-2">
           {player.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <button
@@ -1255,9 +1268,9 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.heroArt.cost}
-                className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-[1.35rem] border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.heroArt.cost
-                    ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
+                    ? 'border-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.42)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
@@ -1267,7 +1280,7 @@ export default function GameBoard(props: GameBoardProps) {
                 </span>
               </button>
               <div
-                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                className={`w-9 h-9 ls:w-8 ls:h-8 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
                   player.ap >= player.hero.heroArt.cost
                     ? 'border-yellow-400 bg-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.6)]'
                     : 'border-white/40 bg-black/60'
@@ -1282,7 +1295,7 @@ export default function GameBoard(props: GameBoardProps) {
                   {player.hero.heroArt.cost}
                 </span>
               </div>
-              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+              <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded-xl border border-yellow-500/40 bg-black/90 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none backdrop-blur-md">
                 <div className="font-bold text-yellow-400 mb-1">{player.hero.heroArt.name}</div>
                 <div className="text-gray-300">{player.hero.heroArt.description}</div>
                 {player.hero.heroArt.requiresTarget && (
@@ -1303,9 +1316,9 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.companion.cost}
-                className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-[1.35rem] border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.companion.cost
-                    ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
+                    ? 'border-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.38)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
@@ -1315,7 +1328,7 @@ export default function GameBoard(props: GameBoardProps) {
                 </span>
               </button>
               <div
-                className={`w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
+                className={`w-9 h-9 ls:w-8 ls:h-8 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
                   player.ap >= player.hero.companion.cost
                     ? 'border-cyan-400 bg-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
                     : 'border-white/40 bg-black/60'
@@ -1330,7 +1343,7 @@ export default function GameBoard(props: GameBoardProps) {
                   {player.hero.companion.cost}
                 </span>
               </div>
-              <div className="absolute left-full top-0 ml-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none">
+              <div className="absolute left-full top-0 ml-2 w-44 p-2 rounded-xl border border-cyan-500/40 bg-black/90 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none backdrop-blur-md">
                 <div className="font-bold text-cyan-400 mb-1">{player.hero.companion.name}</div>
                 <div className="text-gray-300">{player.hero.companion.description}</div>
                 {player.hero.companion.requiresTarget && (
@@ -1344,7 +1357,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 相手のEXポケット（アーツの左隣）＋必殺技・おとも（右上・表示のみ） */}
       {gameState.phase === 'playing' && (
-        <div className="absolute top-14 right-0 ls:right-0 z-30 flex flex-row items-end gap-1 ls:gap-0.5 pr-1 ls:pr-0.5 pt-1">
+        <div className="absolute top-24 right-4 z-30 flex flex-row items-end gap-2 rounded-[1.5rem] border border-white/10 bg-black/30 px-2.5 py-2 shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-xl ls:top-16 ls:right-2 ls:gap-1 ls:px-2 ls:py-1.5">
           <div className="flex shrink-0 gap-1" aria-label="相手のEXポケット">
             {[0, 1].map((slotIdx) => {
               const rawId = opponent.exPocket[slotIdx]
@@ -1353,7 +1366,7 @@ export default function GameBoard(props: GameBoardProps) {
                 return (
                   <div
                     key={`opp_ex_filled_${slotIdx}`}
-                    className="relative h-14 w-11 ls:h-12 ls:w-10 overflow-hidden rounded border-2 border-purple-500/80 bg-gradient-to-b from-purple-950/95 via-zinc-950 to-black shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                    className="relative h-16 w-12 ls:h-12 ls:w-10 overflow-hidden rounded-[1rem] border-2 border-purple-500/70 bg-gradient-to-b from-purple-950/95 via-zinc-950 to-black shadow-[0_0_10px_rgba(168,85,247,0.32)]"
                     aria-label="EXポケットにカードあり（内容は非表示）"
                   >
                     {/* カード裏風：中身の名前・コスト・属性は出さない */}
@@ -1370,7 +1383,7 @@ export default function GameBoard(props: GameBoardProps) {
               return (
                 <div
                   key={`opp_ex_empty_${slotIdx}`}
-                  className="flex h-14 w-11 ls:h-12 ls:w-10 flex-col items-center justify-center rounded border border-dashed border-purple-500/40 bg-purple-950/20"
+                  className="flex h-16 w-12 ls:h-12 ls:w-10 flex-col items-center justify-center rounded-[1rem] border border-dashed border-purple-500/35 bg-purple-950/18"
                   aria-label="EXポケット空"
                 >
                   <span className="text-[7px] ls:text-[6px] font-bold text-purple-400/35">EX</span>
@@ -1379,16 +1392,16 @@ export default function GameBoard(props: GameBoardProps) {
             })}
           </div>
           {(opponent.hero.heroArt || opponent.hero.companion) && (
-            <div className="flex gap-2 ls:gap-1">
+            <div className="flex gap-1.5 ls:gap-1">
           {opponent.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
-              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-yellow-500/60 overflow-hidden">
+              <div className="relative w-11 h-20 ls:w-10 ls:h-16 rounded-[1rem] border-2 border-yellow-500/55 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/80 to-amber-700/80" />
                 <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
                   {opponent.hero.heroArt.cost}AP
                 </span>
               </div>
-              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+              <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
                 <span className="font-orbitron font-bold text-xs ls:text-[10px] text-yellow-300/80 leading-none">
                   {opponent.ap}
@@ -1398,7 +1411,7 @@ export default function GameBoard(props: GameBoardProps) {
                   {opponent.hero.heroArt.cost}
                 </span>
               </div>
-              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-yellow-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+              <div className="absolute right-full top-0 mr-2 w-40 p-2 rounded-xl border border-yellow-500/40 bg-black/90 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right backdrop-blur-md">
                 <div className="font-bold text-yellow-400 mb-1">{opponent.hero.heroArt.name}</div>
                 <div className="text-gray-300">{opponent.hero.heroArt.description}</div>
               </div>
@@ -1406,13 +1419,13 @@ export default function GameBoard(props: GameBoardProps) {
           )}
           {opponent.hero.companion && (
             <div className="group relative flex items-center gap-1">
-              <div className="relative w-12 h-24 ls:w-10 ls:h-20 rounded border-2 border-cyan-500/60 overflow-hidden">
+              <div className="relative w-11 h-20 ls:w-10 ls:h-16 rounded-[1rem] border-2 border-cyan-500/55 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/80 to-blue-700/80" />
                 <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
                   {opponent.hero.companion.cost}AP
                 </span>
               </div>
-              <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
+              <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
                 <span className="font-orbitron font-bold text-xs ls:text-[10px] text-cyan-300/80 leading-none">
                   {opponent.ap}
@@ -1422,7 +1435,7 @@ export default function GameBoard(props: GameBoardProps) {
                   {opponent.hero.companion.cost}
                 </span>
               </div>
-              <div className="absolute right-full top-0 mr-1 w-40 p-2 rounded border border-cyan-500/60 bg-black/95 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right">
+              <div className="absolute right-full top-0 mr-2 w-40 p-2 rounded-xl border border-cyan-500/40 bg-black/90 text-white text-[9px] leading-tight shadow-lg z-50 hidden group-hover:block pointer-events-none text-right backdrop-blur-md">
                 <div className="font-bold text-cyan-400 mb-1">{opponent.hero.companion.name}</div>
                 <div className="text-gray-300">{opponent.hero.companion.description}</div>
               </div>
@@ -1433,17 +1446,17 @@ export default function GameBoard(props: GameBoardProps) {
         </div>
       )}
 
-      {/* Main Area - ヒーローに3Dモデルがある場合、左パネルを広げて配置 */}
-      <div className="relative z-10 flex-1 flex items-stretch">
-        <div className={`flex flex-col ls:w-1/5 ${
-          player.hero.modelUrl ? 'w-64 min-w-[240px] ls:min-w-0 ls:w-1/5' : 'w-1/4'
+      {/* Main Area - 左右のヒーローと中央盤面を一体化 */}
+      <div className="relative z-10 flex flex-1 items-stretch px-3 pt-6 ls:px-1.5 ls:pt-2">
+        <div className={`flex flex-col ${
+          player.hero.modelUrl ? 'w-[clamp(10rem,16vw,14.5rem)] min-w-[10rem] ls:min-w-[6rem] ls:w-[18vw]' : 'w-[14vw]'
         }`}>
           <div
             ref={(el) => {
               if (el) heroRefs.current.set(player.playerId, el)
               else heroRefs.current.delete(player.playerId)
             }}
-            className={`flex-1 min-h-0 overflow-hidden transition-all ${
+            className={`flex-1 min-h-0 overflow-visible transition-all ${
               dragging && dragging.cardDef.type === 'action' && getTargetType(dragging.cardDef) === 'friendly_hero' && hoveredHeroId === player.playerId
                 ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_yellow] rounded'
                 : ''
@@ -1468,7 +1481,7 @@ export default function GameBoard(props: GameBoardProps) {
         </div>
 
         {/* Battle Slots */}
-        <div className="flex-1 flex flex-col justify-center gap-4 ls:gap-1 px-4 ls:px-2">
+        <div className="flex-1 flex flex-col justify-center gap-5 ls:gap-2 px-2 ls:px-1">
           {[0, 1, 2].map((lane) => {
             const leftUnit = getUnitInLane(player.units, lane)
             const rightUnit = getUnitInLane(opponent.units, lane)
@@ -1484,9 +1497,10 @@ export default function GameBoard(props: GameBoardProps) {
             }
 
             return (
-              <div key={lane} className="relative h-44 ls:h-24 w-full flex items-center justify-between px-16 ls:px-8">
+              <div key={lane} className="relative mx-auto h-44 ls:h-24 w-full max-w-[64rem] flex items-center justify-between px-16 ls:px-8">
+                <div className="absolute inset-x-8 inset-y-3 rounded-[2rem] border border-white/5 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[2px]" />
                 {/* Lane Line (背景) */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[58%] h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
                 {/* Attack Progress Bar - 左から右へ (自分のユニット) — 敵ゲージと矢印が重ならないようやや上 */}
                 {leftUnit && (
@@ -1646,17 +1660,20 @@ export default function GameBoard(props: GameBoardProps) {
           })}
         </div>
 
-        <div className={`flex flex-col ls:w-1/5 ${
-          opponent.hero.modelUrl ? 'w-64 min-w-[240px] ls:min-w-0 ls:w-1/5' : 'w-1/4'
+        <div className={`flex flex-col ${
+          opponent.hero.modelUrl ? 'w-[clamp(10rem,16vw,14.5rem)] min-w-[10rem] ls:min-w-[6rem] ls:w-[18vw]' : 'w-[14vw]'
         }`}>
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-visible">
             <HeroPortrait player={opponent} side="right" cardMap={cardMap} />
           </div>
         </div>
       </div>
 
       {/* Footer Area */}
-      <div className="relative z-20 h-64 ls:h-32 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6 ls:pb-1">
+      <div className="relative z-20 flex h-72 ls:h-36 flex-col items-center justify-end pb-5 ls:pb-2">
+        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[78%] w-[min(96vw,76rem)] -translate-x-1/2 rounded-t-[2.6rem] battle-hud-shell" />
+        <div className="pointer-events-none absolute bottom-[calc(78%-1px)] left-1/2 h-px w-[min(82vw,62rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+        <div className="relative flex w-full max-w-[72rem] justify-center px-6 ls:px-2">
         <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
           {/* 手札 */}
           {player.hand.map((cardId, i) => {
@@ -1683,7 +1700,7 @@ export default function GameBoard(props: GameBoardProps) {
             )
           })}
           {/* EXポケット（右側） */}
-          <div className="flex gap-1 items-end ml-2 ls:ml-1">
+          <div className="flex gap-1 items-end ml-3 ls:ml-1">
             {[0, 1].map((slotIdx) => {
               const exCard = player.exPocket[slotIdx]
               if (!exCard) {
@@ -1728,7 +1745,10 @@ export default function GameBoard(props: GameBoardProps) {
             })}
           </div>
         </div>
-        <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} showAmpSlot={gameState.activeResponse.isActive} />
+        </div>
+        <div className="relative w-full px-6 ls:px-2">
+          <ManaBar mp={player.mp} maxMp={player.maxMp} blueMp={player.blueMp} showAmpSlot={gameState.activeResponse.isActive} />
+        </div>
       </div>
 
       {/* マリガンオーバーレイ */}
