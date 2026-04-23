@@ -91,7 +91,7 @@ export interface Unit {
   exResonateEffects?: string[] // EXポケットからアクション使用時の効果関数
   resonateFireSeedEffects?: string[] // 火種を使用した時の効果関数
   enemyActionEffects?: string[] // 相手がアクションカードを使用した時の効果関数
-  dotEffects?: { damage: number; intervalMs: number; timer: number }[] // 継続ダメージ
+  dotEffects?: { damage: number; intervalMs: number; timer: number; remainingTicks?: number }[] // 継続ダメージ（remainingTicks未定義=無限）
   // カード固有効果用
   heroHitEffects?: string[] // 敵ヒーローにダメージを与えた時の効果
   haltedEnemyDeathEffects?: string[] // 停止敵死亡時の効果
@@ -178,6 +178,8 @@ export interface PlayerState {
   shieldCount?: number // シールドの枚数（1回のダメージを0にする）
   damageBoostAll?: number // 自分のユニットが受けるダメージ増加
   exPocket: string[] // EXポケット（cardId文字列、@cost=等の修飾子付き）
+  revealedHandCardIds?: string[] // 公開中の手札カードID（Purpleカード「公開」メカニクス）
+  heroDotEffects?: { damage: number; intervalMs: number; timer: number; remainingTicks?: number }[] // ヒーローへの継続ダメージ（毒増幅等）
   actionCardUsedCount?: number // バトル中アクションカード使用回数
   levelUpCount?: number // 味方ユニットレベルアップ回数
   awakeningCount?: number // 目覚め回数

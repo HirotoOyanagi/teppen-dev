@@ -782,6 +782,86 @@ export function resolveEffectByFunctionName(
     case 'immediate_attack_self':
       return resolveImmediateAttackSelf(context)
 
+    // ── Purpleカード: 停止系 ──
+    case 'halt_two_random_enemies':
+      return resolveHaltTwoRandomEnemies(value, context)
+    case 'halt_all_enemies':
+      return resolveHaltAllEnemies(value, context)
+    case 'halt_target':
+      return resolveHaltTarget(value, context)
+    case 'halt_target_ex_conditional':
+      return resolveHaltTargetExConditional(value, context, valueStr)
+    case 'halt_low_cost_enemies':
+      return resolveHaltLowCostEnemies(value, context, valueStr)
+    case 'damage_random_halted':
+      return resolveDamageRandomHalted(value, context)
+    case 'damage_all_halted_enemies':
+      return resolveDamageAllHaltedEnemies(value, context)
+    case 'damage_halted_target':
+      return resolveDamageHaltedTarget(value, context)
+    case 'reset_attack_all_halted':
+      return resolveResetAttackAllHalted(context)
+    case 'destroy_random_halted_then_halt_random':
+      return resolveDestroyRandomHaltedThenHaltRandom(value, context)
+    case 'destroy_all_halted_enemies':
+      return resolveDestroyAllHaltedEnemies(context)
+
+    // ── Purpleカード: 毒系 ──
+    case 'apply_poison_random':
+      return resolveApplyPoisonRandom(value, context)
+    case 'apply_poison_two_random':
+      return resolveApplyPoisonTwoRandom(value, context)
+    case 'apply_poison_front':
+      return resolveApplyPoisonFront(value, context)
+    case 'apply_poison_target':
+      return resolveApplyPoisonTarget(value, context)
+    case 'apply_poison_all_enemies':
+      return resolveApplyPoisonAllEnemies(value, context)
+    case 'apply_poison_front_stack':
+      return resolveApplyPoisonFrontStack(value, context, valueStr)
+    case 'apply_poison_target_stack':
+      return resolveApplyPoisonTargetStack(value, context, valueStr)
+    case 'apply_poison_hero_if_two_poisoned':
+      return resolveApplyPoisonHeroIfTwoPoisoned(value, context)
+    case 'destroy_front_poisoned':
+      return resolveDestroyFrontPoisoned(context)
+    case 'debuff_random_poisoned_attack':
+      return resolveDebuffRandomPoisonedAttack(value, context)
+    case 'damage_all_poisoned':
+      return resolveDamageAllPoisoned(value, context)
+    case 'instant_poison_damage_target':
+      return resolveInstantPoisonDamageTarget(context)
+
+    // ── Purpleカード: 公開系 ──
+    case 'reveal_random_hand':
+      return resolveRevealRandomHand(value, context)
+    case 'reveal_highest_cost_hand':
+      return resolveRevealHighestCostHand(context)
+    case 'reveal_all_hand':
+      return resolveRevealAllHand(context)
+    case 'reduce_enemy_mp_if_revealed':
+      return resolveReduceEnemyMpIfRevealed(value, context)
+    case 'reduce_enemy_mp_if_revealed_ge_2':
+      return resolveReduceEnemyMpIfRevealedGe2(value, context)
+    case 'reduce_enemy_mp_if_revealed_high_cost':
+      return resolveReduceEnemyMpIfRevealedHighCost(value, context)
+    case 'discard_random_revealed':
+      return resolveDiscardRandomRevealed(context)
+    case 'discard_two_random_revealed':
+      return resolveDiscardTwoRandomRevealed(context)
+    case 'increase_lowest_revealed_cost':
+      return resolveIncreaseLowestRevealedCost(value, context)
+    case 'increase_cost_highest_revealed':
+      return resolveIncreaseCostHighestRevealed(value, context)
+
+    // ── Purpleカード: その他 ──
+    case 'reflect_action':
+      return resolveReflectAction(value, context)
+    case 'return_unit_to_deck_draw':
+      return resolveReturnUnitToDeckDraw(context)
+    case 'debuff_target_attack':
+      return resolveDebuffTargetAttack(value, context)
+
     default:
       console.warn(`Unknown effect function: ${functionName}`)
       return { state: newState, events: localEvents }
@@ -3996,5 +4076,817 @@ function resolveApGainEffect(
 
   const player = newState.players[playerIndex]
   newState.players[playerIndex] = { ...player, ap: player.ap + apGain }
+  return { state: newState, events }
+}
+
+// ─── Purpleカード: 停止系 ───
+
+/** ランダム敵2体を停止 */
+function resolveHaltTwoRandomEnemies(
+  durationSec: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+
+  const enemies = [...newState.players[opponentIndex].units]
+  const picked: string[] = []
+  for (let i = 0; i < 2 && enemies.length > 0; i++) {
+    const idx = Math.floor(Math.random() * enemies.length)
+    picked.push(enemies[idx].id)
+    enemies.splice(idx, 1)
+  }
+
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) =>
+      picked.includes(u.id) ? { ...u, haltTimer: durationSec * 1000 } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 全敵ユニットを停止 */
+function resolveHaltAllEnemies(
+  durationSec: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) => ({ ...u, haltTimer: durationSec * 1000 })),
+  }
+  return { state: newState, events }
+}
+
+/** 対象ユニットを停止 */
+function resolveHaltTarget(
+  durationSec: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const player = newState.players[ownerIndex]
+  newState.players[ownerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === targetUnit.unit.id ? { ...u, haltTimer: durationSec * 1000 } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 対象ユニットをEX条件付きで停止（EXに1枚以上あれば長く停止） */
+function resolveHaltTargetExConditional(
+  baseSec: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const sourceIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const extendedSec = valueStr ? parseInt(valueStr.split(':')[1] ?? '13', 10) : 13
+  const hasEx = (newState.players[sourceIndex]?.exPocket ?? []).length > 0
+  const durationSec = hasEx ? extendedSec : baseSec
+  return resolveHaltTarget(durationSec, { ...context, gameState: newState })
+}
+
+/** コストN以下の全敵ユニットをM秒停止 */
+function resolveHaltLowCostEnemies(
+  maxCost: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const durationSec = valueStr ? parseInt(valueStr.split(':')[1] ?? '13', 10) : 13
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) => {
+      const def = cardMap.get(u.cardId.split('@')[0])
+      if (def && def.cost <= maxCost) {
+        return { ...u, haltTimer: durationSec * 1000 }
+      }
+      return u
+    }),
+  }
+  return { state: newState, events }
+}
+
+/** ランダム停止敵1体にダメージ */
+function resolveDamageRandomHalted(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const haltedUnits = newState.players[opponentIndex].units.filter((u) => (u.haltTimer ?? 0) > 0)
+  if (haltedUnits.length === 0) return { state: newState, events }
+  const target = haltedUnits[Math.floor(Math.random() * haltedUnits.length)]
+  newState = applyDamageToUnit(newState, events, opponentIndex, target.id, damage)
+  return { state: newState, events }
+}
+
+/** 全停止敵ユニットにダメージ */
+function resolveDamageAllHaltedEnemies(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const haltedIds = newState.players[opponentIndex].units
+    .filter((u) => (u.haltTimer ?? 0) > 0)
+    .map((u) => u.id)
+  for (const uid of haltedIds) {
+    if (!newState.players[opponentIndex].units.some((u) => u.id === uid)) continue
+    newState = applyDamageToUnit(newState, events, opponentIndex, uid, damage)
+  }
+  return { state: newState, events }
+}
+
+/** 停止状態の対象ユニットにダメージ（停止中のみ有効） */
+function resolveDamageHaltedTarget(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+  const actualUnit = newState.players[ownerIndex].units.find((u) => u.id === targetUnit.unit.id)
+  if (!actualUnit || (actualUnit.haltTimer ?? 0) <= 0) return { state: newState, events }
+
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, damage)
+  return { state: newState, events }
+}
+
+/** 全停止敵の攻撃ゲージをリセット */
+function resolveResetAttackAllHalted(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) =>
+      (u.haltTimer ?? 0) > 0 ? { ...u, attackGauge: 0 } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** ランダム停止敵1体を破壊し、ランダム敵1体をN秒停止 */
+function resolveDestroyRandomHaltedThenHaltRandom(
+  durationSec: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+
+  const haltedUnits = newState.players[opponentIndex].units.filter((u) => (u.haltTimer ?? 0) > 0)
+  if (haltedUnits.length > 0) {
+    const target = haltedUnits[Math.floor(Math.random() * haltedUnits.length)]
+    const opponent = newState.players[opponentIndex]
+    newState.players[opponentIndex] = {
+      ...opponent,
+      units: opponent.units.filter((u) => u.id !== target.id),
+      graveyard: [...opponent.graveyard, target.cardId],
+    }
+    events.push({ type: 'unit_destroyed', unitId: target.id, playerId: opponent.playerId, lane: target.lane, timestamp: Date.now() })
+  }
+
+  const remaining = newState.players[opponentIndex].units
+  if (remaining.length > 0) {
+    const target2 = remaining[Math.floor(Math.random() * remaining.length)]
+    const opp2 = newState.players[opponentIndex]
+    newState.players[opponentIndex] = {
+      ...opp2,
+      units: opp2.units.map((u) => u.id === target2.id ? { ...u, haltTimer: durationSec * 1000 } : u),
+    }
+  }
+  return { state: newState, events }
+}
+
+/** 全停止敵ユニットを破壊 */
+function resolveDestroyAllHaltedEnemies(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const haltedUnits = opponent.units.filter((u) => (u.haltTimer ?? 0) > 0)
+  const haltedIds = new Set(haltedUnits.map((u) => u.id))
+  for (const u of haltedUnits) {
+    events.push({ type: 'unit_destroyed', unitId: u.id, playerId: opponent.playerId, lane: u.lane, timestamp: Date.now() })
+  }
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.filter((u) => !haltedIds.has(u.id)),
+    graveyard: [...opponent.graveyard, ...haltedUnits.map((u) => u.cardId)],
+  }
+  return { state: newState, events }
+}
+
+// ─── Purpleカード: 毒系ヘルパー ───
+
+/** 毒DoTを付与するヘルパー */
+function applyPoisonToUnit(
+  state: GameState,
+  playerIndex: number,
+  unitId: string,
+  poisonStacks: number
+): GameState {
+  const player = state.players[playerIndex]
+  const unitIdx = player.units.findIndex((u) => u.id === unitId)
+  if (unitIdx === -1) return state
+
+  const unit = player.units[unitIdx]
+  const existingDots = unit.dotEffects ?? []
+  let updatedDots
+  if (existingDots.length > 0) {
+    // 既存の毒にスタックを加算
+    updatedDots = [{ ...existingDots[0], damage: existingDots[0].damage + poisonStacks }, ...existingDots.slice(1)]
+  } else {
+    // 新規DoT: 5秒ごとにスタック数のダメージ、永続
+    updatedDots = [{ damage: poisonStacks, intervalMs: 5000, timer: 0, remainingTicks: undefined }]
+  }
+  const updatedUnits = [...player.units]
+  updatedUnits[unitIdx] = { ...unit, dotEffects: updatedDots }
+  const newState = { ...state }
+  newState.players[playerIndex] = { ...player, units: updatedUnits }
+  return newState
+}
+
+/** ユニットが毒状態かチェック */
+function isUnitPoisoned(unit: { dotEffects?: { remainingTicks?: number }[] }): boolean {
+  return (unit.dotEffects ?? []).some((d) => d.remainingTicks === undefined || d.remainingTicks > 0)
+}
+
+/** ユニットの毒残りダメージ合計 */
+function getPoisonRemainingDamage(unit: { dotEffects?: { damage: number; remainingTicks?: number }[] }): number {
+  return (unit.dotEffects ?? []).reduce((sum, d) => {
+    if (d.remainingTicks === undefined) return sum + d.damage // 永続毒は1回分のダメージを返す
+    return sum + d.damage * d.remainingTicks
+  }, 0)
+}
+
+/** ランダム敵1体に毒付与 */
+function resolveApplyPoisonRandom(
+  stacks: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickRandomEnemyUnit(newState.players[opponentIndex])
+  if (!target) return { state: newState, events }
+  newState = applyPoisonToUnit(newState, opponentIndex, target.id, stacks)
+  return { state: newState, events }
+}
+
+/** ランダム敵2体に毒付与 */
+function resolveApplyPoisonTwoRandom(
+  stacks: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+
+  const enemies = [...newState.players[opponentIndex].units]
+  const picked: string[] = []
+  for (let i = 0; i < 2 && enemies.length > 0; i++) {
+    const idx = Math.floor(Math.random() * enemies.length)
+    picked.push(enemies[idx].id)
+    enemies.splice(idx, 1)
+  }
+  for (const uid of picked) {
+    if (newState.players[opponentIndex].units.some((u) => u.id === uid)) {
+      newState = applyPoisonToUnit(newState, opponentIndex, uid, stacks)
+    }
+  }
+  return { state: newState, events }
+}
+
+/** 正面の敵ユニットに毒付与 */
+function resolveApplyPoisonFront(
+  stacks: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find((u) => u.lane === sourceUnit.unit.lane)
+  if (!frontUnit) return { state: newState, events }
+  newState = applyPoisonToUnit(newState, opponentIndex, frontUnit.id, stacks)
+  return { state: newState, events }
+}
+
+/** 対象ユニットに毒付与 */
+function resolveApplyPoisonTarget(
+  stacks: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+  newState = applyPoisonToUnit(newState, ownerIndex, targetUnit.unit.id, stacks)
+  return { state: newState, events }
+}
+
+/** 全敵ユニットに毒付与 */
+function resolveApplyPoisonAllEnemies(
+  stacks: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const unitIds = newState.players[opponentIndex].units.map((u) => u.id)
+  for (const uid of unitIds) {
+    newState = applyPoisonToUnit(newState, opponentIndex, uid, stacks)
+  }
+  return { state: newState, events }
+}
+
+/** 正面の敵に毒付与（既に毒状態なら追加スタック） */
+function resolveApplyPoisonFrontStack(
+  baseStacks: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find((u) => u.lane === sourceUnit.unit.lane)
+  if (!frontUnit) return { state: newState, events }
+
+  const extraStacks = valueStr ? parseInt(valueStr.split(':')[1] ?? '2', 10) : 2
+  const alreadyPoisoned = isUnitPoisoned(frontUnit)
+  const totalStacks = alreadyPoisoned ? baseStacks + extraStacks : baseStacks
+  newState = applyPoisonToUnit(newState, opponentIndex, frontUnit.id, totalStacks)
+  return { state: newState, events }
+}
+
+/** 対象に毒付与（既に毒状態なら追加スタック） */
+function resolveApplyPoisonTargetStack(
+  baseStacks: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const extraStacks = valueStr ? parseInt(valueStr.split(':')[1] ?? '2', 10) : 2
+  const actualUnit = newState.players[ownerIndex].units.find((u) => u.id === targetUnit.unit.id)
+  const alreadyPoisoned = actualUnit ? isUnitPoisoned(actualUnit) : false
+  const totalStacks = alreadyPoisoned ? baseStacks + extraStacks : baseStacks
+  newState = applyPoisonToUnit(newState, ownerIndex, targetUnit.unit.id, totalStacks)
+  return { state: newState, events }
+}
+
+/** 毒状態の敵が2体以上いる場合、敵ヒーローに毒を付与 */
+function resolveApplyPoisonHeroIfTwoPoisoned(
+  durationSec: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const poisonedCount = newState.players[opponentIndex].units.filter((u) => isUnitPoisoned(u)).length
+  if (poisonedCount < 2) return { state: newState, events }
+
+  const heroDot = { damage: 1, intervalMs: 1000, timer: 0, remainingTicks: durationSec * 60 }
+  const opp = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opp,
+    heroDotEffects: [...(opp.heroDotEffects ?? []), heroDot],
+  }
+  return { state: newState, events }
+}
+
+/** 正面の毒状態の敵ユニットを破壊 */
+function resolveDestroyFrontPoisoned(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const frontUnit = newState.players[opponentIndex].units.find((u) => u.lane === sourceUnit.unit.lane)
+  if (!frontUnit || !isUnitPoisoned(frontUnit)) return { state: newState, events }
+
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.filter((u) => u.id !== frontUnit.id),
+    graveyard: [...opponent.graveyard, frontUnit.cardId],
+  }
+  events.push({ type: 'unit_destroyed', unitId: frontUnit.id, playerId: opponent.playerId, lane: frontUnit.lane, timestamp: Date.now() })
+  return { state: newState, events }
+}
+
+/** ランダムな毒状態の敵の攻撃力を下げる */
+function resolveDebuffRandomPoisonedAttack(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const poisonedUnits = newState.players[opponentIndex].units.filter((u) => isUnitPoisoned(u))
+  if (poisonedUnits.length === 0) return { state: newState, events }
+  const target = poisonedUnits[Math.floor(Math.random() * poisonedUnits.length)]
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = {
+    ...opponent,
+    units: opponent.units.map((u) =>
+      u.id === target.id ? { ...u, attack: Math.max(0, u.attack - amount) } : u
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 全毒状態の敵ユニットにダメージ */
+function resolveDamageAllPoisoned(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const poisonedIds = newState.players[opponentIndex].units
+    .filter((u) => isUnitPoisoned(u))
+    .map((u) => u.id)
+  for (const uid of poisonedIds) {
+    if (!newState.players[opponentIndex].units.some((u) => u.id === uid)) continue
+    newState = applyDamageToUnit(newState, events, opponentIndex, uid, damage)
+  }
+  return { state: newState, events }
+}
+
+/** 対象の毒の残りダメージをすべて即時適用 */
+function resolveInstantPoisonDamageTarget(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const actualUnit = newState.players[ownerIndex].units.find((u) => u.id === targetUnit.unit.id)
+  if (!actualUnit) return { state: newState, events }
+
+  const remainingDamage = getPoisonRemainingDamage(actualUnit)
+  if (remainingDamage <= 0) return { state: newState, events }
+
+  // 毒をすべて消費
+  const player = newState.players[ownerIndex]
+  newState.players[ownerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === targetUnit.unit.id ? { ...u, dotEffects: [] } : u
+    ),
+  }
+  // 残りダメージを即時適用
+  newState = applyDamageToUnit(newState, events, ownerIndex, targetUnit.unit.id, remainingDamage)
+  return { state: newState, events }
+}
+
+// ─── Purpleカード: 公開系ヘルパー ───
+
+/** 相手の手札のカードをN枚公開するヘルパー */
+function revealHandCards(
+  state: GameState,
+  opponentIndex: number,
+  count: number
+): GameState {
+  const opponent = state.players[opponentIndex]
+  const alreadyRevealed = new Set(opponent.revealedHandCardIds ?? [])
+  const unrevealed = opponent.hand.filter((id) => !alreadyRevealed.has(id))
+  if (unrevealed.length === 0) return state
+
+  const toReveal: string[] = []
+  const pool = [...unrevealed]
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length)
+    toReveal.push(pool[idx])
+    pool.splice(idx, 1)
+  }
+
+  const newRevealed = [...(opponent.revealedHandCardIds ?? []), ...toReveal]
+  const newState = { ...state }
+  newState.players[opponentIndex] = { ...opponent, revealedHandCardIds: newRevealed }
+  return newState
+}
+
+/** ランダムN枚の手札を公開 */
+function resolveRevealRandomHand(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = revealHandCards(newState, opponentIndex, count)
+  return { state: newState, events }
+}
+
+/** 最もコストが高い手札を公開 */
+function resolveRevealHighestCostHand(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const alreadyRevealed = new Set(opponent.revealedHandCardIds ?? [])
+  const unrevealed = opponent.hand.filter((id) => !alreadyRevealed.has(id))
+  if (unrevealed.length === 0) return { state: newState, events }
+
+  let highestCost = -1
+  let highestId = unrevealed[0]
+  for (const id of unrevealed) {
+    const def = cardMap.get(id.split('@')[0])
+    if (def && def.cost > highestCost) {
+      highestCost = def.cost
+      highestId = id
+    }
+  }
+
+  const newRevealed = [...(opponent.revealedHandCardIds ?? []), highestId]
+  newState.players[opponentIndex] = { ...opponent, revealedHandCardIds: newRevealed }
+  return { state: newState, events }
+}
+
+/** 全手札を公開 */
+function resolveRevealAllHand(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  newState.players[opponentIndex] = { ...opponent, revealedHandCardIds: [...opponent.hand] }
+  return { state: newState, events }
+}
+
+/** 公開中のカードがある場合、相手のMPをN減らす */
+function resolveReduceEnemyMpIfRevealed(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedCount = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id)).length
+  if (revealedCount === 0) return { state: newState, events }
+  newState.players[opponentIndex] = { ...opponent, mp: Math.max(0, opponent.mp - amount) }
+  return { state: newState, events }
+}
+
+/** 公開中のカードが2枚以上ある場合、相手のMPをN減らす */
+function resolveReduceEnemyMpIfRevealedGe2(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedCount = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id)).length
+  if (revealedCount < 2) return { state: newState, events }
+  newState.players[opponentIndex] = { ...opponent, mp: Math.max(0, opponent.mp - amount) }
+  return { state: newState, events }
+}
+
+/** 公開中にコスト4以上のカードがある場合、相手のMPをN減らす */
+function resolveReduceEnemyMpIfRevealedHighCost(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedInHand = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id))
+  const hasHighCost = revealedInHand.some((id) => {
+    const def = cardMap.get(id.split('@')[0])
+    return def && def.cost >= 4
+  })
+  if (!hasHighCost) return { state: newState, events }
+  newState.players[opponentIndex] = { ...opponent, mp: Math.max(0, opponent.mp - amount) }
+  return { state: newState, events }
+}
+
+/** 公開中のランダムな手札1枚を墓地に送る */
+function resolveDiscardRandomRevealed(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedInHand = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id))
+  if (revealedInHand.length === 0) return { state: newState, events }
+
+  const target = revealedInHand[Math.floor(Math.random() * revealedInHand.length)]
+  const newHand = opponent.hand.filter((id) => id !== target)
+  const newRevealed = (opponent.revealedHandCardIds ?? []).filter((id) => id !== target)
+  newState.players[opponentIndex] = {
+    ...opponent,
+    hand: newHand,
+    graveyard: [...opponent.graveyard, target.split('@')[0]],
+    revealedHandCardIds: newRevealed,
+  }
+  return { state: newState, events }
+}
+
+/** 公開中のランダムな手札2枚を墓地に送る */
+function resolveDiscardTwoRandomRevealed(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  let result = resolveDiscardRandomRevealed(context)
+  result = resolveDiscardRandomRevealed({ ...context, gameState: result.state })
+  return result
+}
+
+/** 公開中の最もコストが低い1枚のコストをN増やす */
+function resolveIncreaseLowestRevealedCost(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedInHand = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id))
+  if (revealedInHand.length === 0) return { state: newState, events }
+
+  let lowestCost = Infinity
+  let lowestId = revealedInHand[0]
+  for (const id of revealedInHand) {
+    const def = cardMap.get(id.split('@')[0])
+    if (def && def.cost < lowestCost) {
+      lowestCost = def.cost
+      lowestId = id
+    }
+  }
+
+  const def = cardMap.get(lowestId.split('@')[0])
+  if (!def) return { state: newState, events }
+  const newCost = (def.cost) + amount
+  const newCardId = `${lowestId.split('@')[0]}@cost=${newCost}`
+  const newHand = opponent.hand.map((id) => (id === lowestId ? newCardId : id))
+  const newRevealed = (opponent.revealedHandCardIds ?? []).map((id) => (id === lowestId ? newCardId : id))
+  newState.players[opponentIndex] = { ...opponent, hand: newHand, revealedHandCardIds: newRevealed }
+  return { state: newState, events }
+}
+
+/** 公開中の最もコストが高い1枚のコストをN増やす */
+function resolveIncreaseCostHighestRevealed(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const opponent = newState.players[opponentIndex]
+  const revealedInHand = (opponent.revealedHandCardIds ?? []).filter((id) => opponent.hand.includes(id))
+  if (revealedInHand.length === 0) return { state: newState, events }
+
+  let highestCost = -1
+  let highestId = revealedInHand[0]
+  for (const id of revealedInHand) {
+    const def = cardMap.get(id.split('@')[0])
+    if (def && def.cost > highestCost) {
+      highestCost = def.cost
+      highestId = id
+    }
+  }
+
+  const def = cardMap.get(highestId.split('@')[0])
+  if (!def) return { state: newState, events }
+  const newCost = (def.cost) + amount
+  const newCardId = `${highestId.split('@')[0]}@cost=${newCost}`
+  const newHand = opponent.hand.map((id) => (id === highestId ? newCardId : id))
+  const newRevealed = (opponent.revealedHandCardIds ?? []).map((id) => (id === highestId ? newCardId : id))
+  newState.players[opponentIndex] = { ...opponent, hand: newHand, revealedHandCardIds: newRevealed }
+  return { state: newState, events }
+}
+
+// ─── Purpleカード: その他 ───
+
+/** 相手のコストN以下のアクションカードを反射（手札に戻す） */
+function resolveReflectAction(
+  mpLimit: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+
+  if (!newState.activeResponse.isActive) return { state: newState, events }
+
+  const stack = [...newState.activeResponse.stack]
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const item = stack[i]
+    if (item.playerId === sourcePlayer.playerId) continue
+    const def = cardMap.get(item.cardId.split('@')[0])
+    if (def && def.type === 'action' && def.cost <= mpLimit) {
+      stack.splice(i, 1)
+      // 相手の手札に戻す
+      const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+      const opponent = newState.players[opponentIndex]
+      newState.players[opponentIndex] = {
+        ...opponent,
+        hand: [...opponent.hand, item.cardId.split('@')[0]],
+      }
+      break
+    }
+  }
+  newState.activeResponse = { ...newState.activeResponse, stack }
+  return { state: newState, events }
+}
+
+/** 対象ユニットをデッキ一番下に戻し、相手が1枚ドロー */
+function resolveReturnUnitToDeckDraw(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+
+  const owner = newState.players[ownerIndex]
+  // ユニットをデッキ一番下に戻す
+  newState.players[ownerIndex] = {
+    ...owner,
+    units: owner.units.filter((u) => u.id !== targetUnit.unit.id),
+    deck: [...owner.deck, targetUnit.unit.cardId.split('@')[0]],
+  }
+  events.push({ type: 'unit_destroyed', unitId: targetUnit.unit.id, playerId: owner.playerId, lane: targetUnit.unit.lane, timestamp: Date.now() })
+
+  // 相手（unit owner）が1枚ドロー
+  const ownerPlayer = newState.players[ownerIndex]
+  if (ownerPlayer.deck.length > 0) {
+    const drawnCard = ownerPlayer.deck[ownerPlayer.deck.length - 1]
+    newState.players[ownerIndex] = {
+      ...ownerPlayer,
+      hand: [...ownerPlayer.hand, drawnCard],
+      deck: ownerPlayer.deck.slice(0, -1),
+    }
+    events.push({ type: 'card_drawn', playerId: ownerPlayer.playerId, cardId: drawnCard, timestamp: Date.now() })
+  }
+  return { state: newState, events }
+}
+
+/** 対象ユニットの攻撃力をN下げる */
+function resolveDebuffTargetAttack(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, targetUnit } = context
+  let newState = { ...gameState }
+  if (!targetUnit) return { state: newState, events }
+  const ownerIndex = findUnitOwnerIndex(newState, targetUnit.unit.id)
+  if (ownerIndex === -1) return { state: newState, events }
+  const player = newState.players[ownerIndex]
+  newState.players[ownerIndex] = {
+    ...player,
+    units: player.units.map((u) =>
+      u.id === targetUnit.unit.id ? { ...u, attack: Math.max(0, u.attack - amount) } : u
+    ),
+  }
   return { state: newState, events }
 }

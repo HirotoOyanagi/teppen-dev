@@ -198,6 +198,20 @@ function parseTriggeredEffectFunctionTokens(
   return triggeredTokens
 }
 
+function applyDamageToHeroEngine(
+  state: GameState,
+  events: GameEvent[],
+  playerIndex: number,
+  damage: number
+): GameState {
+  const player = state.players[playerIndex]
+  const newHp = Math.max(0, player.hp - damage)
+  const newState = { ...state }
+  newState.players[playerIndex] = { ...player, hp: newHp }
+  events.push({ type: 'player_damage', playerId: player.playerId, damage, timestamp: Date.now() })
+  return newState
+}
+
 function removeOneCardFromHand(hand: string[], cardId: string): string[] {
   const index = hand.indexOf(cardId)
   if (index === -1) {
@@ -540,6 +554,8 @@ export function updateGameState(
         if (!unit || !unit.dotEffects) continue
         const updatedDots: typeof unit.dotEffects = []
         for (const dot of unit.dotEffects) {
+          // remainingTicks=0なら終了（有限DoT消費済み）
+          if (dot.remainingTicks !== undefined && dot.remainingTicks <= 0) continue
           const newTimer = dot.timer + deltaTime
           if (newTimer >= dot.intervalMs) {
             // ダメージ適用
@@ -582,7 +598,12 @@ export function updateGameState(
                 })
               }
             }
-            updatedDots.push({ ...dot, timer: 0 })
+            // remainingTicksがあればデクリメント
+            const newRemainingTicks =
+              dot.remainingTicks !== undefined ? dot.remainingTicks - 1 : undefined
+            if (newRemainingTicks === undefined || newRemainingTicks > 0) {
+              updatedDots.push({ ...dot, timer: 0, remainingTicks: newRemainingTicks })
+            }
           } else {
             updatedDots.push({ ...dot, timer: newTimer })
           }
@@ -594,6 +615,27 @@ export function updateGameState(
           units[uIdx] = { ...units[uIdx], dotEffects: updatedDots }
           newState.players[pi] = { ...newState.players[pi], units }
         }
+      }
+
+      // ヒーローへのDoT処理（毒増幅等）
+      const heroDots = newState.players[pi].heroDotEffects
+      if (heroDots && heroDots.length > 0) {
+        const updatedHeroDots: typeof heroDots = []
+        for (const dot of heroDots) {
+          if (dot.remainingTicks !== undefined && dot.remainingTicks <= 0) continue
+          const newTimer = dot.timer + deltaTime
+          if (newTimer >= dot.intervalMs) {
+            newState = applyDamageToHeroEngine(newState, events, pi, dot.damage)
+            const newRemainingTicks =
+              dot.remainingTicks !== undefined ? dot.remainingTicks - 1 : undefined
+            if (newRemainingTicks === undefined || newRemainingTicks > 0) {
+              updatedHeroDots.push({ ...dot, timer: 0, remainingTicks: newRemainingTicks })
+            }
+          } else {
+            updatedHeroDots.push({ ...dot, timer: newTimer })
+          }
+        }
+        newState.players[pi] = { ...newState.players[pi], heroDotEffects: updatedHeroDots }
       }
     }
 
