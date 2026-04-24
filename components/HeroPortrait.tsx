@@ -121,9 +121,8 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
     black: 'border-slate-300/30 bg-slate-300/10',
   }
   const heroAccentPanel = heroAccentPanelMap[player.hero.attribute] || heroAccentPanelMap.black
-  const modelFramePosition = isLeft ? 'right-[4%]' : 'left-[4%]'
-  const modelOffsetPosition = isLeft ? 'left-[-10%]' : 'right-[-10%]'
-  const overlayPosition = isLeft ? 'left-[6%]' : 'right-[6%]'
+  const modelOffsetPosition = isLeft ? 'left-[-22%]' : 'right-[-22%]'
+  const overlayPosition = isLeft ? 'left-[12%]' : 'right-[12%]'
   const bannerPosition = isLeft ? 'left-[4%] items-start' : 'right-[4%] items-end'
 
   return (
@@ -138,11 +137,8 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
           isLeft ? 'pl-0' : 'pr-0'
         }`}
       >
-        <div
-          className={`absolute inset-y-[8%] z-0 w-[82%] rounded-[2.75rem] border border-white/8 bg-gradient-to-b from-white/10 via-white/[0.04] to-black/10 shadow-[0_20px_40px_rgba(0,0,0,0.24)] backdrop-blur-[10px] ${modelFramePosition}`}
-        />
         {player.hero.modelUrl ? (
-          <div className={`absolute inset-y-[2%] z-[1] w-[110%] min-h-[320px] ${modelOffsetPosition}`}>
+          <div className={`absolute inset-y-[-2%] z-[1] w-[132%] min-h-[360px] ${modelOffsetPosition}`}>
             <HeroModel3D
               modelUrl={player.hero.modelUrl}
               variant="battle"
@@ -175,13 +171,13 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
         } ls:top-[57%]`}
       >
         <div
-          className={`relative flex h-[5.25rem] w-[5.25rem] items-center justify-center rounded-full border-2 ${
-            player.hp < 10 ? 'border-red-400 bg-red-950/85 shadow-[0_0_24px_rgba(248,113,113,0.45)]' : 'border-emerald-300 bg-emerald-950/80 shadow-[0_0_24px_rgba(74,222,128,0.38)]'
+          className={`battle-hp-orb relative flex h-[5.7rem] w-[5.7rem] items-center justify-center rounded-full ${
+            player.hp < 10 ? 'saturate-50 hue-rotate-[120deg]' : ''
           }`}
         >
           <div className="absolute inset-[0.35rem] rounded-full border border-white/12" />
           <span
-            className={`font-orbitron font-bold text-3xl ls:text-2xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${
+            className={`font-orbitron font-bold text-4xl ls:text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.92)] ${
               player.hp < 10 ? 'text-red-200' : 'text-emerald-50'
             }`}
           >
@@ -190,7 +186,7 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
         </div>
 
         {/* HPのすぐ下: デッキ・墓地を近づけて中央にまとめる */}
-        <div className="flex items-end justify-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 py-2 shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur-md">
+        <div className="flex items-end justify-center gap-2 px-2 py-1 drop-shadow-[0_2px_5px_rgba(0,0,0,0.85)]">
           <div
             className="flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`残りデッキ ${player.deck.length}枚`}
@@ -200,7 +196,7 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
               {player.deck.length}
             </span>
           </div>
-          <div className="h-7 w-px bg-white/10" />
+          <div className="h-6 w-px bg-white/18" />
           <div
             className="group relative flex flex-col items-center justify-center min-w-0 gap-0.5"
             aria-label={`墓地 ${player.graveyard.length}枚`}

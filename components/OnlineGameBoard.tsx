@@ -840,25 +840,47 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const mainBattleStarted = gameState.phase === 'playing' && syncedServerNowMs >= gameStartForUi
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0f0a] flex flex-col font-orbitron select-none">
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#0a0f0a]/80 to-[#0a0f0a]" />
-      <div className="absolute inset-0 z-0 scanline pointer-events-none" />
+    <div className="relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none">
+      <div className="absolute inset-0 z-0 battle-atmosphere" />
+      <div className="absolute inset-0 z-0 battle-grid-overlay opacity-80" />
+      <div className="absolute inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-white/30 via-sky-100/8 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 z-0 h-64 bg-gradient-to-t from-black/60 via-emerald-950/18 to-transparent" />
+      <div className="absolute left-1/2 top-[42%] z-0 h-[min(86vw,55rem)] w-[min(86vw,55rem)] -translate-x-1/2 -translate-y-1/2 rounded-full battle-portal pointer-events-none">
+        <div className="absolute inset-[7%] rounded-full battle-portal-inner" />
+        <div className="absolute inset-[20%] rounded-full border border-white/18" />
+        <div className="absolute inset-x-[12%] top-1/2 h-0.5 -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-100/60 to-transparent" />
+        <div className="absolute inset-y-[12%] left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-transparent via-amber-100/46 to-transparent" />
+      </div>
+
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#123a32]/10 to-[#020706]/42" />
+      <div className="absolute inset-0 z-0 scanline pointer-events-none opacity-10" />
 
       {/* Header */}
-      <div className="relative z-10 w-full flex justify-center items-center gap-4 pt-4 ls:pt-1">
-        <div className="bg-black/60 px-8 ls:px-4 py-2 ls:py-1 border-t-2 border-yellow-500/50 clip-path-[polygon(15%_0%,85%_0%,100%_100%,0%_100%)]">
-          <span className="text-2xl ls:text-sm text-yellow-400 font-bold tracking-widest">ONLINE BATTLE</span>
+      <div className="pointer-events-none relative z-20 flex w-full items-start justify-between px-5 pt-3 ls:px-2 ls:pt-1">
+        <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
+          <button type="button" aria-label="降参" className="battle-top-button">
+            <span className="battle-flag-icon" />
+          </button>
+          <button type="button" aria-label="一時停止" className="battle-top-button">
+            <span className="battle-pause-icon" />
+          </button>
+          <div className="battle-player-ribbon ml-2 ls:ml-1">PLAYER1</div>
         </div>
-        {gameState.phase === 'playing' && mainBattleStarted && (
-          <div className="bg-black/70 px-4 py-1 rounded border border-yellow-500/40">
-            <span
-              className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${displayHeaderTimerMs <= 10000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}
-            >
-              {Math.floor(displayHeaderTimerMs / 60000)}:
-              {String(Math.floor((displayHeaderTimerMs % 60000) / 1000)).padStart(2, '0')}
-            </span>
-          </div>
-        )}
+        <div className="battle-center-chrome pointer-events-auto">
+          <span
+            className={`font-orbitron text-xl font-bold tabular-nums ls:text-base ${
+              displayHeaderTimerMs <= 10000 ? 'animate-pulse text-red-400' : 'text-yellow-300'
+            }`}
+          >
+            {gameState.phase === 'playing' && mainBattleStarted
+              ? `${Math.floor(displayHeaderTimerMs / 60000)}:${String(Math.floor((displayHeaderTimerMs % 60000) / 1000)).padStart(2, '0')}`
+              : '5:00'}
+          </span>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
+          <div className="battle-player-ribbon is-enemy mr-2 ls:mr-1">PLAYER2</div>
+        </div>
       </div>
 
       {gameState.activeResponse.isActive && (
@@ -1099,8 +1121,8 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       )}
 
       {/* Main Area */}
-      <div className="relative z-10 flex-1 flex items-stretch">
-        <div className="w-1/4 ls:w-1/5">
+      <div className="relative z-10 flex flex-1 items-stretch px-3 pt-3 ls:px-1.5 ls:pt-1">
+        <div className="w-[clamp(12rem,20vw,19rem)] min-w-[11rem] ls:min-w-[6rem] ls:w-[19vw]">
           <div
             ref={(el) => {
               if (el) heroRefs.current.set(player.playerId, el)
@@ -1130,7 +1152,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
 
         {/* Battle Slots */}
-        <div className="flex-1 flex flex-col justify-center gap-4 ls:gap-1 px-4 ls:px-2">
+        <div className="flex-1 flex flex-col justify-center gap-4 ls:gap-1.5 px-1 ls:px-0">
           {[0, 1, 2].map((lane) => {
             const leftUnit = getUnitInLane(player.units, lane)
             const rightUnit = getUnitInLane(opponent.units, lane)
@@ -1142,8 +1164,9 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             if (rightUnit) rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
 
             return (
-              <div key={lane} className="relative h-44 ls:h-24 w-full flex items-center justify-between px-16 ls:px-8">
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[2px] bg-white/5" />
+              <div key={lane} className="battle-lane-row relative mx-auto h-44 ls:h-24 w-full max-w-[68rem] flex items-center justify-between px-16 ls:px-8">
+                <div className="battle-lane-panel absolute inset-x-5 inset-y-3 rounded-[2rem] ls:rounded-[1rem] backdrop-blur-[2px]" />
+                <div className="absolute left-1/2 top-1/2 h-[2px] w-[58%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
                 {/* Attack Progress Bar - Left（敵ゲージ・矢印と縦位置をずらす） */}
                 {leftUnit && (
@@ -1218,7 +1241,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       />
                     </div>
                   ) : (
-                    <div key={`empty_left_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
+                    <div key={`empty_left_${lane}`} className="battle-empty-slot is-player" />
                   )}
                 </div>
 
@@ -1263,7 +1286,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                     />
                     </div>
                   ) : (
-                    <div key={`empty_right_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                    <div key={`empty_right_${lane}`} className="battle-empty-slot is-enemy" />
                   )}
                 </div>
               </div>
@@ -1271,14 +1294,16 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           })}
         </div>
 
-        <div className="w-1/4 ls:w-1/5">
+        <div className="w-[clamp(12rem,20vw,19rem)] min-w-[11rem] ls:min-w-[6rem] ls:w-[19vw]">
           <HeroPortrait player={toPlayerState(opponent)} side="right" cardMap={cardMap} />
         </div>
       </div>
 
       {/* Footer Area */}
-      <div className="relative z-20 h-64 ls:h-32 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center justify-end pb-6 ls:pb-1">
-        <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
+      <div className="relative z-20 flex h-72 ls:h-36 flex-col items-center justify-end pb-5 ls:pb-2">
+        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[78%] w-[min(96vw,76rem)] -translate-x-1/2 rounded-t-[2.2rem] battle-hud-shell" />
+        <div className="pointer-events-none absolute bottom-[calc(78%-1px)] left-1/2 h-px w-[min(82vw,62rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-100/70 to-transparent" />
+        <div className="battle-hand-row relative flex gap-3 ls:gap-1 items-end mb-6 ls:mb-1">
           {player.hand.map((cardId, i) => {
             // 相手の手札は空文字（表示しない）
             if (!cardId) return null
@@ -1309,7 +1334,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               const exCard = player.exPocket[slotIdx]
               if (!exCard) {
                 return (
-                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/40 rounded bg-purple-900/30 flex items-center justify-center backdrop-blur-sm">
                     <span className="text-purple-500/40 text-[8px]">EX</span>
                   </div>
                 )
@@ -1317,7 +1342,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
               const exCardDef = resolveCardDefinition(cardMap, exCard)
               if (!exCardDef) {
                 return (
-                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/40 rounded bg-purple-900/30 flex items-center justify-center backdrop-blur-sm">
                     <span className="text-purple-500/40 text-[8px]">EX</span>
                   </div>
                 )
@@ -1461,6 +1486,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       {abilityDragging && (
         <DraggingAbility name={abilityDragging.name} type={abilityDragging.type} position={dragPos} />
       )}
+      </div>
     </div>
   )
 }

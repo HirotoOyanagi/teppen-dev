@@ -49,47 +49,291 @@ body {
 
 .battle-atmosphere {
   background:
-    radial-gradient(circle at 50% 38%, rgba(135, 255, 221, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 86%, rgba(251, 191, 36, 0.16), transparent 24%),
-    radial-gradient(circle at 14% 52%, rgba(34, 211, 238, 0.12), transparent 22%),
-    radial-gradient(circle at 86% 50%, rgba(250, 204, 21, 0.1), transparent 20%),
-    linear-gradient(180deg, #12332b 0%, #081412 44%, #05070b 100%);
+    radial-gradient(ellipse at 50% 17%, rgba(255, 255, 255, 0.76) 0%, rgba(147, 209, 255, 0.34) 22%, transparent 39%),
+    radial-gradient(ellipse at 18% 34%, rgba(86, 222, 173, 0.34) 0%, transparent 30%),
+    radial-gradient(ellipse at 84% 38%, rgba(247, 209, 99, 0.3) 0%, transparent 32%),
+    linear-gradient(180deg, #74bdf3 0%, #d9f6ff 25%, #72b071 46%, #235641 67%, #08100e 100%);
+}
+
+.battle-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(118deg, transparent 0 13%, rgba(28, 83, 72, 0.28) 13.3% 14.2%, transparent 14.5% 100%),
+    linear-gradient(64deg, transparent 0 83%, rgba(45, 98, 80, 0.3) 83.2% 84.2%, transparent 84.4% 100%),
+    radial-gradient(ellipse at 50% 56%, rgba(252, 250, 211, 0.38), transparent 16%),
+    radial-gradient(ellipse at 50% 84%, rgba(65, 113, 92, 0.58), transparent 42%);
+}
+
+.battle-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 12, 14, 0.46), transparent 19%, transparent 81%, rgba(4, 12, 14, 0.5)),
+    linear-gradient(180deg, transparent 0%, rgba(2, 7, 8, 0.18) 55%, rgba(1, 5, 4, 0.82) 100%);
 }
 
 .battle-grid-overlay {
-  background-image:
-    linear-gradient(rgba(246, 201, 85, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(246, 201, 85, 0.06) 1px, transparent 1px);
-  background-size: 180px 148px;
-  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.95) 20%, transparent 75%);
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 238, 156, 0.15), transparent 48%),
+    linear-gradient(90deg, transparent 0%, rgba(255, 238, 156, 0.08) 50%, transparent 100%);
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.86) 10%, rgba(0, 0, 0, 0.42) 48%, transparent 78%);
 }
 
 .battle-portal {
-  border: 3px solid rgba(245, 223, 120, 0.2);
+  border: 10px solid rgba(57, 64, 57, 0.54);
   box-shadow:
-    0 0 0 8px rgba(8, 12, 15, 0.35),
-    0 0 0 20px rgba(255, 255, 255, 0.03),
-    0 0 60px rgba(250, 204, 21, 0.12);
+    0 0 0 2px rgba(255, 247, 182, 0.52),
+    0 0 0 20px rgba(27, 39, 35, 0.34),
+    inset 0 0 0 2px rgba(255, 247, 182, 0.28),
+    0 0 90px rgba(255, 224, 113, 0.42);
   background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 48%, transparent 72%);
+    radial-gradient(circle at center, rgba(255, 247, 185, 0.18) 0%, rgba(255, 255, 255, 0.03) 48%, transparent 72%);
+  opacity: 0.92;
 }
 
 .battle-portal-inner {
-  border: 2px solid rgba(255, 244, 180, 0.22);
+  border: 3px solid rgba(77, 85, 76, 0.5);
   box-shadow:
-    inset 0 0 24px rgba(255, 255, 255, 0.04),
-    0 0 24px rgba(250, 204, 21, 0.08);
+    inset 0 0 24px rgba(255, 255, 255, 0.14),
+    0 0 34px rgba(250, 204, 21, 0.2);
 }
 
 .battle-hud-shell {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(194, 205, 204, 0.36);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.05)),
-    rgba(4, 8, 12, 0.72);
+    linear-gradient(180deg, rgba(218, 235, 240, 0.18), rgba(10, 16, 17, 0.1)),
+    linear-gradient(90deg, rgba(5, 11, 12, 0.2), rgba(13, 22, 23, 0.78), rgba(5, 11, 12, 0.2));
   box-shadow:
-    0 -20px 60px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 -18px 56px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(20px);
+}
+
+.battle-top-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 999px;
+  border: 2px solid rgba(21, 24, 23, 0.84);
+  background: radial-gradient(circle at 35% 25%, #f3f0d5, #72766d 28%, #151817 58%, #050606 100%);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.45),
+    inset 0 2px 2px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55);
+}
+
+.battle-flag-icon {
+  width: 1.1rem;
+  height: 1.25rem;
+  border-left: 0.22rem solid #ffd84d;
+}
+
+.battle-flag-icon::before {
+  content: "";
+  display: block;
+  width: 0.9rem;
+  height: 0.62rem;
+  background: #ffd84d;
+  clip-path: polygon(0 0, 100% 22%, 74% 58%, 100% 100%, 0 82%);
+}
+
+.battle-pause-icon,
+.battle-pause-icon::before {
+  display: block;
+  width: 0.28rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #ffd84d;
+  box-shadow: 0 0 8px rgba(255, 216, 77, 0.7);
+}
+
+.battle-pause-icon::before {
+  content: "";
+  margin-left: 0.56rem;
+}
+
+.battle-player-ribbon {
+  min-width: 11rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(236, 245, 255, 0.96);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(57, 82, 164, 0.22) 10%, rgba(75, 91, 190, 0.78) 50%, rgba(57, 82, 164, 0.22) 90%, transparent 100%);
+  clip-path: polygon(9% 0, 100% 0, 91% 100%, 0 100%);
+}
+
+.battle-player-ribbon.is-enemy {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(134, 34, 28, 0.24) 10%, rgba(176, 48, 39, 0.8) 50%, rgba(134, 34, 28, 0.24) 90%, transparent 100%);
+  clip-path: polygon(0 0, 91% 0, 100% 100%, 9% 100%);
+}
+
+.battle-center-chrome {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.35rem 1.1rem;
+  border: 2px solid rgba(39, 43, 41, 0.68);
+  border-radius: 0.8rem;
+  background:
+    linear-gradient(180deg, rgba(253, 243, 174, 0.88), rgba(97, 95, 73, 0.66) 26%, rgba(21, 24, 23, 0.9) 27%, rgba(5, 7, 7, 0.88) 100%);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.battle-center-chrome::before,
+.battle-center-chrome::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: min(24vw, 23rem);
+  height: 0.28rem;
+  background: linear-gradient(90deg, transparent, rgba(39, 43, 41, 0.74), rgba(255, 224, 96, 0.7), rgba(39, 43, 41, 0.74), transparent);
+  transform: translateY(-50%);
+}
+
+.battle-center-chrome::before {
+  right: 100%;
+}
+
+.battle-center-chrome::after {
+  left: 100%;
+}
+
+.battle-lane-row {
+  perspective: 1200px;
+}
+
+.battle-lane-panel {
+  border: 0;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 244, 151, 0.16) 10%, rgba(255, 244, 151, 0.24) 50%, rgba(255, 244, 151, 0.16) 90%, transparent 100%),
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%);
+  background-position: center 42%, center 58%;
+  background-repeat: no-repeat;
+  background-size: 94% 1px, 80% 1px;
+  box-shadow:
+    none;
+  transform: rotateX(5deg);
+}
+
+.battle-lane-panel::before,
+.battle-lane-panel::after {
+  display: none;
+}
+
+.battle-empty-slot {
+  position: relative;
+  width: 5.8rem;
+  height: 2.75rem;
+  clip-path: polygon(18% 0, 82% 0, 100% 50%, 82% 100%, 18% 100%, 0 50%);
+  opacity: 0.78;
+  background: rgba(255, 244, 151, 0.45);
+  box-shadow:
+    0 0 16px rgba(255, 230, 120, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+}
+
+.battle-empty-slot::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  clip-path: inherit;
+  background: rgba(3, 16, 15, 0.5);
+}
+
+.battle-empty-slot.is-player {
+  background: rgba(115, 232, 255, 0.4);
+  box-shadow:
+    0 0 16px rgba(63, 219, 255, 0.2),
+    inset 0 0 0 1px rgba(220, 252, 255, 0.32);
+}
+
+.battle-empty-slot.is-enemy {
+  background: rgba(255, 118, 103, 0.34);
+  box-shadow:
+    0 0 16px rgba(255, 91, 78, 0.18),
+    inset 0 0 0 1px rgba(255, 229, 225, 0.26);
+}
+
+.battle-ability-dock,
+.battle-opponent-dock {
+  border: 1px solid rgba(207, 218, 213, 0.25);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(0, 0, 0, 0.08)),
+    rgba(5, 10, 9, 0.62);
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.battle-ap-card {
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(140deg, rgba(255, 220, 77, 0.95), rgba(174, 112, 8, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -6px 12px rgba(75, 45, 0, 0.3);
+}
+
+.battle-amp-card {
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(140deg, rgba(33, 202, 226, 0.96), rgba(17, 86, 169, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -6px 12px rgba(0, 28, 74, 0.34);
+}
+
+.battle-hp-orb {
+  background:
+    radial-gradient(circle at 40% 32%, rgba(255, 255, 255, 0.92), rgba(98, 255, 177, 0.42) 27%, rgba(1, 54, 33, 0.94) 62%, rgba(0, 15, 10, 0.96));
+  box-shadow:
+    0 0 0 3px rgba(135, 255, 198, 0.9),
+    0 0 0 7px rgba(10, 56, 40, 0.82),
+    0 0 36px rgba(46, 255, 132, 0.76);
+}
+
+.battle-hand-row {
+  filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.32));
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .battle-top-button {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
+  .battle-player-ribbon {
+    min-width: 7.5rem;
+    height: 1.35rem;
+    font-size: 0.7rem;
+  }
+
+  .battle-center-chrome {
+    padding: 0.2rem 0.55rem;
+    gap: 0.45rem;
+  }
+
+  .battle-empty-slot {
+    width: 3.5rem;
+    height: 1.7rem;
+  }
 }
 
 /* ===== 横画面スマホ対応 ===== */

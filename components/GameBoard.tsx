@@ -1160,29 +1160,35 @@ export default function GameBoard(props: GameBoardProps) {
   }
 
   return (
-    <div className={`relative isolate flex h-screen w-screen overflow-hidden bg-[#05070b] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
+    <div className={`relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
       <div className="absolute inset-0 z-0 battle-atmosphere" />
-      <div className="absolute inset-0 z-0 battle-grid-overlay opacity-90" />
-      <div className="absolute inset-x-0 top-0 z-0 h-40 bg-gradient-to-b from-sky-300/10 via-transparent to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 z-0 h-56 bg-gradient-to-t from-amber-500/10 via-transparent to-transparent" />
-      <div className="absolute left-1/2 top-[44%] z-0 h-[min(72vw,46rem)] w-[min(72vw,46rem)] -translate-x-1/2 -translate-y-1/2 rounded-full battle-portal pointer-events-none">
+      <div className="absolute inset-0 z-0 battle-grid-overlay opacity-80" />
+      <div className="absolute inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-white/30 via-sky-100/8 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 z-0 h-64 bg-gradient-to-t from-black/60 via-emerald-950/18 to-transparent" />
+      <div className="absolute left-1/2 top-[42%] z-0 h-[min(86vw,55rem)] w-[min(86vw,55rem)] -translate-x-1/2 -translate-y-1/2 rounded-full battle-portal pointer-events-none">
         <div className="absolute inset-[7%] rounded-full battle-portal-inner" />
-        <div className="absolute inset-[20%] rounded-full border border-white/10" />
-        <div className="absolute inset-x-[18%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
-        <div className="absolute inset-y-[18%] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-amber-200/30 to-transparent" />
+        <div className="absolute inset-[20%] rounded-full border border-white/18" />
+        <div className="absolute inset-x-[12%] top-1/2 h-0.5 -translate-y-1/2 bg-gradient-to-r from-transparent via-amber-100/60 to-transparent" />
+        <div className="absolute inset-y-[12%] left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-transparent via-amber-100/46 to-transparent" />
       </div>
 
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#05070b]/30 to-[#05070b]/65" />
-      <div className="absolute inset-0 z-0 scanline pointer-events-none opacity-35" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[#123a32]/10 to-[#020706]/42" />
+      <div className="absolute inset-0 z-0 scanline pointer-events-none opacity-10" />
 
-      {/* Header - 中央の情報密度を上げる */}
-      <div className="relative z-10 w-full flex justify-center pt-4 ls:pt-2">
-        <div className="flex items-center gap-3 rounded-full border border-amber-300/20 bg-black/40 px-4 py-2 shadow-[0_16px_34px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-          <div className="rounded-full border border-amber-200/15 bg-black/45 px-6 py-1.5">
-            <span className="text-[1.65rem] ls:text-sm text-yellow-300 font-bold tracking-[0.32em]">BATTLE</span>
-          </div>
-          {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime && (
+      {/* Header */}
+      <div className="pointer-events-none relative z-20 flex w-full items-start justify-between px-5 pt-3 ls:px-2 ls:pt-1">
+        <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
+          <button type="button" aria-label="降参" className="battle-top-button">
+            <span className="battle-flag-icon" />
+          </button>
+          <button type="button" aria-label="一時停止" className="battle-top-button">
+            <span className="battle-pause-icon" />
+          </button>
+          <div className="battle-player-ribbon ml-2 ls:ml-1">PLAYER1</div>
+        </div>
+        <div className="battle-center-chrome pointer-events-auto">
+          {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime ? (
             <TimerDisplay
               timeRemainingMs={
                 gameState.activeResponse.isActive
@@ -1190,7 +1196,14 @@ export default function GameBoard(props: GameBoardProps) {
                   : gameState.timeRemainingMs ?? 5 * 60 * 1000
               }
             />
+          ) : (
+            <div className="rounded-full border border-amber-200/25 bg-black/55 px-5 py-1.5 text-xl font-bold text-yellow-300 ls:px-3 ls:py-1 ls:text-sm">
+              5:00
+            </div>
           )}
+        </div>
+        <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
+          <div className="battle-player-ribbon is-enemy mr-2 ls:mr-1">PLAYER2</div>
         </div>
       </div>
 
@@ -1255,7 +1268,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
       {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
-        <div className="absolute bottom-28 left-4 z-30 flex gap-3 rounded-[1.8rem] border border-white/10 bg-black/35 px-3 py-3 shadow-[0_16px_36px_rgba(0,0,0,0.28)] backdrop-blur-xl ls:bottom-18 ls:left-2 ls:gap-1.5 ls:px-2 ls:py-2">
+        <div className="battle-ability-dock absolute bottom-28 left-4 z-30 flex gap-3 rounded-[1.35rem] px-3 py-3 ls:bottom-18 ls:left-2 ls:gap-1.5 ls:px-2 ls:py-2">
           {player.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <button
@@ -1268,13 +1281,13 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.heroArt.cost}
-                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-[1.35rem] border-2 overflow-hidden transition-all ${
+                className={`battle-ap-card relative touch-none w-24 h-32 ls:w-16 ls:h-24 border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.heroArt.cost
                     ? 'border-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.42)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-amber-700" />
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/40 via-transparent to-black/20" />
                 <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-xs font-bold px-1.5 rounded-tl">
                   {player.hero.heroArt.cost}AP
                 </span>
@@ -1316,13 +1329,13 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.companion.cost}
-                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-[1.35rem] border-2 overflow-hidden transition-all ${
+                className={`battle-amp-card relative touch-none w-24 h-32 ls:w-16 ls:h-24 border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.companion.cost
                     ? 'border-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.38)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-700" />
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-100/32 via-transparent to-black/18" />
                 <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-xs font-bold px-1.5 rounded-tl">
                   {player.hero.companion.cost}AP
                 </span>
@@ -1357,7 +1370,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 相手のEXポケット（アーツの左隣）＋必殺技・おとも（右上・表示のみ） */}
       {gameState.phase === 'playing' && (
-        <div className="absolute top-24 right-4 z-30 flex flex-row items-end gap-2 rounded-[1.5rem] border border-white/10 bg-black/30 px-2.5 py-2 shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-xl ls:top-16 ls:right-2 ls:gap-1 ls:px-2 ls:py-1.5">
+        <div className="battle-opponent-dock absolute top-24 right-4 z-30 flex flex-row items-end gap-2 rounded-[1.15rem] px-2.5 py-2 ls:top-14 ls:right-2 ls:gap-1 ls:px-2 ls:py-1.5">
           <div className="flex shrink-0 gap-1" aria-label="相手のEXポケット">
             {[0, 1].map((slotIdx) => {
               const rawId = opponent.exPocket[slotIdx]
@@ -1447,9 +1460,9 @@ export default function GameBoard(props: GameBoardProps) {
       )}
 
       {/* Main Area - 左右のヒーローと中央盤面を一体化 */}
-      <div className="relative z-10 flex flex-1 items-stretch px-3 pt-6 ls:px-1.5 ls:pt-2">
+      <div className="relative z-10 flex flex-1 items-stretch px-3 pt-3 ls:px-1.5 ls:pt-1">
         <div className={`flex flex-col ${
-          player.hero.modelUrl ? 'w-[clamp(10rem,16vw,14.5rem)] min-w-[10rem] ls:min-w-[6rem] ls:w-[18vw]' : 'w-[14vw]'
+          player.hero.modelUrl ? 'w-[clamp(12rem,20vw,19rem)] min-w-[11rem] ls:min-w-[6rem] ls:w-[19vw]' : 'w-[14vw]'
         }`}>
           <div
             ref={(el) => {
@@ -1481,7 +1494,7 @@ export default function GameBoard(props: GameBoardProps) {
         </div>
 
         {/* Battle Slots */}
-        <div className="flex-1 flex flex-col justify-center gap-5 ls:gap-2 px-2 ls:px-1">
+        <div className="flex-1 flex flex-col justify-center gap-4 ls:gap-1.5 px-1 ls:px-0">
           {[0, 1, 2].map((lane) => {
             const leftUnit = getUnitInLane(player.units, lane)
             const rightUnit = getUnitInLane(opponent.units, lane)
@@ -1497,8 +1510,8 @@ export default function GameBoard(props: GameBoardProps) {
             }
 
             return (
-              <div key={lane} className="relative mx-auto h-44 ls:h-24 w-full max-w-[64rem] flex items-center justify-between px-16 ls:px-8">
-                <div className="absolute inset-x-8 inset-y-3 rounded-[2rem] border border-white/5 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[2px]" />
+              <div key={lane} className="battle-lane-row relative mx-auto h-44 ls:h-24 w-full max-w-[68rem] flex items-center justify-between px-16 ls:px-8">
+                <div className="battle-lane-panel absolute inset-x-5 inset-y-3 rounded-[2rem] ls:rounded-[1rem] backdrop-blur-[2px]" />
                 {/* Lane Line (背景) */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[58%] h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
@@ -1598,7 +1611,7 @@ export default function GameBoard(props: GameBoardProps) {
                       />
                     </div>
                   ) : (
-                    <div key={`empty_left_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-cyan-400/20 hex-clip bg-cyan-400/5 rotate-90" />
+                    <div key={`empty_left_${lane}`} className="battle-empty-slot is-player" />
                   )}
                 </div>
 
@@ -1652,7 +1665,7 @@ export default function GameBoard(props: GameBoardProps) {
                     />
                     </div>
                   ) : (
-                    <div key={`empty_right_${lane}`} className="w-20 h-10 ls:w-14 ls:h-7 border border-red-400/20 hex-clip bg-red-400/5 rotate-90" />
+                    <div key={`empty_right_${lane}`} className="battle-empty-slot is-enemy" />
                   )}
                 </div>
               </div>
@@ -1661,7 +1674,7 @@ export default function GameBoard(props: GameBoardProps) {
         </div>
 
         <div className={`flex flex-col ${
-          opponent.hero.modelUrl ? 'w-[clamp(10rem,16vw,14.5rem)] min-w-[10rem] ls:min-w-[6rem] ls:w-[18vw]' : 'w-[14vw]'
+          opponent.hero.modelUrl ? 'w-[clamp(12rem,20vw,19rem)] min-w-[11rem] ls:min-w-[6rem] ls:w-[19vw]' : 'w-[14vw]'
         }`}>
           <div className="flex-1 min-h-0 overflow-visible">
             <HeroPortrait player={opponent} side="right" cardMap={cardMap} />
@@ -1671,10 +1684,10 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* Footer Area */}
       <div className="relative z-20 flex h-72 ls:h-36 flex-col items-center justify-end pb-5 ls:pb-2">
-        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[78%] w-[min(96vw,76rem)] -translate-x-1/2 rounded-t-[2.6rem] battle-hud-shell" />
-        <div className="pointer-events-none absolute bottom-[calc(78%-1px)] left-1/2 h-px w-[min(82vw,62rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[78%] w-[min(96vw,76rem)] -translate-x-1/2 rounded-t-[2.2rem] battle-hud-shell" />
+        <div className="pointer-events-none absolute bottom-[calc(78%-1px)] left-1/2 h-px w-[min(82vw,62rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-100/70 to-transparent" />
         <div className="relative flex w-full max-w-[72rem] justify-center px-6 ls:px-2">
-        <div className="flex gap-4 ls:gap-1 items-end mb-6 ls:mb-1">
+        <div className="battle-hand-row flex gap-3 ls:gap-1 items-end mb-6 ls:mb-1">
           {/* 手札 */}
           {player.hand.map((cardId, i) => {
             const cardDef = resolveCardDefinition(cardMap, cardId)
@@ -1705,7 +1718,7 @@ export default function GameBoard(props: GameBoardProps) {
               const exCard = player.exPocket[slotIdx]
               if (!exCard) {
                 return (
-                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/40 rounded bg-purple-900/30 flex items-center justify-center backdrop-blur-sm">
                     <span className="text-purple-500/40 text-[8px]">EX</span>
                   </div>
                 )
@@ -1713,7 +1726,7 @@ export default function GameBoard(props: GameBoardProps) {
               const exCardDef = resolveCardDefinition(cardMap, exCard)
               if (!exCardDef) {
                 return (
-                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/30 rounded bg-purple-900/20 flex items-center justify-center">
+                  <div key={`ex_slot_${slotIdx}`} className="w-16 h-24 border border-purple-500/40 rounded bg-purple-900/30 flex items-center justify-center backdrop-blur-sm">
                     <span className="text-purple-500/40 text-[8px]">EX</span>
                   </div>
                 )

@@ -18,11 +18,11 @@ interface HeroModel3DProps {
 const TILT_LEFT = (5 * Math.PI) / 180
 const FACE_ROTATION: Record<string, number> = {
   left: 0 + TILT_LEFT,
-  right: Math.PI - TILT_LEFT,
+  right: -TILT_LEFT,
 }
 const MODEL_BASE_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: -1.24,
-  battle: -0.62,
+  battle: -0.98,
 }
 const MODEL_BOB_AMPLITUDE_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: 0.03,
@@ -30,19 +30,19 @@ const MODEL_BOB_AMPLITUDE_BY_VARIANT: Record<HeroModelVariant, number> = {
 }
 const CAMERA_LOOK_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: -0.16,
-  battle: -0.42,
+  battle: -0.2,
 }
 const CAMERA_POS_Y_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: -0.08,
-  battle: 0.2,
+  battle: 0.08,
 }
 const CAMERA_POS_Z_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: 2,
-  battle: 2.2,
+  battle: 2.7,
 }
 const CAMERA_FOV_BY_VARIANT: Record<HeroModelVariant, number> = {
   home: 42,
-  battle: 46,
+  battle: 48,
 }
 
 function AnimatedModel({
@@ -91,8 +91,8 @@ function AnimatedModel({
   })
 
   const faceRotation = side !== undefined ? FACE_ROTATION[side] : 0
-  const scale = variant === 'battle' ? 1.5 : 1.5
-  const offsetX = variant === 'battle' ? (side === 'left' ? 0.15 : -0.15) : 0
+  const scale = variant === 'battle' ? 1.22 : 1.5
+  const offsetX = variant === 'battle' ? (side === 'left' ? 0.08 : -0.08) : 0
   const offsetY = MODEL_BASE_Y_BY_VARIANT[variant]
 
   return (
