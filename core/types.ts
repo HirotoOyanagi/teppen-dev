@@ -92,10 +92,14 @@ export interface Unit {
   resonateFireSeedEffects?: string[] // 火種を使用した時の効果関数
   enemyActionEffects?: string[] // 相手がアクションカードを使用した時の効果関数
   dotEffects?: { damage: number; intervalMs: number; timer: number; remainingTicks?: number }[] // 継続ダメージ（remainingTicks未定義=無限）
+  regenEffects?: { heal: number; intervalMs: number; timer: number; remainingTicks?: number }[] // 継続回復
+  delayedEffects?: { timerMs: number; effect: string; repeatMs?: number }[] // 場にいる間に発動する遅延/周期効果
+  aliveTimeMs?: number // 場に出てからの経過時間
   // カード固有効果用
   heroHitEffects?: string[] // 敵ヒーローにダメージを与えた時の効果
   haltedEnemyDeathEffects?: string[] // 停止敵死亡時の効果
   friendlyUnitEnterEffects?: string[] // 味方ユニット登場時の効果
+  friendlyUnitAttackEffects?: string[] // 味方ユニット攻撃時の効果
   whileOnFieldEffects?: WhileOnFieldEffect[] // 場にいる間の効果
   attackThreshold?: { threshold: number; effects: string[]; triggered: boolean } // 攻撃力閾値
   hpThreshold?: { threshold: number; effects: string[]; triggered: boolean } // HP閾値
@@ -118,6 +122,10 @@ export interface Unit {
   hpConditionEffects?: { condition: string; effects: string[] }[] // HP条件付き効果
   killerId?: string // このユニットを破壊したユニットのID（死亡時にセット）
   damageReduction?: number // ダメージ軽減値（ミラおとも用）
+  combatDamageReduction?: number // 戦闘ダメージ軽減値
+  combatDamageReductionTimer?: number // 戦闘ダメージ軽減の残り時間（ms）
+  combatDamageReductionUses?: number // 戦闘ダメージ軽減の残り回数
+  unyieldingCount?: number // HP0になるダメージをHP1で耐える回数
   noCounterattack?: boolean // 反撃不可
   damageTakenBoost?: number // 受けるダメージ増加（+N）
   damageTakenBoostTimer?: number // 残り時間（ms）
@@ -184,6 +192,8 @@ export interface PlayerState {
   exPocket: string[] // EXポケット（cardId文字列、@cost=等の修飾子付き）
   revealedHandCardIds?: string[] // 公開中の手札カードID（Purpleカード「公開」メカニクス）
   heroDotEffects?: { damage: number; intervalMs: number; timer: number; remainingTicks?: number }[] // ヒーローへの継続ダメージ（毒増幅等）
+  mpBoosts?: { percent: number; timerMs?: number }[] // 一時/永続MPブースト
+  delayedEffects?: { timerMs: number; effect: string }[] // プレイヤーに紐づく遅延効果
   actionCardUsedCount?: number // バトル中アクションカード使用回数
   levelUpCount?: number // 味方ユニットレベルアップ回数
   awakeningCount?: number // 目覚め回数

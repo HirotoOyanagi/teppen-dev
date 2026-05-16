@@ -372,8 +372,9 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       expect(ally?.maxHp).toBe(6)
     })
 
-    it('COR_011 はテスト環境と同じ相手盤面でも対象選択なしで場に出てランダムな敵1体へ3ダメージを与える', () => {
+    it('COR_011 は相手盤面があっても対象選択なしで場に出てランダムな敵1体へ3ダメージを与える', () => {
       const state = applyTestModeSetup(createTestGameState(), cardMap)
+      state.players[1].units.push(createUnit('test_mode_opponent_unit', 1, 5, 2, TEST_MODE_OPPONENT_CARD_ID))
       const opponentBefore = state.players[1].units.map((unit) => ({ id: unit.id, hp: unit.hp }))
 
       const result = playUnit(state, 'cor_011', 0)
@@ -852,6 +853,90 @@ describe('新カードCore 赤カードの挙動テスト', () => {
     })
   })
 
+  describe('緑カード COR_046-COR_090', () => {
+    it('COR_046 は登場時に味方ヒーローを3回復する', () => {
+      gameState.players[0].hp = 20
+
+      const result = playUnit(gameState, 'cor_046', 0)
+
+      expect(result.state.players[0].hp).toBe(23)
+    })
+
+    it('COR_049 は後続の味方ユニットに+3HPを付与する', () => {
+      const priest = playUnit(gameState, 'cor_049', 0)
+      const result = playUnit(priest.state, 'cor_046', 1)
+      const entered = getUnitInLane(result.state, 'player1', 1)
+
+      expect(entered?.hp).toBe(8)
+      expect(entered?.maxHp).toBe(8)
+    })
+
+    it('COR_050 は対象に+2HPし、5秒後に同じ対象へ+2/+2する', () => {
+      gameState.players[0].units.push(createUnit('ally_target', 1, 5, 2))
+
+      const played = playUnit(gameState, 'cor_050', 0, 'ally_target')
+      const afterPlay = played.state.players[0].units.find((unit) => unit.id === 'ally_target')
+      expect(afterPlay?.hp).toBe(7)
+      expect(afterPlay?.attack).toBe(2)
+
+      const result = advanceTime(played.state, 5000)
+      const ally = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
+      expect(ally?.hp).toBe(9)
+      expect(ally?.maxHp).toBe(9)
+      expect(ally?.attack).toBe(4)
+    })
+
+    it('COR_053 は一時MPブーストでMP回復速度を上げる', () => {
+      const played = playUnit(gameState, 'cor_053', 0)
+      played.state.players[0].mp = 0
+
+      const result = advanceTime(played.state, 1000)
+
+      expect(result.state.players[0].mp).toBeCloseTo(0.45, 5)
+    })
+
+    it('COR_061 は味方攻撃時にランダム味方ユニットを2回復する', () => {
+      const played = playUnit(gameState, 'cor_061', 0)
+      const unit = getUnitInLane(played.state, 'player1', 0)
+      if (!unit) throw new Error('COR_061 unit was not played')
+      unit.hp = 5
+
+      const result = advanceTime(played.state, 10000)
+      const healed = getUnitInLane(result.state, 'player1', 0)
+
+      expect(healed?.hp).toBe(7)
+    })
+
+    it('COR_083 の硬化は戦闘ダメージを軽減する', () => {
+      const ally = createUnit('ally_target', 0, 5, 0)
+      const enemy = createUnit('enemy_front', 0, 5, 5)
+      enemy.attackGauge = 0.5
+      gameState.players[0].units.push(ally)
+      gameState.players[1].units.push(enemy)
+
+      const hardened = playActionAndResolve(gameState, 'cor_083', 'ally_target')
+      const result = advanceTime(hardened.state, 5000)
+      const updatedAlly = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
+
+      expect(updatedAlly?.hp).toBe(6)
+    })
+
+    it('COR_089 の不屈はHP0になる戦闘ダメージをHP1で耐える', () => {
+      const ally = createUnit('ally_target', 0, 5, 0)
+      const enemy = createUnit('enemy_front', 0, 5, 10)
+      enemy.attackGauge = 0.5
+      gameState.players[0].units.push(ally)
+      gameState.players[1].units.push(enemy)
+
+      const blessed = playActionAndResolve(gameState, 'cor_089')
+      const result = advanceTime(blessed.state, 5000)
+      const updatedAlly = result.state.players[0].units.find((unit) => unit.id === 'ally_target')
+
+      expect(updatedAlly?.hp).toBe(1)
+      expect(updatedAlly?.unyieldingCount).toBe(0)
+    })
+  })
+
   describe('補助確認', () => {
     it('赤カード45枚のマッピングが定義されている', () => {
       const allIds = Array.from(cardMap.keys())
@@ -886,6 +971,20 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       })
 
       expect(redMappings).toHaveLength(45)
+    })
+
+    it('緑の新カード45枚分のeffectFunctionsが存在する', () => {
+      const greenMappings = Array.from(cardMap.keys()).filter((cardId) => {
+        const card = cardMap.get(cardId)
+        if (!card || card.attribute !== 'green') {
+          return false
+        }
+
+        const number = Number.parseInt(cardId.split('_')[1] || '0', 10)
+        return number >= 46 && number <= 90 && Boolean(card.effectFunctions)
+      })
+
+      expect(greenMappings).toHaveLength(45)
     })
 
     it('攻撃トリガーのカードは時間経過で攻撃処理に進める', () => {

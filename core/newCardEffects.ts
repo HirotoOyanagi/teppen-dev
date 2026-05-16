@@ -14,8 +14,8 @@ export const newCardEffectFunctions: Record<string, string> = {
   // COR_001 イグニス: 登場時：自身のEXポケットに「火種」を1枚加える。自身がアクションカードを使ったとき、このユニットの攻撃力を＋1。
   cor_001: 'play:add_fire_seed_to_ex;resonate:buff_self_attack:1;ex_resonate:buff_self_attack:1',
 
-  // COR_002 ライガ: プレイ時：自身のEXポケットに「焔の洗礼」を1枚加える。自身がEXポケットからカードを使ったとき、ランダムな敵ユニット1体に2ダメージ。
-  cor_002: 'play:add_flame_baptism_to_ex;ex_resonate:damage_random_enemy:2',
+  // COR_002 ライガ: プレイ時：最低MPの手札を墓地に送り、自身のEXポケットに「焔の洗礼」を1枚加える。自身がEXポケットからカードを使ったとき、ランダムな敵ユニット1体に2ダメージ。
+  cor_002: 'play:discard_lowest_mp_hand;play:add_flame_baptism_to_ex;ex_resonate:damage_random_enemy:2',
 
   // COR_003 アッシュ: EXポケットからアクションカードを使ったとき、このユニットは即時攻撃を行う。
   cor_003: 'ex_resonate:immediate_attack_self',
@@ -148,6 +148,145 @@ export const newCardEffectFunctions: Record<string, string> = {
 
   // COR_045 斬り込み特攻: 味方ユニット1体に、その正面に敵ユニットがいるなら+5攻撃力を付与する。いないなら、代わりに+1攻撃力と「連撃」を付与する。
   cor_045: 'target:friendly_unit;buff_target_conditional_front:5',
+
+  // ── 緑ユニットカード ──
+
+  // COR_046 ヒナ: 登場時：味方ヒーローのライフを3回復する。
+  cor_046: 'play:heal_hero:3',
+
+  // COR_047 メットール: 登場時：自身を除く味方ユニット1体のHPを2回復する。
+  cor_047: 'play:heal_other_friendly:2',
+
+  // COR_048 リーフ: 攻撃時：ランダムな味方ユニット一体に+1/+1を付与する。
+  cor_048: 'attack:buff_random_friendly_attack_hp_inclusive:1',
+
+  // COR_049 プリースト: 味方ユニットをプレイしたとき、そのユニットに+3HPを付与する。
+  cor_049: 'friendly_unit_enter:buff_target_hp:3',
+
+  // COR_050 ガーディアン: 味方ユニット1体に+2HP。5秒後に同じユニットへ+2/+2。
+  cor_050: 'play:buff_target_hp_delayed_attack_hp:2:5:2',
+
+  // COR_051 エルダー: 場にいる間、13秒ごとに自身へ+2/+2とシールド1。
+  cor_051: 'play:add_self_periodic_buff_shield:2:1:13',
+
+  // COR_052 ミオ: 味方ヒーロー3回復。10秒後にさらに3回復。
+  cor_052: 'play:heal_hero:3;play:delayed_self_alive_heal_hero:3:10',
+
+  // COR_053 シャーマン: 味方ヒーローにMPブースト50を10秒間付与。
+  cor_053: 'play:grant_mp_boost:50:10',
+
+  // COR_054 タイタン: 味方ヒーローにシールド2、ライフ5回復。
+  cor_054: 'play:grant_hero_shield:2;play:heal_hero:5',
+
+  // COR_055 ソウヤー: 味方ユニット1体にシールド1、そのユニットを3回復。
+  cor_055: 'play:grant_shield_heal_target:1:3',
+
+  // COR_056 ワッチ: 自身にシールド2。味方ユニットがプレイされるたび、そのユニットに+2HP。
+  cor_056: 'shield:2;friendly_unit_enter:buff_target_hp:2',
+
+  // COR_057 ヘラルド: シールド持ち味方すべて+3HP、さらにランダム1体にシールド1。
+  cor_057: 'play:buff_shielded_friendly_hp:3;play:grant_shield_random_shielded_friendly:1',
+
+  // COR_058 キーパー: ランダムな味方ユニット1体に不屈とシールド2。
+  cor_058: 'play:grant_unyielding_random_friendly:1;play:grant_shield_random_friendly:2',
+
+  // COR_059 プロテクター: 自身にシールド2。攻撃時、自身にシールド1。
+  cor_059: 'shield:2;attack:grant_shield_self:1',
+
+  // COR_060 硬芽のバインダー: 味方ユニット1体にシールド2と+4HP。15秒後、味方すべてにシールド1。
+  cor_060: 'play:grant_shield_hp_target:2:4;play:delayed_self_alive_grant_all_friendly_shield:1:15',
+
+  // COR_061 翠冠の守護竜: 味方すべてにシールド1、自身にシールド2。味方攻撃時ランダム味方2回復。
+  cor_061: 'play:grant_shield_all_friendly:1;shield:2;friendly_unit_attack:heal_random_friendly_inclusive:2',
+
+  // COR_062 森契のペイヤー: 味方ヒーローにMPブースト30を20秒間付与。
+  cor_062: 'play:grant_mp_boost:30:20',
+
+  // COR_063 翠魂のロード: 味方ユニット1体にシールド3と+5HP。シールド持ち味方2体以上なら全味方にシールド1。
+  cor_063: 'play:grant_shield_hp_target:3:5;play:grant_all_friendly_shield_if_shielded_count:2:1',
+
+  // COR_064 スプリッツ: 登場時：味方ヒーローのライフを4回復する。
+  cor_064: 'play:heal_hero:4',
+
+  // COR_065 ディフェンダー: 味方ユニット1体に+2HP。5秒後に同じユニットへ+2/+2。
+  cor_065: 'play:buff_target_hp_delayed_attack_hp:2:5:2',
+
+  // COR_066 フラッグ: シールドを持つ味方ユニットすべてに+3HP。
+  cor_066: 'play:buff_shielded_friendly_hp:3',
+
+  // COR_067 テイラー: 味方ユニット1体にシールド2と+3HP。
+  cor_067: 'play:grant_shield_hp_target:2:3',
+
+  // COR_068 ミキサー: 味方ユニット1体に硬化。ライフ半分以下ならシールド1。
+  cor_068: 'play:grant_harden_target_and_shield_if_low_hero:2:10:1',
+
+  // COR_069 メンター: 味方ヒーローにMPブースト10を10秒間付与。
+  cor_069: 'play:grant_mp_boost:10:10',
+
+  // COR_070 リベラー: 味方ユニット1体にシールド1と+3HP。自身にシールド1。
+  cor_070: 'play:grant_shield_hp_target:1:3;play:grant_shield_self:1',
+
+  // COR_071 ポリッシャー: 味方ユニット1体に1回硬化4と+4HP。
+  cor_071: 'play:grant_harden_target_once_and_buff_hp:4:4',
+
+  // ── 緑アクションカード ──
+
+  // COR_072 古樹の皮: 対象味方に死亡時、ランダム味方へシールド。10秒以上場にいれば強化。
+  cor_072: 'target:friendly_unit;grant_green_death_random_shield_by_age_target',
+
+  // COR_073 蘇生の息吹: 味方ユニットすべてに再生を付与。
+  cor_073: 'grant_regen_all_friendly:1:5:4',
+
+  // COR_074 緑の契約: 味方ヒーローのMPを2回復する。
+  cor_074: 'mp_gain:2',
+
+  // COR_075 芽盾の刻印: 味方ユニット1体にシールド2、+5HP、硬化。
+  cor_075: 'target:friendly_unit;grant_shield_target:2;buff_target_hp:5;grant_harden_target:2:10',
+
+  // COR_076 時限契約: 13秒後に味方ヒーローのMPを3回復する。
+  cor_076: 'delayed_player_mp_gain:3:13',
+
+  // COR_077 翠陣の交響: 味方ユニットすべてにシールド1。味方ヒーロー5回復。
+  cor_077: 'grant_shield_all_friendly:1;heal_hero:5',
+
+  // COR_078 森の奔流: 味方ヒーローにMPブースト30を30秒間付与。
+  cor_078: 'grant_mp_boost:30:30',
+
+  // COR_079 不屈の祝福: ランダムな味方ユニット1体に不屈とシールド2。
+  cor_079: 'grant_unyielding_random_friendly:1;grant_shield_random_friendly:2',
+
+  // COR_080 芽息の契り: 味方ユニット1体にシールド2と再生。
+  cor_080: 'target:friendly_unit;grant_shield_target:2;grant_regen_target:1:5:4',
+
+  // COR_081 長命の加護: 味方ヒーローに時間制限なしのMPブースト20。
+  cor_081: 'grant_mp_boost:20:0',
+
+  // COR_082 芽盾の鎧: 味方ユニット1体にシールド3と+3HP。
+  cor_082: 'target:friendly_unit;grant_shield_target:3;buff_target_hp:3',
+
+  // COR_083 硬化の輪: 味方ユニット1体に硬化と+4HP。
+  cor_083: 'target:friendly_unit;grant_harden_target:2:10;buff_target_hp:4',
+
+  // COR_084 森羅の結界: 味方すべてに硬化。シールド持ち味方に+4HPと追加シールド1。
+  cor_084: 'grant_harden_all_friendly:2:10;buff_shielded_friendly_hp:4;grant_shield_all_shielded_friendly:1',
+
+  // COR_085 芽盾の返礼: 味方ユニット1体にシールド2。味方ヒーロー4回復。
+  cor_085: 'target:friendly_unit;grant_shield_target:2;heal_hero:4',
+
+  // COR_086 大樹の号令: 味方ユニットすべてに硬化とシールド1。
+  cor_086: 'grant_harden_all_friendly:2:10;grant_shield_all_friendly:1',
+
+  // COR_087 聖樹の抱擁: 味方ヒーローのMPを4回復する。
+  cor_087: 'mp_gain:4',
+
+  // COR_088 芽王の刻印: 味方ユニット1体にシールド2と+4HP。既にシールドがあればヒーロー4回復。
+  cor_088: 'target:friendly_unit;grant_shield_target_then_conditional_heal:2:4:4',
+
+  // COR_089 翠血の盟約: シールド持ち味方すべてに+5HP。ランダム味方1体に不屈。
+  cor_089: 'buff_shielded_friendly_hp:5;grant_unyielding_random_friendly:1',
+
+  // COR_090 借時の対価: 味方ヒーローにMPブースト30を30秒間付与する。
+  cor_090: 'grant_mp_boost:30:30',
 
   // ── Purpleユニットカード ──
 

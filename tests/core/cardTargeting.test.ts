@@ -114,7 +114,12 @@ function createTestModeStateWithFriendlyTarget(): GameState {
 describe('cardTargeting', () => {
   it('CSV上で target 指定を持つ全ユニットは存在しない', () => {
     const unitCardsWithTarget = loadedCards.filter(
-      (card) => card.type === 'unit' && card.effectFunctions?.includes('target:')
+      (card) =>
+        card.type === 'unit' &&
+        card.effectFunctions
+          ?.split(';')
+          .map((token) => token.trim())
+          .some((token) => token.startsWith('target:'))
     )
 
     expect(unitCardsWithTarget).toHaveLength(0)

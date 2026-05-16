@@ -19,6 +19,7 @@ export type StatusEffect =
   | 'halt' // 停止（一定時間行動不能）
   | 'seal' // 封印（効果無効化）
   | 'anti_air' // 対空
+  | 'unyielding' // 不屈
 
 // 効果のトリガータイプ
 export type EffectTrigger =
@@ -316,6 +317,32 @@ function applyDamageToUnit(
   const newState = { ...state }
 
   if (destroyed) {
+    if ((unit.unyieldingCount || 0) > 0) {
+      const remainingUnyielding = (unit.unyieldingCount || 0) - 1
+      const updatedUnits = [...player.units]
+      const nextStatusEffects =
+        remainingUnyielding > 0
+          ? unit.statusEffects
+          : unit.statusEffects?.filter((status) => status !== 'unyielding')
+      updatedUnits[unitIdx] = {
+        ...unit,
+        hp: 1,
+        shieldCount: newShieldCount,
+        unyieldingCount: remainingUnyielding,
+        statusEffects: nextStatusEffects,
+      }
+      newState.players[playerIndex] = { ...player, units: updatedUnits }
+      events.push({
+        type: 'unit_damage',
+        unitId: unit.id,
+        playerId: player.playerId,
+        lane: unit.lane,
+        damage: actualDamage,
+        timestamp: Date.now(),
+      })
+      return newState
+    }
+
     // 破壊
     newState.players[playerIndex] = {
       ...player,
@@ -772,6 +799,72 @@ export function resolveEffectByFunctionName(
       return resolveGrantEnemyDamageBoostAll(value, context)
     case 'grant_no_counterattack_all_enemy':
       return resolveGrantNoCounterattackAllEnemy(context)
+
+    // ── Greenカード: 回復/防御/遅延系 ──
+    case 'heal_other_friendly':
+      return resolveHealOtherFriendly(value, context)
+    case 'heal_random_friendly_inclusive':
+      return resolveHealRandomFriendlyInclusive(value, context)
+    case 'heal_target_unit':
+      return resolveHealTargetUnit(value, context)
+    case 'buff_random_friendly_attack_hp_inclusive':
+      return resolveBuffRandomFriendlyAttackHpInclusive(value, context)
+    case 'grant_shield_target':
+      return resolveGrantShieldTarget(value, context)
+    case 'grant_shield_hp_target':
+      return resolveGrantShieldHpTarget(value, context, valueStr)
+    case 'grant_shield_heal_target':
+      return resolveGrantShieldHealTarget(value, context, valueStr)
+    case 'grant_shield_all_friendly':
+      return resolveGrantShieldAllFriendly(value, context)
+    case 'grant_shield_all_shielded_friendly':
+      return resolveGrantShieldAllShieldedFriendly(value, context)
+    case 'grant_hero_shield':
+      return resolveGrantHeroShield(value, context)
+    case 'buff_shielded_friendly_hp':
+      return resolveBuffShieldedFriendlyHp(value, context)
+    case 'grant_shield_random_shielded_friendly':
+      return resolveGrantShieldRandomShieldedFriendly(value, context)
+    case 'grant_unyielding_random_friendly':
+      return resolveGrantUnyieldingRandomFriendly(value, context)
+    case 'grant_unyielding_target':
+      return resolveGrantUnyieldingTarget(value, context)
+    case 'grant_harden_target':
+      return resolveGrantHardenTarget(value, context, valueStr)
+    case 'grant_harden_target_and_shield_if_low_hero':
+      return resolveGrantHardenTargetAndShieldIfLowHero(value, context, valueStr)
+    case 'grant_harden_target_once':
+      return resolveGrantHardenTargetOnce(value, context)
+    case 'grant_harden_target_once_and_buff_hp':
+      return resolveGrantHardenTargetOnceAndBuffHp(value, context, valueStr)
+    case 'grant_harden_all_friendly':
+      return resolveGrantHardenAllFriendly(value, context, valueStr)
+    case 'grant_regen_target':
+      return resolveGrantRegenTarget(value, context, valueStr)
+    case 'grant_regen_all_friendly':
+      return resolveGrantRegenAllFriendly(value, context, valueStr)
+    case 'grant_mp_boost':
+      return resolveGrantMpBoost(value, context, valueStr)
+    case 'buff_target_hp_delayed_attack_hp':
+      return resolveBuffTargetHpDelayedAttackHp(value, context, valueStr)
+    case 'delayed_self_alive_heal_hero':
+      return resolveDelayedSelfAliveHealHero(value, context, valueStr)
+    case 'delayed_self_alive_grant_all_friendly_shield':
+      return resolveDelayedSelfAliveGrantAllFriendlyShield(value, context, valueStr)
+    case 'add_self_periodic_buff_shield':
+      return resolveAddSelfPeriodicBuffShield(value, context, valueStr)
+    case 'delayed_player_mp_gain':
+      return resolveDelayedPlayerMpGain(value, context, valueStr)
+    case 'grant_all_friendly_shield_if_shielded_count':
+      return resolveGrantAllFriendlyShieldIfShieldedCount(value, context, valueStr)
+    case 'grant_shield_target_if_low_hero':
+      return resolveGrantShieldTargetIfLowHero(value, context)
+    case 'grant_shield_target_then_conditional_heal':
+      return resolveGrantShieldTargetThenConditionalHeal(value, context, valueStr)
+    case 'grant_green_death_random_shield_by_age_target':
+      return resolveGrantGreenDeathRandomShieldByAgeTarget(context)
+    case 'green_death_random_shield_by_age':
+      return resolveGreenDeathRandomShieldByAge(context)
 
     // ── 新カードCore: while_on_field系 ──
     case 'while_on_field':
@@ -3834,6 +3927,767 @@ function resolveGrantNoCounterattackAllEnemy(
       return appendGrantedEffectLog(updated, 'grant_no_counterattack')
     }),
   }
+  return { state: newState, events }
+}
+
+// ─── Greenカード: 回復/防御/遅延系 ───
+
+function parseNumberList(valueStr: string | undefined): number[] {
+  if (!valueStr) return []
+  return valueStr
+    .split(':')
+    .map((part) => parseInt(part.trim(), 10))
+    .map((value) => (Number.isNaN(value) ? 0 : value))
+}
+
+function pickFriendlyUnitForGreen(
+  state: GameState,
+  sourcePlayer: PlayerState,
+  sourceUnit?: UnitState,
+  includeSource: boolean = true
+): Unit | undefined {
+  const playerIndex = findPlayerIndex(state, sourcePlayer.playerId)
+  if (playerIndex === -1) return undefined
+  const candidates = state.players[playerIndex].units.filter((unit) =>
+    includeSource ? true : unit.id !== sourceUnit?.unit.id
+  )
+  if (candidates.length === 0) return undefined
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
+function getFriendlyTargetUnitIdForGreen(
+  state: GameState,
+  context: EffectContext,
+  includeSource: boolean = true
+): string | undefined {
+  const playerIndex = findPlayerIndex(state, context.sourcePlayer.playerId)
+  if (playerIndex === -1) return undefined
+
+  if (context.targetUnit) {
+    const targetId = context.targetUnit.unit.id
+    const isFriendly = state.players[playerIndex].units.some((unit) => unit.id === targetId)
+    if (isFriendly) return targetId
+  }
+
+  return pickFriendlyUnitForGreen(
+    state,
+    context.sourcePlayer,
+    context.sourceUnit,
+    includeSource
+  )?.id
+}
+
+function mapFriendlyUnit(
+  state: GameState,
+  playerIndex: number,
+  unitId: string,
+  updater: (unit: Unit) => Unit
+): GameState {
+  const player = state.players[playerIndex]
+  const newState = { ...state }
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) => (unit.id === unitId ? updater(unit) : unit)),
+  }
+  return newState
+}
+
+function addShieldToUnit(unit: Unit, count: number): Unit {
+  const amount = count || 1
+  const updated = { ...unit, shieldCount: (unit.shieldCount || 0) + amount }
+  return appendGrantedEffectLog(updated, `grant_shield:${amount}`)
+}
+
+function addUnyieldingToUnit(unit: Unit, count: number): Unit {
+  const amount = count || 1
+  const statusEffects = [...(unit.statusEffects || [])]
+  if (!statusEffects.includes('unyielding')) statusEffects.push('unyielding')
+  const updated = {
+    ...unit,
+    statusEffects,
+    unyieldingCount: (unit.unyieldingCount || 0) + amount,
+  }
+  return appendGrantedEffectLog(updated, `grant_unyielding:${amount}`)
+}
+
+function addHardenToUnit(
+  unit: Unit,
+  amount: number,
+  durationMs?: number,
+  uses?: number
+): Unit {
+  const updated = {
+    ...unit,
+    combatDamageReduction: Math.max(unit.combatDamageReduction || 0, amount || 1),
+    combatDamageReductionTimer: durationMs ?? unit.combatDamageReductionTimer,
+    combatDamageReductionUses: uses ?? unit.combatDamageReductionUses,
+  }
+  return appendGrantedEffectLog(updated, `grant_harden:${amount || 1}`)
+}
+
+function addRegenToUnit(
+  unit: Unit,
+  heal: number,
+  intervalSec: number,
+  ticks: number
+): Unit {
+  const regen = {
+    heal: heal || 1,
+    intervalMs: Math.max(1, intervalSec || 5) * 1000,
+    timer: 0,
+    remainingTicks: ticks > 0 ? ticks : undefined,
+  }
+  const updated = {
+    ...unit,
+    regenEffects: [...(unit.regenEffects || []), regen],
+  }
+  return appendGrantedEffectLog(updated, `grant_regen:${regen.heal}`)
+}
+
+function addDelayedEffectToUnit(unit: Unit, timerMs: number, effect: string, repeatMs?: number): Unit {
+  return {
+    ...unit,
+    delayedEffects: [
+      ...(unit.delayedEffects || []),
+      repeatMs ? { timerMs, effect, repeatMs } : { timerMs, effect },
+    ],
+  }
+}
+
+/** 自身を除くランダム味方1体を回復 */
+function resolveHealOtherFriendly(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, sourceUnit } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForGreen(newState, sourcePlayer, sourceUnit, false)
+  if (!target) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) => ({
+    ...unit,
+    hp: Math.min(unit.maxHp, unit.hp + value),
+  }))
+  return { state: newState, events }
+}
+
+/** ランダム味方1体を回復（自身も候補） */
+function resolveHealRandomFriendlyInclusive(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, sourceUnit } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForGreen(newState, sourcePlayer, sourceUnit, true)
+  if (!target) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) => ({
+    ...unit,
+    hp: Math.min(unit.maxHp, unit.hp + value),
+  }))
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットを回復 */
+function resolveHealTargetUnit(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) => ({
+    ...unit,
+    hp: Math.min(unit.maxHp, unit.hp + value),
+  }))
+  return { state: newState, events }
+}
+
+/** ランダム味方1体に+N/+N（自身も候補） */
+function resolveBuffRandomFriendlyAttackHpInclusive(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, sourceUnit } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForGreen(newState, sourcePlayer, sourceUnit, true)
+  if (!target) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) => ({
+    ...unit,
+    attack: unit.attack + value,
+    hp: unit.hp + value,
+    maxHp: unit.maxHp + value,
+  }))
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットにシールド付与 */
+function resolveGrantShieldTarget(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addShieldToUnit(unit, count)
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットにシールドと+HPを同時付与 */
+function resolveGrantShieldHpTarget(
+  count: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const hpBuff = params[1] || 0
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addShieldToUnit(
+      { ...unit, hp: unit.hp + hpBuff, maxHp: unit.maxHp + hpBuff },
+      count
+    )
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットにシールドと回復を同時付与 */
+function resolveGrantShieldHealTarget(
+  count: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const heal = params[1] || 0
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addShieldToUnit(
+      { ...unit, hp: Math.min(unit.maxHp, unit.hp + heal) },
+      count
+    )
+  )
+  return { state: newState, events }
+}
+
+/** 全味方ユニットにシールド付与 */
+function resolveGrantShieldAllFriendly(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) => addShieldToUnit(unit, count)),
+  }
+  return { state: newState, events }
+}
+
+/** シールド持ち味方ユニットすべてにシールド付与 */
+function resolveGrantShieldAllShieldedFriendly(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) =>
+      (unit.shieldCount || 0) > 0 ? addShieldToUnit(unit, count) : unit
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** 味方ヒーローにシールド付与 */
+function resolveGrantHeroShield(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    shieldCount: (player.shieldCount || 0) + (count || 1),
+  }
+  return { state: newState, events }
+}
+
+/** シールド持ち味方ユニットすべてに+N HP */
+function resolveBuffShieldedFriendlyHp(
+  value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) =>
+      (unit.shieldCount || 0) > 0
+        ? { ...unit, hp: unit.hp + value, maxHp: unit.maxHp + value }
+        : unit
+    ),
+  }
+  return { state: newState, events }
+}
+
+/** シールド持ち味方からランダム1体にシールド付与 */
+function resolveGrantShieldRandomShieldedFriendly(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const candidates = newState.players[playerIndex].units.filter((unit) => (unit.shieldCount || 0) > 0)
+  if (candidates.length === 0) return { state: newState, events }
+
+  const target = candidates[Math.floor(Math.random() * candidates.length)]
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) =>
+    addShieldToUnit(unit, count)
+  )
+  return { state: newState, events }
+}
+
+/** ランダム味方1体に不屈付与 */
+function resolveGrantUnyieldingRandomFriendly(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, sourceUnit } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForGreen(newState, sourcePlayer, sourceUnit, true)
+  if (!target) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) =>
+    addUnyieldingToUnit(unit, count)
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに不屈付与 */
+function resolveGrantUnyieldingTarget(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addUnyieldingToUnit(unit, count)
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに硬化付与 */
+function resolveGrantHardenTarget(
+  amount: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const durationSec = params[1] || 10
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addHardenToUnit(unit, amount, durationSec * 1000)
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに硬化し、ヒーロー低ライフなら同じ対象にシールド付与 */
+function resolveGrantHardenTargetAndShieldIfLowHero(
+  amount: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const durationSec = params[1] || 10
+  const shieldCount = params[2] || 1
+  const shouldShield = newState.players[playerIndex].hp <= newState.players[playerIndex].maxHp / 2
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) => {
+    const hardened = addHardenToUnit(unit, amount, durationSec * 1000)
+    return shouldShield ? addShieldToUnit(hardened, shieldCount) : hardened
+  })
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに1回だけ硬化付与 */
+function resolveGrantHardenTargetOnce(
+  amount: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addHardenToUnit(unit, amount, undefined, 1)
+  )
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに1回硬化と+HPを同時付与 */
+function resolveGrantHardenTargetOnceAndBuffHp(
+  amount: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const hpBuff = params[1] || amount
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addHardenToUnit(
+      { ...unit, hp: unit.hp + hpBuff, maxHp: unit.maxHp + hpBuff },
+      amount,
+      undefined,
+      1
+    )
+  )
+  return { state: newState, events }
+}
+
+/** 全味方ユニットに硬化付与 */
+function resolveGrantHardenAllFriendly(
+  amount: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const durationSec = params[1] || 10
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) => addHardenToUnit(unit, amount, durationSec * 1000)),
+  }
+  return { state: newState, events }
+}
+
+/** 対象味方ユニットに再生付与 */
+function resolveGrantRegenTarget(
+  heal: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const intervalSec = params[1] || 5
+  const ticks = params[2] || 4
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addRegenToUnit(unit, heal, intervalSec, ticks)
+  )
+  return { state: newState, events }
+}
+
+/** 全味方ユニットに再生付与 */
+function resolveGrantRegenAllFriendly(
+  heal: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const intervalSec = params[1] || 5
+  const ticks = params[2] || 4
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) => addRegenToUnit(unit, heal, intervalSec, ticks)),
+  }
+  return { state: newState, events }
+}
+
+/** 味方ヒーローにMPブースト付与。valueStr: percent:durationSec、duration 0 は永続 */
+function resolveGrantMpBoost(
+  percent: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const params = parseNumberList(valueStr)
+  const durationSec = params.length >= 2 ? params[1] : 0
+  const boost =
+    durationSec > 0
+      ? { percent, timerMs: durationSec * 1000 }
+      : { percent }
+
+  newState.players[playerIndex] = {
+    ...player,
+    mpBoosts: [...(player.mpBoosts || []), boost],
+  }
+  return { state: newState, events }
+}
+
+/** 対象に+HPし、同じ対象へ遅延+N/+Nを予約 */
+function resolveBuffTargetHpDelayedAttackHp(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const delaySec = params[1] || 5
+  const buffValue = params[2] || value
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addDelayedEffectToUnit(
+      { ...unit, hp: unit.hp + value, maxHp: unit.maxHp + value },
+      delaySec * 1000,
+      `buff_self_attack_hp:${buffValue}`
+    )
+  )
+  return { state: newState, events }
+}
+
+/** 自身が生存していれば遅延でヒーロー回復 */
+function resolveDelayedSelfAliveHealHero(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const delaySec = params[1] || 10
+
+  newState = mapFriendlyUnit(newState, playerIndex, sourceUnit.unit.id, (unit) =>
+    addDelayedEffectToUnit(unit, delaySec * 1000, `heal_hero:${value}`)
+  )
+  return { state: newState, events }
+}
+
+/** 自身が生存していれば遅延で全味方にシールド */
+function resolveDelayedSelfAliveGrantAllFriendlyShield(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const delaySec = params[1] || 15
+
+  newState = mapFriendlyUnit(newState, playerIndex, sourceUnit.unit.id, (unit) =>
+    addDelayedEffectToUnit(unit, delaySec * 1000, `grant_shield_all_friendly:${value}`)
+  )
+  return { state: newState, events }
+}
+
+/** 自身へ周期的に+N/+Nとシールドを付与 */
+function resolveAddSelfPeriodicBuffShield(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const shieldCount = params[1] || 1
+  const intervalSec = params[2] || 13
+  const effect = `buff_self_attack_hp:${value};grant_shield_self:${shieldCount}`
+
+  newState = mapFriendlyUnit(newState, playerIndex, sourceUnit.unit.id, (unit) =>
+    addDelayedEffectToUnit(unit, intervalSec * 1000, effect, intervalSec * 1000)
+  )
+  return { state: newState, events }
+}
+
+/** プレイヤーに遅延MP回復を予約 */
+function resolveDelayedPlayerMpGain(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  const params = parseNumberList(valueStr)
+  const delaySec = params[1] || 13
+
+  newState.players[playerIndex] = {
+    ...player,
+    delayedEffects: [
+      ...(player.delayedEffects || []),
+      { timerMs: delaySec * 1000, effect: `mp_gain:${value}` },
+    ],
+  }
+  return { state: newState, events }
+}
+
+/** シールド持ち味方がN体以上なら全味方にシールド付与 */
+function resolveGrantAllFriendlyShieldIfShieldedCount(
+  minCount: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const params = parseNumberList(valueStr)
+  const shieldCount = params[1] || 1
+  const shieldedCount = newState.players[playerIndex].units.filter((unit) => (unit.shieldCount || 0) > 0).length
+  if (shieldedCount < minCount) return { state: newState, events }
+
+  return resolveGrantShieldAllFriendly(shieldCount, { ...context, gameState: newState })
+}
+
+/** 味方ヒーローのライフが半分以下なら対象にシールド付与 */
+function resolveGrantShieldTargetIfLowHero(
+  count: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  const playerIndex = findPlayerIndex(gameState, sourcePlayer.playerId)
+  const player = gameState.players[playerIndex]
+  if (player.hp > player.maxHp / 2) return { state: { ...gameState }, events }
+  return resolveGrantShieldTarget(count, context)
+}
+
+/** 対象にシールドとHP。対象が元々シールド持ちならヒーロー回復 */
+function resolveGrantShieldTargetThenConditionalHeal(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const hpBuff = params[1] || 0
+  const heroHeal = params[2] || 0
+  const targetBefore = newState.players[playerIndex].units.find((unit) => unit.id === targetId)
+  const hadShield = (targetBefore?.shieldCount || 0) > 0
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) =>
+    addShieldToUnit(
+      { ...unit, hp: unit.hp + hpBuff, maxHp: unit.maxHp + hpBuff },
+      value
+    )
+  )
+
+  if (hadShield && heroHeal > 0) {
+    const result = resolveHealHero(heroHeal, { ...context, gameState: newState })
+    newState = result.state
+  }
+  return { state: newState, events }
+}
+
+/** 対象味方に「死亡時: 経過時間に応じてランダム味方へシールド/回復」を付与 */
+function resolveGrantGreenDeathRandomShieldByAgeTarget(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const targetId = getFriendlyTargetUnitIdForGreen(newState, context, true)
+  if (!targetId) return { state: newState, events }
+
+  newState = mapFriendlyUnit(newState, playerIndex, targetId, (unit) => {
+    const deathEffects = [...(unit.deathEffects || [])]
+    if (!deathEffects.includes('green_death_random_shield_by_age')) {
+      deathEffects.push('green_death_random_shield_by_age')
+    }
+    return appendGrantedEffectLog({ ...unit, deathEffects }, 'grant_death_green_shield_by_age')
+  })
+  return { state: newState, events }
+}
+
+/** 死亡時: 10秒以上場にいればシールド2+4回復、未満ならシールド1 */
+function resolveGreenDeathRandomShieldByAge(
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, sourceUnit } = context
+  let newState = { ...gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  if (player.units.length === 0) return { state: newState, events }
+
+  const target = player.units[Math.floor(Math.random() * player.units.length)]
+  const stayedLongEnough = (sourceUnit?.unit.aliveTimeMs || 0) >= 10000
+  newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) => {
+    const shielded = addShieldToUnit(unit, stayedLongEnough ? 2 : 1)
+    if (!stayedLongEnough) return shielded
+    return { ...shielded, hp: Math.min(shielded.maxHp, shielded.hp + 4) }
+  })
   return { state: newState, events }
 }
 

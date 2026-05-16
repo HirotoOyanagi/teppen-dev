@@ -2009,15 +2009,58 @@ export default function GameBoard(props: GameBoardProps) {
           purple: 'border-purple-500 bg-purple-950/80 text-purple-300',
           black: 'border-gray-500 bg-gray-900/80 text-gray-300',
         }
+        const attributePanelColors: Record<string, string> = {
+          red: 'border-red-500/70 bg-red-950/45 hover:bg-red-950/70',
+          green: 'border-green-500/70 bg-green-950/45 hover:bg-green-950/70',
+          purple: 'border-purple-500/70 bg-purple-950/45 hover:bg-purple-950/70',
+          black: 'border-gray-500/70 bg-gray-900/65 hover:bg-gray-800/80',
+        }
+        const attributeLabels: Record<string, string> = {
+          red: '赤',
+          green: '緑',
+          purple: '紫',
+          black: '黒',
+        }
         const filteredEntries = Array.from(cardMap.entries()).filter(([, def]) => {
           const matchAttr = !testPanelAttribute || def.attribute === testPanelAttribute
           const matchType = !testPanelType || def.type === testPanelType
           return matchAttr && matchType
         })
         return (
-          <div className="w-80 border-l border-yellow-500/30 bg-black/95 flex flex-col shrink-0 overflow-hidden">
-            <div className="p-2 border-b border-yellow-500/30">
-              <div className="text-yellow-400 text-sm font-bold mb-2">全カード（ドラッグでプレイ）</div>
+          <div className="relative z-40 w-[min(34vw,30rem)] min-w-[23rem] ls:w-[21rem] ls:min-w-[21rem] border-l border-yellow-500/30 bg-black/95 flex flex-col shrink-0 overflow-hidden shadow-[-18px_0_34px_rgba(0,0,0,0.38)]">
+            <div className="p-3 ls:p-2 border-b border-yellow-500/30 bg-gradient-to-b from-yellow-950/35 to-black/20">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div>
+                  <div className="text-yellow-300 text-sm ls:text-xs font-bold">テストカード</div>
+                </div>
+                <div className="rounded border border-yellow-400/35 bg-yellow-500/15 px-2 py-1 text-[11px] ls:text-[10px] font-bold text-yellow-200">
+                  {filteredEntries.length}枚
+                </div>
+              </div>
+              <div className="mb-2 rounded-md border border-white/10 bg-white/5 p-1">
+                <div className="mb-1 px-1 text-[10px] ls:text-[9px] font-bold text-white/55">出す側</div>
+                <div className="grid grid-cols-2 gap-1">
+                  {([
+                    ['player1', '自分レーン'],
+                    ['player2', '相手レーン'],
+                  ] as const).map(([playerId, label]) => (
+                    <button
+                      key={playerId}
+                      type="button"
+                      onClick={() => setTestPanelPlayerId(playerId)}
+                      className={`rounded border px-2 py-1.5 text-[11px] ls:text-[10px] font-bold transition-colors ${
+                        testPanelPlayerId === playerId
+                          ? playerId === 'player1'
+                            ? 'border-cyan-300 bg-cyan-500/30 text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,0.2)]'
+                            : 'border-red-300 bg-red-500/30 text-red-100 shadow-[0_0_12px_rgba(248,113,113,0.22)]'
+                          : 'border-white/15 bg-black/25 text-white/55 hover:bg-white/10'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {(['', 'red', 'green', 'purple', 'black'] as const).map((attr) => (
                   <button
@@ -2031,27 +2074,6 @@ export default function GameBoard(props: GameBoardProps) {
                     }`}
                   >
                     {attr === '' ? '全' : attr === 'red' ? '赤' : attr === 'green' ? '緑' : attr === 'purple' ? '紫' : '黒'}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {([
-                  ['player1', '自分'],
-                  ['player2', '相手'],
-                ] as const).map(([playerId, label]) => (
-                  <button
-                    key={playerId}
-                    type="button"
-                    onClick={() => setTestPanelPlayerId(playerId)}
-                    className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
-                      testPanelPlayerId === playerId
-                        ? playerId === 'player1'
-                          ? 'border-cyan-400 bg-cyan-500/30 text-cyan-200'
-                          : 'border-red-400 bg-red-500/30 text-red-200'
-                        : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    {label}
                   </button>
                 ))}
               </div>
@@ -2071,38 +2093,81 @@ export default function GameBoard(props: GameBoardProps) {
                   </button>
                 ))}
               </div>
-              <div className="text-white/50 text-[10px] mt-1">{filteredEntries.length}枚</div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 flex flex-wrap gap-2 content-start">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2.5 ls:p-2 flex flex-col gap-2">
               {filteredEntries.map(([id, def]) => (
                 <div
                   key={id}
                   draggable
                   onMouseDown={(e) => {
+                    if (e.button !== 0) return
                     e.preventDefault()
                     onTestPanelDragStart(id, def, e.clientX, e.clientY)
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setDetailCard({ card: def, side: 'right' })
                   }}
                   onTouchStart={(e) => {
                     if (e.touches[0]) onTestPanelDragStart(id, def, e.touches[0].clientX, e.touches[0].clientY)
                   }}
-                  className={`w-28 min-h-[7.5rem] cursor-grab active:cursor-grabbing rounded border flex flex-col p-2 shrink-0 hover:scale-105 transition-transform ${
-                    attributeColors[def.attribute] ?? 'border-yellow-500/50 bg-black/80'
+                  className={`group min-h-[9.75rem] ls:min-h-[8.75rem] cursor-grab active:cursor-grabbing rounded-md border p-2 shadow-[0_10px_22px_rgba(0,0,0,0.28)] transition-colors ${
+                    attributePanelColors[def.attribute] ?? 'border-yellow-500/50 bg-black/80'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 w-full mb-1">
-                    <span className="text-[9px] font-bold leading-tight flex-1">{def.name}</span>
-                    <span className="text-[10px] font-bold opacity-90 shrink-0">{def.cost}</span>
+                  <div className="flex gap-3 ls:gap-2">
+                    <div className="relative h-36 w-24 ls:h-32 ls:w-20 shrink-0 overflow-hidden rounded border-2 border-white/18 bg-zinc-950 shadow-[0_0_14px_rgba(0,0,0,0.35)]">
+                      {def.imageUrl ? (
+                        <img
+                          src={def.imageUrl}
+                          alt={def.name}
+                          draggable={false}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[10px] text-white/35">
+                          NO IMAGE
+                        </div>
+                      )}
+                      <div className="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border border-lime-300/70 bg-green-900/90 text-xs font-black text-white shadow">
+                        {def.cost}
+                      </div>
+                      {def.type === 'unit' && def.unitStats && (
+                        <div className="absolute inset-x-1 bottom-1 flex justify-between text-[10px] font-black">
+                          <span className="rounded bg-red-900/90 px-1.5 py-0.5 text-red-100 border border-red-400/60">
+                            {def.unitStats.attack}
+                          </span>
+                          <span className="rounded bg-blue-900/90 px-1.5 py-0.5 text-blue-100 border border-blue-400/60">
+                            {def.unitStats.hp}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[12px] ls:text-[11px] font-bold leading-snug text-white line-clamp-2">
+                            {def.name}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${attributeColors[def.attribute] ?? 'border-white/20 bg-white/5 text-white/60'}`}>
+                              {attributeLabels[def.attribute] ?? def.attribute}
+                            </span>
+                            <span className="rounded border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] font-bold text-white/65">
+                              {def.type === 'unit' ? 'ユニット' : def.type === 'action' ? 'アクション' : def.type}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-yellow-200 border border-yellow-400/35">
+                          {id.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[11px] ls:text-[10px] leading-snug text-white/88 whitespace-pre-wrap break-words">
+                        {def.description || '効果テキストなし'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-[8px] text-white/70 leading-tight mb-1">
-                    {def.type === 'unit' && def.unitStats
-                      ? `${def.unitStats.attack}/${def.unitStats.hp}`
-                      : def.type === 'action'
-                        ? 'Action'
-                        : def.type}
-                  </div>
-                  <p className="text-[8px] leading-tight text-white/85 whitespace-pre-wrap break-words">
-                    {def.description || '効果テキストなし'}
-                  </p>
                 </div>
               ))}
             </div>

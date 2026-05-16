@@ -203,6 +203,8 @@ const TRIGGER_KEYS = new Set([
   'enemy_action',
   'resonate_fire_seed',
   'while_on_field',
+  'friendly_unit_enter',
+  'friendly_unit_attack',
 ])
 
 const NON_EXECUTABLE_TOKENS = new Set([
@@ -216,6 +218,7 @@ const NON_EXECUTABLE_TOKENS = new Set([
   'revenge',
   'mp_boost',
   'action_damage_boost',
+  'shield',
 ])
 
 type FunctionTokenLike = {

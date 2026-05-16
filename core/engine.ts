@@ -64,6 +64,8 @@ type EffectFunctionTrigger =
   | 'enemy_action' // 相手がアクションカードを使用した時
   | 'resonate_fire_seed' // 火種(cor_027)をアクションカードとして使用した時
   | 'while_on_field' // 場にいる間（アクションダメージ+1等）
+  | 'friendly_unit_enter' // 味方ユニットが場に出た時
+  | 'friendly_unit_attack' // 味方ユニットが攻撃した時
 
 type TriggeredEffectFunctionToken = EffectFunctionToken & {
   trigger: EffectFunctionTrigger
@@ -132,6 +134,8 @@ function parseTriggeredEffectFunctionTokens(
     enemy_action: 'enemy_action',
     resonate_fire_seed: 'resonate_fire_seed',
     while_on_field: 'while_on_field',
+    friendly_unit_enter: 'friendly_unit_enter',
+    friendly_unit_attack: 'friendly_unit_attack',
   }
 
   const triggeredTokens: TriggeredEffectFunctionToken[] = []
@@ -286,6 +290,79 @@ function parseGrowthLevelEffects(effectFunctions: string | undefined): Record<nu
   return growthEffects
 }
 
+function effectTokenToString(token: EffectFunctionToken): string {
+  if (token.valueStr !== undefined) {
+    return `${token.name}:${token.valueStr}`
+  }
+  return `${token.name}:${token.value}`
+}
+
+function parseStoredEffectToken(effectStr: string): EffectFunctionToken {
+  const parsed = parseEffectFunctionTokens(effectStr)[0]
+  return parsed || { name: effectStr.toLowerCase(), value: 0 }
+}
+
+function runStoredEffectString(
+  effectStr: string,
+  state: GameState,
+  cardDefinitions: Map<string, CardDefinition>,
+  sourceUnit: Unit | undefined,
+  sourcePlayer: PlayerState,
+  events: GameEvent[],
+  targetUnit?: Unit
+): GameState {
+  let newState = state
+  const tokens = parseEffectFunctionTokens(effectStr)
+
+  for (const token of tokens) {
+    const latestSourceUnit = sourceUnit
+      ? newState.players
+          .flatMap((player) => player.units)
+          .find((unit) => unit.id === sourceUnit.id) || sourceUnit
+      : undefined
+    const latestTargetUnit = targetUnit
+      ? newState.players
+          .flatMap((player) => player.units)
+          .find((unit) => unit.id === targetUnit.id) || targetUnit
+      : undefined
+    const latestSourcePlayer =
+      newState.players.find((player) => player.playerId === sourcePlayer.playerId) || sourcePlayer
+
+    const context: EffectContext = {
+      gameState: newState,
+      cardMap: cardDefinitions,
+      sourcePlayer: latestSourcePlayer,
+      events,
+    }
+
+    if (latestSourceUnit) {
+      context.sourceUnit = {
+        unit: latestSourceUnit,
+        statusEffects: new Set(),
+        temporaryBuffs: { attack: 0, hp: 0 },
+        counters: {},
+        flags: {},
+      }
+    }
+
+    if (latestTargetUnit) {
+      context.targetUnit = {
+        unit: latestTargetUnit,
+        statusEffects: new Set((latestTargetUnit.statusEffects || []) as StatusEffect[]),
+        temporaryBuffs: { attack: latestTargetUnit.tempBuffs?.attack || 0, hp: 0 },
+        counters: {},
+        flags: {},
+      }
+    }
+
+    const result = resolveEffectByFunctionName(token.name, token.value, context, token.valueStr)
+    newState = result.state
+    events.push(...result.events)
+  }
+
+  return newState
+}
+
 // ゲーム設定（後で外部化）
 const GAME_CONFIG = {
   TICK_INTERVAL: 50, // 50ms
@@ -358,7 +435,7 @@ export function updateGameState(
     }
 
     const getMpBoostPercent = (player: PlayerState): number => {
-      let percent = 0
+      let percent = (player.mpBoosts || []).reduce((sum, boost) => sum + boost.percent, 0)
 
       for (const unit of player.units) {
         const def = resolveCardDefinition(cardDefinitions, unit.cardId)
@@ -392,6 +469,46 @@ export function updateGameState(
       return { ...player, mp: newMp }
     }) as [PlayerState, PlayerState]
 
+    // プレイヤーに紐づくMPブースト/遅延効果の更新
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      const activeBoosts = (player.mpBoosts || [])
+        .map((boost) =>
+          boost.timerMs === undefined
+            ? boost
+            : { ...boost, timerMs: Math.max(0, boost.timerMs - deltaTime) }
+        )
+        .filter((boost) => boost.timerMs === undefined || boost.timerMs > 0)
+
+      const remainingDelayed: NonNullable<PlayerState['delayedEffects']> = []
+      const dueEffects: string[] = []
+      for (const delayed of player.delayedEffects || []) {
+        const timerMs = delayed.timerMs - deltaTime
+        if (timerMs <= 0) {
+          dueEffects.push(delayed.effect)
+        } else {
+          remainingDelayed.push({ ...delayed, timerMs })
+        }
+      }
+
+      newState.players[pi] = {
+        ...newState.players[pi],
+        mpBoosts: activeBoosts.length > 0 ? activeBoosts : undefined,
+        delayedEffects: remainingDelayed.length > 0 ? remainingDelayed : undefined,
+      }
+
+      for (const effectStr of dueEffects) {
+        newState = runStoredEffectString(
+          effectStr,
+          newState,
+          cardDefinitions,
+          undefined,
+          newState.players[pi],
+          events
+        )
+      }
+    }
+
     // 停止タイマーのカウントダウン
     for (let pi = 0; pi < 2; pi++) {
       const player = newState.players[pi]
@@ -419,6 +536,99 @@ export function updateGameState(
         return u
       })
       newState.players[pi] = { ...player, units: updatedUnits }
+    }
+
+    // 緑系の継続回復・硬化タイマー・遅延/周期効果
+    for (let pi = 0; pi < 2; pi++) {
+      const unitIds = newState.players[pi].units.map((unit) => unit.id)
+
+      for (const unitId of unitIds) {
+        const unitIndex = newState.players[pi].units.findIndex((unit) => unit.id === unitId)
+        if (unitIndex === -1) continue
+
+        const unit = newState.players[pi].units[unitIndex]
+        let updatedUnit: Unit = {
+          ...unit,
+          aliveTimeMs: (unit.aliveTimeMs || 0) + deltaTime,
+        }
+
+        if ((updatedUnit.combatDamageReductionTimer || 0) > 0) {
+          const timer = Math.max(0, (updatedUnit.combatDamageReductionTimer || 0) - deltaTime)
+          updatedUnit = timer > 0
+            ? { ...updatedUnit, combatDamageReductionTimer: timer }
+            : {
+                ...updatedUnit,
+                combatDamageReduction: undefined,
+                combatDamageReductionTimer: undefined,
+                combatDamageReductionUses: undefined,
+              }
+        }
+
+        if (updatedUnit.regenEffects && updatedUnit.regenEffects.length > 0) {
+          const nextRegens: NonNullable<Unit['regenEffects']> = []
+          let nextHp = updatedUnit.hp
+
+          for (const regen of updatedUnit.regenEffects) {
+            if (regen.remainingTicks !== undefined && regen.remainingTicks <= 0) continue
+
+            let timer = regen.timer + deltaTime
+            let remainingTicks = regen.remainingTicks
+            while (timer >= regen.intervalMs && (remainingTicks === undefined || remainingTicks > 0)) {
+              timer -= regen.intervalMs
+              nextHp = Math.min(updatedUnit.maxHp, nextHp + regen.heal)
+              if (remainingTicks !== undefined) {
+                remainingTicks -= 1
+              }
+            }
+
+            if (remainingTicks === undefined || remainingTicks > 0) {
+              nextRegens.push({ ...regen, timer, remainingTicks })
+            }
+          }
+
+          updatedUnit = {
+            ...updatedUnit,
+            hp: nextHp,
+            regenEffects: nextRegens.length > 0 ? nextRegens : undefined,
+          }
+        }
+
+        const remainingDelayed: NonNullable<Unit['delayedEffects']> = []
+        const dueEffects: string[] = []
+        for (const delayed of updatedUnit.delayedEffects || []) {
+          const timerMs = delayed.timerMs - deltaTime
+          if (timerMs <= 0) {
+            dueEffects.push(delayed.effect)
+            if (delayed.repeatMs) {
+              remainingDelayed.push({ ...delayed, timerMs: delayed.repeatMs })
+            }
+          } else {
+            remainingDelayed.push({ ...delayed, timerMs })
+          }
+        }
+        updatedUnit = {
+          ...updatedUnit,
+          delayedEffects: remainingDelayed.length > 0 ? remainingDelayed : undefined,
+        }
+
+        const player = newState.players[pi]
+        const units = [...player.units]
+        units[unitIndex] = updatedUnit
+        newState.players[pi] = { ...player, units }
+
+        for (const effectStr of dueEffects) {
+          const latestSource = newState.players[pi].units.find((current) => current.id === unitId)
+          if (!latestSource) break
+          newState = runStoredEffectString(
+            effectStr,
+            newState,
+            cardDefinitions,
+            latestSource,
+            newState.players[pi],
+            events
+          )
+        }
+      }
     }
 
     // 成長システムはMPベースのため、タイマー処理は不要
@@ -741,6 +951,31 @@ export function updateGameState(
           }
           if (attackResult.attackerUpdate) {
             playerUpdates[playerIndex] = attackResult.attackerUpdate
+          }
+
+          // 味方ユニット攻撃時トリガー
+          const attackedUnitAfterCombat = playerUpdates[playerIndex].units.find((u) => u.id === unit.id)
+          for (const watcher of playerUpdates[playerIndex].units) {
+            if (watcher.isSealed) continue
+            if (!watcher.friendlyUnitAttackEffects || watcher.friendlyUnitAttackEffects.length === 0) continue
+
+            for (const effectStr of watcher.friendlyUnitAttackEffects) {
+              const stateForTrigger: GameState = {
+                ...newState,
+                players: [playerUpdates[0], playerUpdates[1]] as [PlayerState, PlayerState],
+              }
+              const resultState = runStoredEffectString(
+                effectStr,
+                stateForTrigger,
+                cardDefinitions,
+                watcher,
+                playerUpdates[playerIndex],
+                events,
+                attackedUnitAfterCombat
+              )
+              playerUpdates[0] = resultState.players[0]
+              playerUpdates[1] = resultState.players[1]
+            }
           }
 
           // ── 撃破判定（反映済みの最新状態で判定する） ──
@@ -1543,6 +1778,7 @@ function processInput(
         attackGauge: initialAttackGauge,
         attackInterval: adjustedAttackInterval,
         lane: lane,
+        aliveTimeMs: 0,
       }
       if (statusEffects.length > 0) {
         newUnit.statusEffects = statusEffects
@@ -1557,35 +1793,36 @@ function processInput(
         for (const token of triggeredTokens) {
           if (token.trigger === 'attack') {
             if (!newUnit.attackEffects) newUnit.attackEffects = []
-            newUnit.attackEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            newUnit.attackEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'death') {
             if (!newUnit.deathEffects) newUnit.deathEffects = []
-            newUnit.deathEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            newUnit.deathEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'decimate') {
             if (!newUnit.decimateEffects) newUnit.decimateEffects = []
-            const effectEntry = token.value !== undefined ? `${token.name}:${token.value}` : token.name
-            newUnit.decimateEffects.push(effectEntry)
+            newUnit.decimateEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'resonate') {
             if (!newUnit.resonateEffects) newUnit.resonateEffects = []
-            newUnit.resonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            newUnit.resonateEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'resonate_fire_seed') {
             if (!newUnit.resonateFireSeedEffects) newUnit.resonateFireSeedEffects = []
-            newUnit.resonateFireSeedEffects.push(
-              token.value !== undefined ? `${token.name}:${token.value}` : token.name
-            )
+            newUnit.resonateFireSeedEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'ex_resonate') {
             if (!newUnit.exResonateEffects) newUnit.exResonateEffects = []
-            newUnit.exResonateEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            newUnit.exResonateEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'enemy_action') {
             if (!newUnit.enemyActionEffects) newUnit.enemyActionEffects = []
-            newUnit.enemyActionEffects.push(
-              token.value !== undefined ? `${token.name}:${token.value}` : token.name
-            )
+            newUnit.enemyActionEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'effect_damage_destroy') {
             if (!newUnit.effectDamageDestroyEffects) newUnit.effectDamageDestroyEffects = []
-            newUnit.effectDamageDestroyEffects.push(token.value !== undefined ? `${token.name}:${token.value}` : token.name)
+            newUnit.effectDamageDestroyEffects.push(effectTokenToString(token))
           } else if (token.trigger === 'while_on_field' && token.name === 'action_damage_boost') {
             newUnit.actionDamageBoost = (newUnit.actionDamageBoost ?? 0) + (token.value ?? 0)
+          } else if (token.trigger === 'friendly_unit_enter') {
+            if (!newUnit.friendlyUnitEnterEffects) newUnit.friendlyUnitEnterEffects = []
+            newUnit.friendlyUnitEnterEffects.push(effectTokenToString(token))
+          } else if (token.trigger === 'friendly_unit_attack') {
+            if (!newUnit.friendlyUnitAttackEffects) newUnit.friendlyUnitAttackEffects = []
+            newUnit.friendlyUnitAttackEffects.push(effectTokenToString(token))
           } else if (token.name === 'growth') {
             // growth:N → N MP分のグローポイントでレベルアップ
             newUnit.growthThreshold = token.value ?? 3
@@ -1851,9 +2088,7 @@ function processInput(
         if (existingUnit.isSealed) continue
         if (!existingUnit.friendlyUnitEnterEffects || existingUnit.friendlyUnitEnterEffects.length === 0) continue
         for (const effectStr of existingUnit.friendlyUnitEnterEffects) {
-          const parts = effectStr.split(':')
-          const funcName = parts[0]
-          const funcValue = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0
+          const token = parseStoredEffectToken(effectStr)
           const enterContext: EffectContext = {
             gameState: newState,
             cardMap: cardDefinitions,
@@ -1864,10 +2099,22 @@ function processInput(
               counters: {},
               flags: {},
             },
+            targetUnit: {
+              unit: newUnit,
+              statusEffects: new Set((newUnit.statusEffects || []) as StatusEffect[]),
+              temporaryBuffs: { attack: newUnit.tempBuffs?.attack || 0, hp: 0 },
+              counters: {},
+              flags: {},
+            },
             sourcePlayer: newState.players[playerIndex],
             events,
           }
-          const result = resolveEffectByFunctionName(funcName, funcValue, enterContext)
+          const result = resolveEffectByFunctionName(
+            token.name,
+            token.value,
+            enterContext,
+            token.valueStr
+          )
           newState = result.state
           events.push(...result.events)
         }
@@ -1890,6 +2137,7 @@ function processInput(
           spillover: true,
           revenge: true,
           mp_boost: true,
+          shield: true,
           target: true,
         }
 
@@ -2375,10 +2623,63 @@ function executeUnitAttack(
       actualDamage = Math.max(0, actualDamage - victim.damageReduction)
     }
 
+    let nextCombatDamageReduction = victim.combatDamageReduction
+    let nextCombatDamageReductionTimer = victim.combatDamageReductionTimer
+    let nextCombatDamageReductionUses = victim.combatDamageReductionUses
+    if (nextCombatDamageReduction && actualDamage > 0) {
+      actualDamage = Math.max(0, actualDamage - nextCombatDamageReduction)
+      if (nextCombatDamageReductionUses !== undefined) {
+        nextCombatDamageReductionUses = Math.max(0, nextCombatDamageReductionUses - 1)
+        if (nextCombatDamageReductionUses <= 0) {
+          nextCombatDamageReduction = undefined
+          nextCombatDamageReductionTimer = undefined
+          nextCombatDamageReductionUses = undefined
+        }
+      }
+    }
+
     const damageDealt = Math.min(victim.hp, actualDamage)
     const nextHp = victim.hp - actualDamage
 
     if (nextHp <= 0) {
+      if ((victim.unyieldingCount || 0) > 0) {
+        const remainingUnyielding = (victim.unyieldingCount || 0) - 1
+        const nextStatusEffects =
+          remainingUnyielding > 0
+            ? victim.statusEffects
+            : victim.statusEffects?.filter((status) => status !== 'unyielding')
+        const updatedUnits = currentOpponent.units.map((u) =>
+          u.id === victim.id
+            ? {
+                ...u,
+                hp: 1,
+                shieldCount: newShieldCount,
+                combatDamageReduction: nextCombatDamageReduction,
+                combatDamageReductionTimer: nextCombatDamageReductionTimer,
+                combatDamageReductionUses: nextCombatDamageReductionUses,
+                unyieldingCount: remainingUnyielding,
+                statusEffects: nextStatusEffects,
+              }
+            : u
+        )
+        events.push({
+          type: 'unit_damage',
+          unitId: victim.id,
+          playerId: currentOpponent.playerId,
+          lane: victim.lane,
+          damage: actualDamage,
+          timestamp: Date.now(),
+        })
+        return {
+          opponentState: {
+            ...currentOpponent,
+            units: updatedUnits,
+          },
+          damageDealt,
+          destroyed: false,
+        }
+      }
+
       events.push({
         type: 'unit_damage',
         unitId: victim.id,
@@ -2452,7 +2753,14 @@ function executeUnitAttack(
     const updatedUnits = currentOpponent.units.map((u) => {
       const isVictimKey = String(u.id === victim.id)
       const unitMap: Record<string, Unit> = {
-        true: { ...u, hp: nextHp, shieldCount: newShieldCount },
+        true: {
+          ...u,
+          hp: nextHp,
+          shieldCount: newShieldCount,
+          combatDamageReduction: nextCombatDamageReduction,
+          combatDamageReductionTimer: nextCombatDamageReductionTimer,
+          combatDamageReductionUses: nextCombatDamageReductionUses,
+        },
         false: u,
       }
       return unitMap[isVictimKey]
@@ -2644,8 +2952,56 @@ function executeUnitAttack(
         newShieldCount = newShieldCount - 1
       }
 
+      let nextCombatDamageReduction = updatedUnit.combatDamageReduction
+      let nextCombatDamageReductionTimer = updatedUnit.combatDamageReductionTimer
+      let nextCombatDamageReductionUses = updatedUnit.combatDamageReductionUses
+      if (nextCombatDamageReduction && actualDamage > 0) {
+        actualDamage = Math.max(0, actualDamage - nextCombatDamageReduction)
+        if (nextCombatDamageReductionUses !== undefined) {
+          nextCombatDamageReductionUses = Math.max(0, nextCombatDamageReductionUses - 1)
+          if (nextCombatDamageReductionUses <= 0) {
+            nextCombatDamageReduction = undefined
+            nextCombatDamageReductionTimer = undefined
+            nextCombatDamageReductionUses = undefined
+          }
+        }
+      }
+
       const attackerNewHp = updatedUnit.hp - actualDamage
       if (attackerNewHp <= 0) {
+        if ((updatedUnit.unyieldingCount || 0) > 0) {
+          const remainingUnyielding = (updatedUnit.unyieldingCount || 0) - 1
+          const nextStatusEffects =
+            remainingUnyielding > 0
+              ? updatedUnit.statusEffects
+              : updatedUnit.statusEffects?.filter((status) => status !== 'unyielding')
+          events.push({
+            type: 'unit_damage',
+            unitId: unit.id,
+            playerId: attackerPlayer.playerId,
+            lane: unit.lane,
+            damage: actualDamage,
+            timestamp: Date.now(),
+          })
+          updatedUnit = {
+            ...updatedUnit,
+            hp: 1,
+            shieldCount: newShieldCount,
+            combatDamageReduction: nextCombatDamageReduction,
+            combatDamageReductionTimer: nextCombatDamageReductionTimer,
+            combatDamageReductionUses: nextCombatDamageReductionUses,
+            unyieldingCount: remainingUnyielding,
+            statusEffects: nextStatusEffects,
+          }
+          updatedAttacker = {
+            ...updatedAttacker,
+            units: updatedAttacker.units.map((u) =>
+              u.id === unit.id ? { ...u, ...updatedUnit, attackGauge: 0 } : u
+            ),
+          }
+          continue
+        }
+
         events.push({
           type: 'unit_destroyed',
           unitId: unit.id,
@@ -2709,13 +3065,28 @@ function executeUnitAttack(
         timestamp: Date.now(),
       })
 
-      updatedUnit = { ...updatedUnit, hp: attackerNewHp, shieldCount: newShieldCount }
+      updatedUnit = {
+        ...updatedUnit,
+        hp: attackerNewHp,
+        shieldCount: newShieldCount,
+        combatDamageReduction: nextCombatDamageReduction,
+        combatDamageReductionTimer: nextCombatDamageReductionTimer,
+        combatDamageReductionUses: nextCombatDamageReductionUses,
+      }
       updatedAttacker = {
         ...updatedAttacker,
         units: updatedAttacker.units.map((u) => {
           const isSelfKey = String(u.id === unit.id)
           const unitMap: Record<string, Unit> = {
-            true: { ...u, hp: attackerNewHp, shieldCount: newShieldCount, attackGauge: 0 },
+            true: {
+              ...u,
+              hp: attackerNewHp,
+              shieldCount: newShieldCount,
+              combatDamageReduction: nextCombatDamageReduction,
+              combatDamageReductionTimer: nextCombatDamageReductionTimer,
+              combatDamageReductionUses: nextCombatDamageReductionUses,
+              attackGauge: 0,
+            },
             false: u,
           }
           return unitMap[isSelfKey]

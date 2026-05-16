@@ -80,6 +80,59 @@ Chrono Reverse は、時間進行・3レーン・MP回復・自動攻撃・Activ
 
 ## 作業ログ
 
+### 2026-05-16: テストプレイモードのカードパネル視認性を修正
+
+目的:
+
+- テストプレイモード右側のテストカード一覧が背景レイヤーに沈み、カードや出す側の切り替えが見えにくくなっていた状態を直す。
+
+変更ファイル:
+
+- `components/GameBoard.tsx`
+
+実装内容:
+
+- テストカードパネルを前面レイヤーに固定。
+- テストカード一覧を画像サムネイル付きの行表示に変更。
+- `自分レーン` / `相手レーン` の出す側切り替えをパネル上部に大きく表示。
+
+検証:
+
+- `npm run type-check`
+- `git diff --check`
+
+### 2026-05-16: 緑カード COR_046-COR_090 の効果実装
+
+目的:
+
+- 現行CSVの緑カード45枚に効果関数を割り当て、ゲームコアで解決できるようにする。
+
+変更ファイル:
+
+- `core/newCardEffects.ts`
+- `core/effects.ts`
+- `core/engine.ts`
+- `core/types.ts`
+- `tests/core/newCardEffects.behavior.test.ts`
+- `tests/core/cardTargeting.test.ts`
+- `tests/core/newCardEffects.test.ts`
+- `docs/まだ未実装.md`
+
+実装内容:
+
+- 緑カード45枚の `effectFunctions` を追加。
+- 緑用のHP回復、HP増加、シールド、ヒーローシールド、MPブースト、硬化、不屈、再生、遅延効果、周期効果、味方登場/攻撃トリガーを実装。
+- ユニット/プレイヤー状態にタイマー付き効果を追加し、時間経過でMPブースト・再生・遅延効果が進むようにした。
+- 既存テスト期待値に合わせて `COR_002` の最低MP手札破棄を復帰し、テスト用の相手ユニットはテストケース内で明示的に用意するようにした。
+- `target` を含む関数名を、対象選択トークンと誤判定しないようテスト側の検出をトークン単位に修正。
+- 現行CSVとは異なる旧緑カードの未実装行を `docs/まだ未実装.md` から削除。
+
+検証:
+
+- `npm run type-check`
+- `npx vitest run tests/core/newCardEffects.behavior.test.ts -t 緑カード`
+- `npm run test`
+
 ### 2026-05-16: 開発指針と実装ログを追加
 
 目的:
