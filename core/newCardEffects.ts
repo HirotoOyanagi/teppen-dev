@@ -423,4 +423,143 @@ export const newCardEffectFunctions: Record<string, string> = {
 
   // COR_135 虚空の重還: 相手の全ての手札のカードを公開する。
   cor_135: 'reveal_all_hand',
+
+  // ── Blackユニットカード ──
+
+  // COR_136 ハーヴェスター: 墓地3枚以上なら自身+1/+1、6枚以上なら代わりに+2/+2。
+  cor_136: 'play:black_buff_self_by_graveyard:3:1:1:6:2:2',
+
+  // COR_137 グラッシャー: 墓地5枚以上なら味方ユニットすべてに+1/+1。
+  cor_137: 'play:black_buff_all_friendly_if_graveyard:5:1:1',
+
+  // COR_138 シード: 墓地2枚以上なら味方1体に+1/+1。5枚以上なら同じ対象にシールド1。
+  cor_138: 'play:black_buff_friendly_shield_by_graveyard:2:1:1:5:1',
+
+  // COR_139 ヘイラー: 死亡時、墓地4枚以上ならランダム味方1体に+2/+2。
+  cor_139: 'death:black_buff_random_friendly_if_graveyard:4:2:2',
+
+  // COR_140 ヒーラー: 墓地6枚以上ならヒーロー5回復、10枚以上なら代わりに10回復。
+  cor_140: 'play:black_heal_hero_by_graveyard:6:5:10:10',
+
+  // COR_141 ネクロ: 墓地5枚以上なら自身+2/+1。味方1体に+1/+1。
+  cor_141: 'play:black_buff_self_if_graveyard:5:2:1;play:buff_random_friendly_attack_hp_inclusive:1',
+
+  // COR_142 グラヴェラー: 墓地3枚以上なら味方1体の攻撃力を墓地枚数（最大+5）ぶん上げる。
+  cor_142: 'play:black_buff_target_attack_by_graveyard:3:5',
+
+  // COR_143 レガシー: 死亡時、墓地7枚以上なら味方すべてに+1/+1。
+  cor_143: 'death:black_buff_all_friendly_if_graveyard:7:1:1',
+
+  // COR_144 ショット: 墓地4枚以上なら敵1体に4ダメージ、8枚以上なら代わりに8ダメージ。
+  cor_144: 'play:black_damage_enemy_by_graveyard:4:4:8:8',
+
+  // COR_145 リーパー: 墓地6枚以上なら敵1体に5ダメージ。破壊した場合除外。
+  cor_145: 'play:black_damage_enemy_if_graveyard_exile:6:5',
+
+  // COR_146 ダブルタップ: 墓地3枚以上なら敵1体に3ダメージ。7枚以上ならランダム敵にさらに4ダメージ。
+  cor_146: 'play:black_damage_enemy_then_random_by_graveyard:3:3:7:4',
+
+  // COR_147 ディスカード: 手札1枚を捨て、敵1体に6ダメージ。破壊した場合除外。
+  cor_147: 'play:black_discard_damage_enemy_exile:1:6',
+
+  // COR_148 サクリファイス: ライフ2を失い、コスト4以下の敵1体を破壊して除外。
+  cor_148: 'play:life_sacrifice:2;play:black_destroy_enemy_cost_exile:4',
+
+  // COR_149 クラッシャー: コスト2以下の敵1体を破壊して除外。
+  cor_149: 'play:black_destroy_enemy_cost_exile:2',
+
+  // COR_150 デストロイ: コスト3以下の敵1体を破壊して除外。
+  cor_150: 'play:black_destroy_enemy_cost_exile:3',
+
+  // COR_151 スラッシャー: コスト3以下の敵1体に5ダメージ。破壊した場合除外。
+  cor_151: 'play:black_damage_enemy_cost_exile:3:5',
+
+  // COR_152 エリミネーター: コスト4以下の敵1体を破壊して除外。
+  cor_152: 'play:black_destroy_enemy_cost_exile:4',
+
+  // COR_153 キラー: コスト4以下の敵1体を破壊する。
+  cor_153: 'play:black_destroy_enemy_cost:4',
+
+  // COR_154 バニッシャー: コスト5以下の敵1体を破壊。墓地4枚以上なら除外。
+  cor_154: 'play:black_destroy_enemy_cost_exile_if_graveyard:5:4',
+
+  // COR_155 オブリテイター: コスト6以下の敵1体を破壊する。
+  cor_155: 'play:black_destroy_enemy_cost:6',
+
+  // COR_156 フロントブレイカー: 正面のコスト3以下の敵1体を破壊して除外。
+  cor_156: 'play:black_destroy_front_enemy_cost_exile:3',
+
+  // COR_157 ランダムキラー: ランダムなコスト2以下の敵1体を破壊して除外。
+  cor_157: 'play:black_destroy_random_enemy_cost_exile:2',
+
+  // COR_158 ハイコストハンター: コスト4以上の敵1体に4ダメージ。破壊した場合除外。
+  cor_158: 'play:black_damage_enemy_min_cost_exile:4:4',
+
+  // COR_159 デストロイヤー: コスト5以下の敵1体を破壊して除外。
+  cor_159: 'play:black_destroy_enemy_cost_exile:5',
+
+  // COR_160 コンディショナー: コスト2以下の敵を破壊。墓地5枚以上ならコスト4以下に拡張。除外。
+  cor_160: 'play:black_destroy_enemy_cost_by_graveyard_exile:2:5:4',
+
+  // COR_161 ウィークハンター: コスト1の敵を破壊。コスト2以下の敵に3ダメージし、破壊した場合除外。
+  cor_161: 'play:black_destroy_enemy_exact_cost:1;play:black_damage_enemy_cost_exile:2:3',
+
+  // ── Blackアクションカード ──
+
+  // COR_162 収穫の恵み: 墓地4枚以上なら味方1体に+2/+2、8枚以上なら代わりに+3/+3。
+  cor_162: 'target:friendly_unit;black_buff_target_by_graveyard:4:2:2:8:3:3',
+
+  // COR_163 大収穫の祝福: 墓地8枚以上なら味方1体に+3/+3し、1枚引く。
+  cor_163: 'target:friendly_unit;black_buff_target_draw_if_graveyard:8:3:3:1',
+
+  // COR_164 墓地破壊: 墓地5枚以上なら敵1体を破壊。10枚以上なら別の敵1体に3ダメージも与える。
+  cor_164: 'target:enemy_unit;black_destroy_enemy_then_damage_other_by_graveyard:5:10:3',
+
+  // COR_165 代償の一撃: 味方1体を破壊し、敵1体に8ダメージ、2枚引く。破壊した敵は除外。
+  cor_165: 'target:enemy_unit;black_sacrifice_friendly_damage_enemy_exile_draw:1:8:2',
+
+  // COR_166 血の代償: ライフ5を失い、敵1体に10ダメージ。破壊した場合除外。
+  cor_166: 'target:enemy_unit;life_sacrifice:5;black_damage_enemy_exile:10',
+
+  // COR_167 充填の代償: 味方1体を破壊し、EXにデッキから2枚加え、ヒーロー3回復。
+  cor_167: 'target:friendly_unit;black_destroy_friendly_draw_ex_heal:1:2:3',
+
+  // COR_168 全体弾幕: ライフ3を失い、全敵ユニットに4ダメージ。破壊したユニットは除外。
+  cor_168: 'life_sacrifice:3;black_damage_all_enemy_exile:4',
+
+  // COR_169 二重破壊: 味方1体を破壊し、敵1体を破壊して除外。
+  cor_169: 'target:enemy_unit;black_sacrifice_friendly_destroy_enemy_exile:1',
+
+  // COR_170 高コスト破壊: ライフ4を失い、コスト6以下の敵1体を破壊して除外。
+  cor_170: 'target:enemy_unit;life_sacrifice:4;black_destroy_enemy_cost_exile:6',
+
+  // COR_171 回復の代償: 味方1体を破壊し、ヒーロー8回復、3枚引く。
+  cor_171: 'target:friendly_unit;black_destroy_friendly_heal_draw:1:8:3',
+
+  // COR_172 乱撃の代償: 味方1体を破壊し、ランダム敵に5ダメージ、1枚引く。破壊した場合除外。
+  cor_172: 'target:friendly_unit;black_sacrifice_friendly_damage_random_enemy_exile_draw:1:5:1',
+
+  // COR_173 収穫条件破壊: 墓地5枚以上なら敵1体を破壊して除外。10枚以上ならランダム敵に3ダメージも与える。
+  cor_173: 'target:enemy_unit;black_destroy_enemy_random_damage_by_graveyard:5:10:3',
+
+  // COR_174 四重撃: コスト4以下の敵1体に6ダメージ。破壊した場合除外。
+  cor_174: 'target:enemy_unit;black_damage_enemy_cost_exile:4:6',
+
+  // COR_175 五重破壊: コスト5以下の敵1体を破壊して除外。
+  cor_175: 'target:enemy_unit;black_destroy_enemy_cost_exile:5',
+
+  // COR_176 五重撃: コスト5以下の敵1体に7ダメージ。破壊した場合除外。
+  cor_176: 'target:enemy_unit;black_damage_enemy_cost_exile:5:7',
+
+  // COR_177 六重破壊: コスト6以下の敵1体を破壊して除外。
+  cor_177: 'target:enemy_unit;black_destroy_enemy_cost_exile:6',
+
+  // COR_178 二体破壊: コスト3以下の敵を2体まで破壊して除外。
+  cor_178: 'target:enemy_unit;black_destroy_two_enemy_cost_exile:3',
+
+  // COR_179 六重撃: コスト6以下の敵1体に8ダメージ。破壊した場合除外。
+  cor_179: 'target:enemy_unit;black_damage_enemy_cost_exile:6:8',
+
+  // COR_180 終焉の殲滅: コスト7以下の敵1体を破壊して除外。墓地8枚以上なら任意敵破壊+敵ヒーロー3ダメージ。
+  cor_180: 'target:enemy_unit;black_destroy_final_annihilation:7:8:3',
 }

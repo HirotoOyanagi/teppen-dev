@@ -937,6 +937,80 @@ describe('新カードCore 赤カードの挙動テスト', () => {
     })
   })
 
+  describe('黒カード COR_136-COR_180', () => {
+    it('COR_136 は墓地6枚以上で自身に+2/+2する', () => {
+      gameState.players[0].graveyard = [
+        'cor_001',
+        'cor_002',
+        'cor_003',
+        'cor_004',
+        'cor_005',
+        'cor_006',
+      ]
+
+      const result = playUnit(gameState, 'cor_136', 0)
+      const unit = getUnitInLane(result.state, 'player1', 0)
+
+      expect(unit?.attack).toBe(4)
+      expect(unit?.hp).toBe(7)
+      expect(unit?.maxHp).toBe(7)
+    })
+
+    it('COR_148 はライフを代償にコスト4以下の敵を破壊して除外する', () => {
+      const enemy = createUnit('enemy_low_cost', 1, 5, 2, 'cor_137')
+      gameState.players[1].units.push(enemy)
+
+      const result = playUnit(gameState, 'cor_148', 0, enemy.id)
+
+      expect(result.state.players[0].hp).toBe(28)
+      expect(result.state.players[1].units.some((unit) => unit.id === enemy.id)).toBe(false)
+      expect(result.state.players[1].graveyard).not.toContain('cor_137')
+    })
+
+    it('COR_162 は墓地8枚以上で対象味方に+3/+3する', () => {
+      const ally = createUnit('ally_target', 1, 5, 2)
+      gameState.players[0].units.push(ally)
+      gameState.players[0].graveyard = [
+        'cor_001',
+        'cor_002',
+        'cor_003',
+        'cor_004',
+        'cor_005',
+        'cor_006',
+        'cor_007',
+        'cor_008',
+      ]
+
+      const result = playActionAndResolve(gameState, 'cor_162', ally.id)
+      const updated = result.state.players[0].units.find((unit) => unit.id === ally.id)
+
+      expect(updated?.attack).toBe(5)
+      expect(updated?.hp).toBe(8)
+      expect(updated?.maxHp).toBe(8)
+    })
+
+    it('COR_180 は墓地8枚以上でコスト制限なしに敵を除外し、敵ヒーローに3ダメージを与える', () => {
+      const enemy = createUnit('enemy_boss', 1, 9, 3, 'cor_012')
+      gameState.players[1].units.push(enemy)
+      gameState.players[0].graveyard = [
+        'cor_001',
+        'cor_002',
+        'cor_003',
+        'cor_004',
+        'cor_005',
+        'cor_006',
+        'cor_007',
+        'cor_008',
+      ]
+
+      const result = playActionAndResolve(gameState, 'cor_180', enemy.id)
+
+      expect(result.state.players[1].units.some((unit) => unit.id === enemy.id)).toBe(false)
+      expect(result.state.players[1].graveyard).not.toContain('cor_012')
+      expect(result.state.players[1].hp).toBe(27)
+    })
+  })
+
   describe('補助確認', () => {
     it('赤カード45枚のマッピングが定義されている', () => {
       const allIds = Array.from(cardMap.keys())
@@ -985,6 +1059,20 @@ describe('新カードCore 赤カードの挙動テスト', () => {
       })
 
       expect(greenMappings).toHaveLength(45)
+    })
+
+    it('黒の新カード45枚分のeffectFunctionsが存在する', () => {
+      const blackMappings = Array.from(cardMap.keys()).filter((cardId) => {
+        const card = cardMap.get(cardId)
+        if (!card || card.attribute !== 'black') {
+          return false
+        }
+
+        const number = Number.parseInt(cardId.split('_')[1] || '0', 10)
+        return number >= 136 && number <= 180 && Boolean(card.effectFunctions)
+      })
+
+      expect(blackMappings).toHaveLength(45)
     })
 
     it('攻撃トリガーのカードは時間経過で攻撃処理に進める', () => {

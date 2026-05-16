@@ -955,6 +955,74 @@ export function resolveEffectByFunctionName(
     case 'debuff_target_attack':
       return resolveDebuffTargetAttack(value, context)
 
+    // ── Blackカード: 墓地/代償/除外系 ──
+    case 'black_buff_self_by_graveyard':
+      return resolveBlackBuffSelfByGraveyard(value, context, valueStr)
+    case 'black_buff_all_friendly_if_graveyard':
+      return resolveBlackBuffAllFriendlyIfGraveyard(value, context, valueStr)
+    case 'black_buff_friendly_shield_by_graveyard':
+      return resolveBlackBuffFriendlyShieldByGraveyard(value, context, valueStr)
+    case 'black_buff_random_friendly_if_graveyard':
+      return resolveBlackBuffRandomFriendlyIfGraveyard(value, context, valueStr)
+    case 'black_heal_hero_by_graveyard':
+      return resolveBlackHealHeroByGraveyard(value, context, valueStr)
+    case 'black_buff_self_if_graveyard':
+      return resolveBlackBuffSelfIfGraveyard(value, context, valueStr)
+    case 'black_buff_target_attack_by_graveyard':
+      return resolveBlackBuffTargetAttackByGraveyard(value, context, valueStr)
+    case 'black_damage_enemy_by_graveyard':
+      return resolveBlackDamageEnemyByGraveyard(value, context, valueStr)
+    case 'black_damage_enemy_if_graveyard_exile':
+      return resolveBlackDamageEnemyIfGraveyardExile(value, context, valueStr)
+    case 'black_damage_enemy_then_random_by_graveyard':
+      return resolveBlackDamageEnemyThenRandomByGraveyard(value, context, valueStr)
+    case 'black_discard_damage_enemy_exile':
+      return resolveBlackDiscardDamageEnemyExile(value, context, valueStr)
+    case 'black_destroy_enemy_cost_exile':
+      return resolveBlackDestroyEnemyCostExile(value, context)
+    case 'black_destroy_enemy_cost':
+      return resolveBlackDestroyEnemyCost(value, context)
+    case 'black_destroy_enemy_cost_exile_if_graveyard':
+      return resolveBlackDestroyEnemyCostExileIfGraveyard(value, context, valueStr)
+    case 'black_destroy_front_enemy_cost_exile':
+      return resolveBlackDestroyFrontEnemyCostExile(value, context)
+    case 'black_destroy_random_enemy_cost_exile':
+      return resolveBlackDestroyRandomEnemyCostExile(value, context)
+    case 'black_damage_enemy_cost_exile':
+      return resolveBlackDamageEnemyCostExile(value, context, valueStr)
+    case 'black_damage_enemy_min_cost_exile':
+      return resolveBlackDamageEnemyMinCostExile(value, context, valueStr)
+    case 'black_destroy_enemy_cost_by_graveyard_exile':
+      return resolveBlackDestroyEnemyCostByGraveyardExile(value, context, valueStr)
+    case 'black_destroy_enemy_exact_cost':
+      return resolveBlackDestroyEnemyExactCost(value, context)
+    case 'black_buff_target_by_graveyard':
+      return resolveBlackBuffTargetByGraveyard(value, context, valueStr)
+    case 'black_buff_target_draw_if_graveyard':
+      return resolveBlackBuffTargetDrawIfGraveyard(value, context, valueStr)
+    case 'black_destroy_enemy_then_damage_other_by_graveyard':
+      return resolveBlackDestroyEnemyThenDamageOtherByGraveyard(value, context, valueStr)
+    case 'black_sacrifice_friendly_damage_enemy_exile_draw':
+      return resolveBlackSacrificeFriendlyDamageEnemyExileDraw(value, context, valueStr)
+    case 'black_damage_enemy_exile':
+      return resolveBlackDamageEnemyExile(value, context)
+    case 'black_destroy_friendly_draw_ex_heal':
+      return resolveBlackDestroyFriendlyDrawExHeal(value, context, valueStr)
+    case 'black_damage_all_enemy_exile':
+      return resolveBlackDamageAllEnemyExile(value, context)
+    case 'black_sacrifice_friendly_destroy_enemy_exile':
+      return resolveBlackSacrificeFriendlyDestroyEnemyExile(value, context)
+    case 'black_destroy_friendly_heal_draw':
+      return resolveBlackDestroyFriendlyHealDraw(value, context, valueStr)
+    case 'black_sacrifice_friendly_damage_random_enemy_exile_draw':
+      return resolveBlackSacrificeFriendlyDamageRandomEnemyExileDraw(value, context, valueStr)
+    case 'black_destroy_enemy_random_damage_by_graveyard':
+      return resolveBlackDestroyEnemyRandomDamageByGraveyard(value, context, valueStr)
+    case 'black_destroy_two_enemy_cost_exile':
+      return resolveBlackDestroyTwoEnemyCostExile(value, context)
+    case 'black_destroy_final_annihilation':
+      return resolveBlackDestroyFinalAnnihilation(value, context, valueStr)
+
     default:
       console.warn(`Unknown effect function: ${functionName}`)
       return { state: newState, events: localEvents }
@@ -4688,6 +4756,977 @@ function resolveGreenDeathRandomShieldByAge(
     if (!stayedLongEnough) return shielded
     return { ...shielded, hp: Math.min(shielded.maxHp, shielded.hp + 4) }
   })
+  return { state: newState, events }
+}
+
+// ─── Blackカード: 墓地/代償/除外系 ───
+
+function getBlackGraveyardCount(state: GameState, playerId: string): number {
+  const playerIndex = findPlayerIndex(state, playerId)
+  if (playerIndex === -1) return 0
+  return state.players[playerIndex].graveyard.length
+}
+
+function getBlackUnitCost(cardMap: Map<string, CardDefinition>, unit: Unit): number {
+  const parts = unit.cardId.split('@')
+  const override = parts.find((part) => part.startsWith('cost='))
+  if (override) {
+    const value = parseInt(override.split('=')[1] ?? '', 10)
+    if (!Number.isNaN(value)) return value
+  }
+
+  return cardMap.get(parts[0])?.cost ?? 0
+}
+
+function buffUnitStatsForBlack(
+  state: GameState,
+  playerIndex: number,
+  unitId: string,
+  attackBuff: number,
+  hpBuff: number
+): GameState {
+  const player = state.players[playerIndex]
+  const newState = { ...state }
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) =>
+      unit.id === unitId
+        ? {
+            ...unit,
+            attack: unit.attack + attackBuff,
+            hp: unit.hp + hpBuff,
+            maxHp: unit.maxHp + hpBuff,
+          }
+        : unit
+    ),
+  }
+  return newState
+}
+
+function pickFriendlyUnitForBlack(
+  state: GameState,
+  context: EffectContext,
+  includeSource: boolean = true
+): Unit | undefined {
+  const playerIndex = findPlayerIndex(state, context.sourcePlayer.playerId)
+  if (playerIndex === -1) return undefined
+  const player = state.players[playerIndex]
+
+  if (context.targetUnit) {
+    const target = player.units.find((unit) => unit.id === context.targetUnit?.unit.id)
+    if (target && (includeSource || target.id !== context.sourceUnit?.unit.id)) {
+      return target
+    }
+  }
+
+  const candidates = player.units.filter((unit) =>
+    includeSource ? true : unit.id !== context.sourceUnit?.unit.id
+  )
+  if (candidates.length === 0) return undefined
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
+function pickEnemyUnitForBlack(
+  state: GameState,
+  context: EffectContext,
+  predicate: (unit: Unit) => boolean = () => true,
+  options: { ignoreTarget?: boolean; excludeUnitId?: string } = {}
+): Unit | undefined {
+  const opponentIndex = findOpponentIndex(state, context.sourcePlayer.playerId)
+  const opponent = state.players[opponentIndex]
+
+  if (!options.ignoreTarget && context.targetUnit) {
+    const target = opponent.units.find((unit) => unit.id === context.targetUnit?.unit.id)
+    if (target) {
+      return target.id !== options.excludeUnitId && predicate(target) ? target : undefined
+    }
+  }
+
+  const candidates = opponent.units.filter(
+    (unit) => unit.id !== options.excludeUnitId && predicate(unit)
+  )
+  if (candidates.length === 0) return undefined
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
+function destroyUnitForBlack(
+  state: GameState,
+  events: GameEvent[],
+  playerIndex: number,
+  unitId: string,
+  exile: boolean
+): GameState {
+  const player = state.players[playerIndex]
+  const target = player.units.find((unit) => unit.id === unitId)
+  if (!target) return state
+
+  const newState = { ...state }
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.filter((unit) => unit.id !== unitId),
+    graveyard: exile ? player.graveyard : [...player.graveyard, target.cardId],
+  }
+  events.push({
+    type: 'unit_destroyed',
+    unitId: target.id,
+    playerId: player.playerId,
+    lane: target.lane,
+    timestamp: Date.now(),
+  })
+  return newState
+}
+
+function removeLastGraveyardCardForBlack(graveyard: string[], cardId: string): string[] {
+  const next = [...graveyard]
+  const index = next.lastIndexOf(cardId)
+  if (index !== -1) {
+    next.splice(index, 1)
+  }
+  return next
+}
+
+function damageUnitForBlack(
+  state: GameState,
+  events: GameEvent[],
+  playerIndex: number,
+  unit: Unit,
+  damage: number,
+  exileOnDestroy: boolean
+): GameState {
+  let newState = applyDamageToUnit(state, events, playerIndex, unit.id, damage)
+  const wasDestroyed = !newState.players[playerIndex].units.some((u) => u.id === unit.id)
+  if (!wasDestroyed || !exileOnDestroy) return newState
+
+  const player = newState.players[playerIndex]
+  newState = {
+    ...newState,
+    players: [...newState.players] as [PlayerState, PlayerState],
+  }
+  newState.players[playerIndex] = {
+    ...player,
+    graveyard: removeLastGraveyardCardForBlack(player.graveyard, unit.cardId),
+  }
+  return newState
+}
+
+function drawCardsToHandForBlack(
+  state: GameState,
+  events: GameEvent[],
+  playerIndex: number,
+  count: number
+): GameState {
+  const player = state.players[playerIndex]
+  const deck = [...player.deck]
+  const hand = [...player.hand]
+  for (let i = 0; i < count && deck.length > 0; i++) {
+    const cardId = deck.shift()
+    if (!cardId) continue
+    hand.push(cardId)
+    events.push({
+      type: 'card_drawn',
+      playerId: player.playerId,
+      cardId,
+      timestamp: Date.now(),
+    })
+  }
+
+  const newState = { ...state }
+  newState.players[playerIndex] = { ...player, deck, hand }
+  return newState
+}
+
+function drawCardsToExForBlack(state: GameState, playerIndex: number, count: number): GameState {
+  const player = state.players[playerIndex]
+  const deck = [...player.deck]
+  const exPocket = [...player.exPocket]
+  for (let i = 0; i < count && deck.length > 0; i++) {
+    const cardId = deck.shift()
+    if (cardId) exPocket.push(cardId)
+  }
+
+  const newState = { ...state }
+  newState.players[playerIndex] = { ...player, deck, exPocket }
+  return newState
+}
+
+function discardCardsForBlack(
+  state: GameState,
+  events: GameEvent[],
+  playerIndex: number,
+  count: number
+): { state: GameState; paid: boolean } {
+  const player = state.players[playerIndex]
+  if (player.hand.length < count) return { state, paid: false }
+
+  const hand = [...player.hand]
+  const graveyard = [...player.graveyard]
+  for (let i = 0; i < count; i++) {
+    const [discarded] = hand.splice(0, 1)
+    if (!discarded) continue
+    graveyard.push(discarded)
+    events.push({
+      type: 'card_sent_to_graveyard',
+      playerId: player.playerId,
+      cardId: discarded,
+      reason: 'card_played',
+      timestamp: Date.now(),
+    })
+  }
+
+  const newState = { ...state }
+  newState.players[playerIndex] = { ...player, hand, graveyard }
+  return { state: newState, paid: true }
+}
+
+function resolveBlackBuffSelfByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  const highThreshold = params[3] || 0
+  const highAttackBuff = params[4] || attackBuff
+  const highHpBuff = params[5] || highAttackBuff
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+
+  if (highThreshold > 0 && graveyardCount >= highThreshold) {
+    const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+    newState = buffUnitStatsForBlack(
+      newState,
+      playerIndex,
+      sourceUnit.unit.id,
+      highAttackBuff,
+      highHpBuff
+    )
+  } else if (graveyardCount >= threshold) {
+    const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+    newState = buffUnitStatsForBlack(
+      newState,
+      playerIndex,
+      sourceUnit.unit.id,
+      attackBuff,
+      hpBuff
+    )
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackBuffAllFriendlyIfGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  if (getBlackGraveyardCount(newState, sourcePlayer.playerId) < threshold) {
+    return { state: newState, events }
+  }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const player = newState.players[playerIndex]
+  newState.players[playerIndex] = {
+    ...player,
+    units: player.units.map((unit) => ({
+      ...unit,
+      attack: unit.attack + attackBuff,
+      hp: unit.hp + hpBuff,
+      maxHp: unit.maxHp + hpBuff,
+    })),
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackBuffFriendlyShieldByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  const shieldThreshold = params[3] || 0
+  const shieldCount = params[4] || 1
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  newState = buffUnitStatsForBlack(newState, playerIndex, target.id, attackBuff, hpBuff)
+  if (shieldThreshold > 0 && graveyardCount >= shieldThreshold) {
+    newState = mapFriendlyUnit(newState, playerIndex, target.id, (unit) =>
+      addShieldToUnit(unit, shieldCount)
+    )
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackBuffRandomFriendlyIfGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  if (getBlackGraveyardCount(newState, sourcePlayer.playerId) < threshold) {
+    return { state: newState, events }
+  }
+
+  const target = pickFriendlyUnitForBlack(newState, { ...context, targetUnit: undefined })
+  if (!target) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  newState = buffUnitStatsForBlack(newState, playerIndex, target.id, attackBuff, hpBuff)
+  return { state: newState, events }
+}
+
+function resolveBlackHealHeroByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const heal = params[1] || 0
+  const highThreshold = params[2] || 0
+  const highHeal = params[3] || heal
+  const graveyardCount = getBlackGraveyardCount(context.gameState, context.sourcePlayer.playerId)
+  if (highThreshold > 0 && graveyardCount >= highThreshold) {
+    return resolveHealHero(highHeal, context)
+  }
+  if (graveyardCount >= threshold) {
+    return resolveHealHero(heal, context)
+  }
+  return { state: { ...context.gameState }, events: context.events }
+}
+
+function resolveBlackBuffSelfIfGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  if (getBlackGraveyardCount(context.gameState, context.sourcePlayer.playerId) < threshold) {
+    return { state: { ...context.gameState }, events: context.events }
+  }
+
+  const playerIndex = findPlayerIndex(context.gameState, context.sourcePlayer.playerId)
+  if (!context.sourceUnit || playerIndex === -1) {
+    return { state: { ...context.gameState }, events: context.events }
+  }
+  return {
+    state: buffUnitStatsForBlack(
+      context.gameState,
+      playerIndex,
+      context.sourceUnit.unit.id,
+      attackBuff,
+      hpBuff
+    ),
+    events: context.events,
+  }
+}
+
+function resolveBlackBuffTargetAttackByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const cap = params[1] || 5
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  newState = buffUnitStatsForBlack(newState, playerIndex, target.id, Math.min(graveyardCount, cap), 0)
+  return { state: newState, events }
+}
+
+function resolveBlackDamageEnemyByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const damage = params[1] || 0
+  const highThreshold = params[2] || 0
+  const highDamage = params[3] || damage
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = damageUnitForBlack(
+    newState,
+    events,
+    opponentIndex,
+    target,
+    highThreshold > 0 && graveyardCount >= highThreshold ? highDamage : damage,
+    false
+  )
+  return { state: newState, events }
+}
+
+function resolveBlackDamageEnemyIfGraveyardExile(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const damage = params[1] || 0
+  if (getBlackGraveyardCount(context.gameState, context.sourcePlayer.playerId) < threshold) {
+    return { state: { ...context.gameState }, events: context.events }
+  }
+  return resolveBlackDamageEnemyExile(damage, { ...context, gameState: context.gameState })
+}
+
+function resolveBlackDamageEnemyThenRandomByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const damage = params[1] || 0
+  const highThreshold = params[2] || 0
+  const randomDamage = params[3] || 0
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (target) {
+    newState = damageUnitForBlack(newState, events, opponentIndex, target, damage, false)
+  }
+
+  if (highThreshold > 0 && graveyardCount >= highThreshold) {
+    const randomTarget = pickEnemyUnitForBlack(newState, context, () => true, { ignoreTarget: true })
+    if (randomTarget) {
+      newState = damageUnitForBlack(newState, events, opponentIndex, randomTarget, randomDamage, false)
+    }
+  }
+
+  return { state: newState, events }
+}
+
+function resolveBlackDiscardDamageEnemyExile(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const discardCount = params[0] || value || 1
+  const damage = params[1] || 0
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const discardResult = discardCardsForBlack(newState, events, playerIndex, discardCount)
+  if (!discardResult.paid) return { state: newState, events }
+
+  newState = discardResult.state
+  return resolveBlackDamageEnemyExile(damage, { ...context, gameState: newState, events })
+}
+
+function resolveBlackDestroyEnemyCostExile(
+  maxCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  return destroyEnemyByCostForBlack(maxCost, context, true)
+}
+
+function resolveBlackDestroyEnemyCost(
+  maxCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  return destroyEnemyByCostForBlack(maxCost, context, false)
+}
+
+function destroyEnemyByCostForBlack(
+  maxCost: number,
+  context: EffectContext,
+  exile: boolean
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const target = pickEnemyUnitForBlack(
+    newState,
+    context,
+    (unit) => getBlackUnitCost(cardMap, unit) <= maxCost
+  )
+  if (!target) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, exile)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyEnemyCostExileIfGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const maxCost = params[0] || value
+  const threshold = params[1] || 0
+  const exile = threshold > 0 && getBlackGraveyardCount(context.gameState, context.sourcePlayer.playerId) >= threshold
+  return destroyEnemyByCostForBlack(maxCost, context, exile)
+}
+
+function resolveBlackDestroyFrontEnemyCostExile(
+  maxCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourceUnit, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  if (!sourceUnit) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = newState.players[opponentIndex].units.find(
+    (unit) =>
+      unit.lane === sourceUnit.unit.lane &&
+      getBlackUnitCost(cardMap, unit) <= maxCost
+  )
+  if (!target) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, true)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyRandomEnemyCostExile(
+  maxCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const ignoredTargetContext = { ...context, targetUnit: undefined }
+  return destroyEnemyByCostForBlack(maxCost, ignoredTargetContext, true)
+}
+
+function resolveBlackDamageEnemyCostExile(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const maxCost = params[0] || value
+  const damage = params[1] || 0
+  return damageEnemyWithCostFilterForBlack(context, damage, (unit) =>
+    getBlackUnitCost(context.cardMap, unit) <= maxCost
+  )
+}
+
+function resolveBlackDamageEnemyMinCostExile(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const minCost = params[0] || value
+  const damage = params[1] || 0
+  return damageEnemyWithCostFilterForBlack(context, damage, (unit) =>
+    getBlackUnitCost(context.cardMap, unit) >= minCost
+  )
+}
+
+function damageEnemyWithCostFilterForBlack(
+  context: EffectContext,
+  damage: number,
+  predicate: (unit: Unit) => boolean
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const target = pickEnemyUnitForBlack(newState, context, predicate)
+  if (!target) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = damageUnitForBlack(newState, events, opponentIndex, target, damage, true)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyEnemyCostByGraveyardExile(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const params = parseNumberList(valueStr)
+  const baseMaxCost = params[0] || value
+  const threshold = params[1] || 0
+  const upgradedMaxCost = params[2] || baseMaxCost
+  const graveyardCount = getBlackGraveyardCount(context.gameState, context.sourcePlayer.playerId)
+  return destroyEnemyByCostForBlack(
+    threshold > 0 && graveyardCount >= threshold ? upgradedMaxCost : baseMaxCost,
+    context,
+    true
+  )
+}
+
+function resolveBlackDestroyEnemyExactCost(
+  exactCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const target = pickEnemyUnitForBlack(
+    newState,
+    context,
+    (unit) => getBlackUnitCost(cardMap, unit) === exactCost
+  )
+  if (!target) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, false)
+  return { state: newState, events }
+}
+
+function resolveBlackBuffTargetByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  const highThreshold = params[3] || 0
+  const highAttackBuff = params[4] || attackBuff
+  const highHpBuff = params[5] || highAttackBuff
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const useHigh = highThreshold > 0 && graveyardCount >= highThreshold
+  newState = buffUnitStatsForBlack(
+    newState,
+    playerIndex,
+    target.id,
+    useHigh ? highAttackBuff : attackBuff,
+    useHigh ? highHpBuff : hpBuff
+  )
+  return { state: newState, events }
+}
+
+function resolveBlackBuffTargetDrawIfGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { sourcePlayer, events } = context
+  let newState = context.gameState
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const attackBuff = params[1] || 0
+  const hpBuff = params[2] || attackBuff
+  const drawCount = params[3] || 1
+  if (getBlackGraveyardCount(newState, sourcePlayer.playerId) < threshold) {
+    return { state: { ...newState }, events }
+  }
+
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: { ...newState }, events }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  newState = buffUnitStatsForBlack(newState, playerIndex, target.id, attackBuff, hpBuff)
+  newState = drawCardsToHandForBlack(newState, events, playerIndex, drawCount)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyEnemyThenDamageOtherByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const highThreshold = params[1] || 0
+  const otherDamage = params[2] || 0
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, false)
+
+  if (highThreshold > 0 && graveyardCount >= highThreshold) {
+    const other = pickEnemyUnitForBlack(
+      newState,
+      context,
+      () => true,
+      { ignoreTarget: true, excludeUnitId: target.id }
+    )
+    if (other) {
+      newState = damageUnitForBlack(newState, events, opponentIndex, other, otherDamage, false)
+    }
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackSacrificeFriendlyDamageEnemyExileDraw(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { events, sourcePlayer } = context
+  let newState = { ...context.gameState }
+  const params = parseNumberList(valueStr)
+  const damage = params[1] || 0
+  const drawCount = params[2] || 0
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const sacrifice = pickFriendlyUnitForBlack(newState, { ...context, targetUnit: undefined })
+  if (!sacrifice) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, playerIndex, sacrifice.id, false)
+  const damaged = resolveBlackDamageEnemyExile(damage, { ...context, gameState: newState, events })
+  newState = damaged.state
+  if (drawCount > 0) {
+    newState = drawCardsToHandForBlack(newState, events, playerIndex, drawCount)
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackDamageEnemyExile(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = damageUnitForBlack(newState, events, opponentIndex, target, damage, true)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyFriendlyDrawExHeal(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { events, sourcePlayer } = context
+  let newState = { ...context.gameState }
+  const params = parseNumberList(valueStr)
+  const exCount = params[1] || 0
+  const heal = params[2] || 0
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, playerIndex, target.id, false)
+  if (exCount > 0) newState = drawCardsToExForBlack(newState, playerIndex, exCount)
+  if (heal > 0) {
+    const healed = resolveHealHero(heal, { ...context, gameState: newState, events })
+    newState = healed.state
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackDamageAllEnemyExile(
+  damage: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const targets = [...newState.players[opponentIndex].units]
+  for (const target of targets) {
+    if (!newState.players[opponentIndex].units.some((unit) => unit.id === target.id)) continue
+    newState = damageUnitForBlack(newState, events, opponentIndex, target, damage, true)
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackSacrificeFriendlyDestroyEnemyExile(
+  _value: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { events, sourcePlayer } = context
+  let newState = { ...context.gameState }
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const sacrifice = pickFriendlyUnitForBlack(newState, { ...context, targetUnit: undefined })
+  if (!sacrifice) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, playerIndex, sacrifice.id, false)
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, true)
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyFriendlyHealDraw(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { events, sourcePlayer } = context
+  let newState = { ...context.gameState }
+  const params = parseNumberList(valueStr)
+  const heal = params[1] || 0
+  const drawCount = params[2] || 0
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const target = pickFriendlyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, playerIndex, target.id, false)
+  if (heal > 0) {
+    const healed = resolveHealHero(heal, { ...context, gameState: newState, events })
+    newState = healed.state
+  }
+  if (drawCount > 0) {
+    newState = drawCardsToHandForBlack(newState, events, playerIndex, drawCount)
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackSacrificeFriendlyDamageRandomEnemyExileDraw(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { events, sourcePlayer } = context
+  let newState = { ...context.gameState }
+  const params = parseNumberList(valueStr)
+  const damage = params[1] || 0
+  const drawCount = params[2] || 0
+  const playerIndex = findPlayerIndex(newState, sourcePlayer.playerId)
+  const sacrifice = pickFriendlyUnitForBlack(newState, context)
+  if (!sacrifice) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, playerIndex, sacrifice.id, false)
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickEnemyUnitForBlack(newState, context, () => true, { ignoreTarget: true })
+  if (target) {
+    newState = damageUnitForBlack(newState, events, opponentIndex, target, damage, true)
+  }
+  if (drawCount > 0) {
+    newState = drawCardsToHandForBlack(newState, events, playerIndex, drawCount)
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyEnemyRandomDamageByGraveyard(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const threshold = params[0] || value
+  const highThreshold = params[1] || 0
+  const randomDamage = params[2] || 0
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  if (graveyardCount < threshold) return { state: newState, events }
+
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickEnemyUnitForBlack(newState, context)
+  if (!target) return { state: newState, events }
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, true)
+
+  if (highThreshold > 0 && graveyardCount >= highThreshold) {
+    const randomTarget = pickEnemyUnitForBlack(newState, context, () => true, { ignoreTarget: true })
+    if (randomTarget) {
+      newState = damageUnitForBlack(newState, events, opponentIndex, randomTarget, randomDamage, false)
+    }
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyTwoEnemyCostExile(
+  maxCost: number,
+  context: EffectContext
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const pickedIds: string[] = []
+
+  const first = pickEnemyUnitForBlack(
+    newState,
+    context,
+    (unit) => getBlackUnitCost(cardMap, unit) <= maxCost
+  )
+  if (first) pickedIds.push(first.id)
+
+  const second = pickEnemyUnitForBlack(
+    newState,
+    context,
+    (unit) => getBlackUnitCost(cardMap, unit) <= maxCost,
+    { ignoreTarget: true, excludeUnitId: first?.id }
+  )
+  if (second) pickedIds.push(second.id)
+
+  for (const unitId of pickedIds) {
+    if (!newState.players[opponentIndex].units.some((unit) => unit.id === unitId)) continue
+    newState = destroyUnitForBlack(newState, events, opponentIndex, unitId, true)
+  }
+  return { state: newState, events }
+}
+
+function resolveBlackDestroyFinalAnnihilation(
+  value: number,
+  context: EffectContext,
+  valueStr?: string
+): { state: GameState; events: GameEvent[] } {
+  const { gameState, events, sourcePlayer, cardMap } = context
+  let newState = { ...gameState }
+  const params = parseNumberList(valueStr)
+  const maxCost = params[0] || value
+  const threshold = params[1] || 0
+  const heroDamage = params[2] || 0
+  const graveyardCount = getBlackGraveyardCount(newState, sourcePlayer.playerId)
+  const opponentIndex = findOpponentIndex(newState, sourcePlayer.playerId)
+  const target = pickEnemyUnitForBlack(
+    newState,
+    context,
+    (unit) =>
+      graveyardCount >= threshold ||
+      getBlackUnitCost(cardMap, unit) <= maxCost
+  )
+  if (!target) return { state: newState, events }
+
+  newState = destroyUnitForBlack(newState, events, opponentIndex, target.id, true)
+  if (threshold > 0 && graveyardCount >= threshold && heroDamage > 0) {
+    newState = applyDamageToHero(newState, events, opponentIndex, heroDamage)
+  }
   return { state: newState, events }
 }
 
