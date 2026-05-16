@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import dynamic from 'next/dynamic'
 import { useNavigation } from '@/components/NavigationContext'
 import { getDecks, type SavedDeck } from '@/utils/deckStorage'
 import { HEROES } from '@/core/heroes'
+import HeroLive2D from '@/components/HeroLive2D'
 import styles from './DeckSelectScreen.module.css'
-
-const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
 type BattleEntryMode = 'rank' | 'practice' | 'free' | 'room'
 
 export default function DeckSelectScreen() {
@@ -169,9 +167,7 @@ export default function DeckSelectScreen() {
                       className={styles.deckItemHeroPortrait} 
                       style={{ backgroundColor: attributeColors[hero.attribute] }}
                     >
-                      <div style={{ fontSize: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                        👤
-                      </div>
+                      <HeroLive2D hero={hero} variant="avatar" side="left" />
                     </div>
                     <div className={styles.deckItemInfo}>
                       <div className={styles.deckItemName}>{deck.name}</div>
@@ -190,15 +186,13 @@ export default function DeckSelectScreen() {
         </div>
 
         <div className={styles.mainArea}>
-          {/* 3D Model Background */}
+          {/* Live2D Character Background */}
           <div className={styles.heroModelContainer}>
-            {selectedHero.modelUrl && (
-              <HeroModel3D 
-                modelUrl={selectedHero.modelUrl} 
-                variant="home" 
-                side="left"
-              />
-            )}
+            <HeroLive2D
+              hero={selectedHero}
+              variant="home"
+              side="left"
+            />
           </div>
 
           {selectedDeck && (

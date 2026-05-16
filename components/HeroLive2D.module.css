@@ -1,0 +1,338 @@
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 8rem;
+  overflow: hidden;
+  isolation: isolate;
+  --live2d-primary: #ef4444;
+  --live2d-secondary: #f59e0b;
+  --live2d-glow: rgba(248, 113, 113, 0.38);
+  --live2d-look-x: 0px;
+  --live2d-look-y: 0px;
+  --live2d-tilt: 0deg;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 8% 6% -8%;
+  background:
+    radial-gradient(circle at 50% 42%, var(--live2d-glow), transparent 35%),
+    radial-gradient(circle at 52% 78%, color-mix(in srgb, var(--live2d-primary) 34%, transparent), transparent 44%);
+  filter: blur(20px);
+  opacity: 0.78;
+  transform: translateZ(0);
+}
+
+.aura {
+  position: absolute;
+  inset: 12% 12% 2%;
+  border-radius: 48% 52% 46% 54%;
+  border: 1px solid color-mix(in srgb, var(--live2d-secondary) 28%, transparent);
+  background:
+    radial-gradient(circle at 50% 24%, color-mix(in srgb, var(--live2d-secondary) 25%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in srgb, var(--live2d-primary) 16%, transparent), transparent 62%);
+  box-shadow:
+    inset 0 0 34px color-mix(in srgb, var(--live2d-secondary) 18%, transparent),
+    0 0 52px color-mix(in srgb, var(--live2d-primary) 20%, transparent);
+  opacity: 0.72;
+  animation: live2dAura 5s ease-in-out infinite;
+  z-index: 0;
+}
+
+.rig {
+  position: absolute;
+  left: 50%;
+  bottom: -4%;
+  width: min(46rem, 72%);
+  height: 104%;
+  transform:
+    translateX(-50%)
+    translate(var(--live2d-look-x), var(--live2d-look-y))
+    rotate(var(--live2d-tilt));
+  transform-origin: 50% 86%;
+  animation: live2dBreath 4.4s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.stage[data-side='right'] .rig {
+  transform:
+    translateX(-50%)
+    translate(var(--live2d-look-x), var(--live2d-look-y))
+    rotate(var(--live2d-tilt))
+    scaleX(-1);
+}
+
+.stage[data-variant='battle'] .rig {
+  width: min(22rem, 132%);
+  height: 110%;
+  bottom: -12%;
+}
+
+.stage[data-variant='avatar'] .rig {
+  width: 118%;
+  height: 138%;
+  bottom: -55%;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.base {
+  filter:
+    drop-shadow(0 1.2rem 2.4rem rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 1.2rem var(--live2d-glow));
+}
+
+.shadow {
+  opacity: 0.22;
+  filter: blur(14px) brightness(0);
+  transform: translateY(1.4%) scale(1.015);
+}
+
+.lower {
+  clip-path: inset(56% 0 0 0);
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  transform-origin: 50% 76%;
+  animation: live2dLower 5.8s ease-in-out infinite;
+}
+
+.torso {
+  clip-path: inset(30% 0 0 0);
+  opacity: 0.3;
+  mix-blend-mode: screen;
+  transform-origin: 50% 70%;
+  animation: live2dTorso 4.4s ease-in-out infinite;
+}
+
+.capeLeft,
+.capeRight {
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  transform-origin: 50% 42%;
+  animation: live2dCape 5.2s ease-in-out infinite;
+}
+
+.capeLeft {
+  clip-path: polygon(0 28%, 49% 28%, 49% 100%, 0 100%);
+}
+
+.capeRight {
+  clip-path: polygon(51% 28%, 100% 28%, 100% 100%, 51% 100%);
+  animation-delay: -1.6s;
+}
+
+.hair {
+  clip-path: inset(0 0 43% 0);
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  transform-origin: 50% 22%;
+  animation: live2dHair 4.8s ease-in-out infinite;
+}
+
+.head {
+  clip-path: inset(0 18% 55% 18%);
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  transform:
+    translate(calc(var(--live2d-look-x) * 0.24), calc(var(--live2d-look-y) * 0.2))
+    rotate(calc(var(--live2d-tilt) * 0.55));
+  transform-origin: 50% 22%;
+  animation: live2dHead 5.6s ease-in-out infinite;
+}
+
+.blink {
+  position: absolute;
+  left: 38%;
+  top: 15%;
+  width: 24%;
+  height: 11%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.46), transparent);
+  filter: blur(5px);
+  opacity: 0;
+  transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12));
+  animation: live2dBlink 5.8s ease-in-out infinite;
+}
+
+.eyeLight {
+  position: absolute;
+  left: 42%;
+  top: 18%;
+  width: 16%;
+  height: 7%;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--live2d-secondary) 50%, white), transparent 65%);
+  filter: blur(8px);
+  opacity: 0.26;
+  transform: translate(calc(var(--live2d-look-x) * 0.18), calc(var(--live2d-look-y) * 0.16));
+  animation: live2dBlinkGlow 5.6s ease-in-out infinite;
+}
+
+.particleA,
+.particleB,
+.particleC {
+  position: absolute;
+  width: 0.44rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--live2d-secondary);
+  box-shadow: 0 0 14px var(--live2d-secondary);
+  opacity: 0.74;
+  z-index: 1;
+  animation: live2dParticle 6s ease-in-out infinite;
+}
+
+.particleA {
+  left: 24%;
+  top: 28%;
+}
+
+.particleB {
+  right: 26%;
+  top: 46%;
+  animation-delay: -2s;
+  transform: scale(0.8);
+}
+
+.particleC {
+  left: 62%;
+  top: 18%;
+  animation-delay: -4s;
+  transform: scale(0.7);
+}
+
+.stage[data-variant='avatar'] .aura,
+.stage[data-variant='avatar'] .particleA,
+.stage[data-variant='avatar'] .particleB,
+.stage[data-variant='avatar'] .particleC,
+.stage[data-variant='avatar'] .torso,
+.stage[data-variant='avatar'] .hair,
+.stage[data-variant='avatar'] .lower,
+.stage[data-variant='avatar'] .capeLeft,
+.stage[data-variant='avatar'] .capeRight,
+.stage[data-variant='avatar'] .blink,
+.stage[data-variant='avatar'] .eyeLight {
+  display: none;
+}
+
+@keyframes live2dBreath {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  50% {
+    scale: 1.018 1.006;
+  }
+}
+
+@keyframes live2dAura {
+  0%,
+  100% {
+    transform: scale(0.985) rotate(-1deg);
+    opacity: 0.58;
+  }
+  50% {
+    transform: scale(1.03) rotate(1deg);
+    opacity: 0.82;
+  }
+}
+
+@keyframes live2dTorso {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(1);
+  }
+  50% {
+    transform: translateY(-0.9%) scaleX(1.012);
+  }
+}
+
+@keyframes live2dLower {
+  0%,
+  100% {
+    transform: translateX(-0.35%) rotate(-0.25deg);
+  }
+  50% {
+    transform: translateX(0.45%) rotate(0.3deg);
+  }
+}
+
+@keyframes live2dCape {
+  0%,
+  100% {
+    transform: translateX(-0.8%) rotate(-0.9deg);
+  }
+  50% {
+    transform: translateX(1%) rotate(1.15deg);
+  }
+}
+
+@keyframes live2dHair {
+  0%,
+  100% {
+    transform: translateX(-0.9%) rotate(-0.9deg);
+  }
+  50% {
+    transform: translateX(1%) rotate(1.2deg);
+  }
+}
+
+@keyframes live2dHead {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -0.7%;
+  }
+}
+
+@keyframes live2dBlinkGlow {
+  0%,
+  88%,
+  100% {
+    opacity: 0.24;
+  }
+  92%,
+  95% {
+    opacity: 0.04;
+  }
+}
+
+@keyframes live2dBlink {
+  0%,
+  88%,
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12)) scaleY(0.2);
+  }
+  92%,
+  95% {
+    opacity: 0.34;
+    transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12)) scaleY(1);
+  }
+}
+
+@keyframes live2dParticle {
+  0%,
+  100% {
+    translate: 0 0;
+    opacity: 0.18;
+  }
+  45% {
+    translate: 0 -1.4rem;
+    opacity: 0.86;
+  }
+}

@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import type { CardDefinition, PlayerState } from '@/core/types'
 import { resolveCardDefinition } from '@/core/cardId'
-
-const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
+import HeroLive2D from '@/components/HeroLive2D'
 
 /** デッキ用：積みカードのシルエット（淡色）— viewBox 内に収め stroke 分の余白あり */
 function DeckIcon({ className }: { className?: string }) {
@@ -121,7 +119,7 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
     black: 'border-slate-300/30 bg-slate-300/10',
   }
   const heroAccentPanel = heroAccentPanelMap[player.hero.attribute] || heroAccentPanelMap.black
-  const modelOffsetPosition = isLeft ? 'left-[-22%]' : 'right-[-22%]'
+  const modelOffsetPosition = isLeft ? 'left-[-18%]' : 'right-[-18%]'
   const overlayPosition = isLeft ? 'left-[12%]' : 'right-[12%]'
   const bannerPosition = isLeft ? 'left-[4%] items-start' : 'right-[4%] items-end'
 
@@ -137,22 +135,14 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
           isLeft ? 'pl-0' : 'pr-0'
         }`}
       >
-        {player.hero.modelUrl ? (
-          <div className={`absolute inset-y-[-2%] z-[1] w-[132%] min-h-[360px] ${modelOffsetPosition}`}>
-            <HeroModel3D
-              modelUrl={player.hero.modelUrl}
-              variant="battle"
-              side={side}
-              className="w-full h-full"
-            />
-          </div>
-        ) : (
-          <div
-            className={`absolute inset-0 bg-gradient-to-r ${
-              isLeft ? 'from-gray-800/60 to-transparent' : 'from-transparent to-gray-800/60'
-            }`}
+        <div className={`absolute inset-y-[-2%] z-[1] w-[128%] min-h-[360px] ${modelOffsetPosition}`}>
+          <HeroLive2D
+            hero={player.hero}
+            variant="battle"
+            side={side}
+            className="w-full h-full"
           />
-        )}
+        </div>
         {/* 中央寄りにのみ暗いオーバーレイ（ヒーローは明るく見せる） */}
         <div
           className={`absolute inset-0 pointer-events-none ${

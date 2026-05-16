@@ -31,7 +31,7 @@ import {
   SecondaryButton,
   Surface,
 } from '../components/common'
-import { HeroModel3D } from '../components/HeroModel3D'
+import { HeroLive2D } from '../components/HeroLive2D'
 
 type BattleBgmPlayer = {
   loop: boolean
@@ -1148,12 +1148,13 @@ function BattleBoard({
                 style={[styles.heroTouchFill, glowFriendlyHero ? styles.heroDropGlow : null]}
                 onPress={() => handleUnitOrHeroTarget(player.playerId, 'friendly')}
               >
-                <HeroModel3D
-                  modelUrl={player.hero.modelUrl}
+                <HeroLive2D
+                  imageUrl={player.hero.live2dImageUrl}
                   variant="battle"
                   side="left"
                   style={styles.heroModelFrame}
                   fallbackLabel={player.hero.name}
+                  attribute={player.hero.attribute}
                 />
               </Pressable>
             </View>
@@ -1265,12 +1266,13 @@ function BattleBoard({
                 style={styles.heroTouchFill}
                 onPress={() => handleUnitOrHeroTarget(opponent.playerId, 'enemy')}
               >
-                <HeroModel3D
-                  modelUrl={opponent.hero.modelUrl}
+                <HeroLive2D
+                  imageUrl={opponent.hero.live2dImageUrl}
                   variant="battle"
                   side="right"
                   style={styles.heroModelFrame}
                   fallbackLabel={opponent.hero.name}
+                  attribute={opponent.hero.attribute}
                 />
               </Pressable>
             </View>

@@ -158,6 +158,10 @@ export interface Hero {
   companion?: CompanionAbility
   /** 3Dモデル（.glb）のURL。指定時はキャラクター表示に使用 */
   modelUrl?: string
+  /** Imagegenで生成したLive2D用の2D立ち絵画像 */
+  live2dImageUrl?: string
+  /** 将来Cubism形式へ差し替える場合の .model3.json */
+  live2dModelUrl?: string
 }
 
 // プレイヤーの状態

@@ -12,6 +12,7 @@ export const HEROES: Hero[] = [
     attribute: 'red',
     description: '不撓の正義を掲げる戦士',
     modelUrl: '/images/heroes/7_golden-knight.glb',
+    live2dImageUrl: '/images/live2d/reisia-live2d.png',
     heroArt: {
       name: '不撓の正義',
       cost: 18,
@@ -31,6 +32,7 @@ export const HEROES: Hero[] = [
     attribute: 'red',
     description: '終焉の業火を操る者',
     modelUrl: '/images/heroes/8_red-berserker.glb',
+    live2dImageUrl: '/images/live2d/kaiser-live2d.png',
     heroArt: {
       name: '終焉の業火',
       cost: 25,
@@ -50,6 +52,7 @@ export const HEROES: Hero[] = [
     attribute: 'green',
     description: '記憶の再生を司る者',
     modelUrl: '/images/heroes/4_green-fairy.glb',
+    live2dImageUrl: '/images/live2d/mira-live2d.png',
     heroArt: {
       name: '記憶の再生',
       cost: 16,
@@ -68,6 +71,7 @@ export const HEROES: Hero[] = [
     attribute: 'green',
     description: '柔軟な戦術の使い手',
     modelUrl: '/images/heroes/3_dark-hero.glb',
+    live2dImageUrl: '/images/live2d/finn-live2d.png',
     heroArt: {
       name: '柔軟な戦術',
       cost: 14,
@@ -88,6 +92,7 @@ export const HEROES: Hero[] = [
     attribute: 'purple',
     description: '支配の戦略を駆使する知将',
     modelUrl: '/images/heroes/6_dark-rogue.glb',
+    live2dImageUrl: '/images/live2d/vald-live2d.png',
     heroArt: {
       name: '支配の戦略',
       cost: 25,
@@ -106,6 +111,7 @@ export const HEROES: Hero[] = [
     attribute: 'purple',
     description: '構造の解明を追求する研究者',
     modelUrl: '/images/heroes/1_blue-mage.glb',
+    live2dImageUrl: '/images/live2d/orca-live2d.png',
     heroArt: {
       name: '構造の解明',
       cost: 24,
@@ -125,6 +131,7 @@ export const HEROES: Hero[] = [
     attribute: 'black',
     description: '秩序の裁きを下す審判者',
     modelUrl: '/images/heroes/2_golden-swordsman.glb',
+    live2dImageUrl: '/images/live2d/seraph-live2d.png',
     heroArt: {
       name: '秩序の裁き',
       cost: 19,
@@ -142,6 +149,7 @@ export const HEROES: Hero[] = [
     attribute: 'black',
     description: '代償の取引を行う闇商人',
     modelUrl: '/images/heroes/5_dark-mage.glb',
+    live2dImageUrl: '/images/live2d/nox-live2d.png',
     heroArt: {
       name: '代償の取引',
       cost: 15,

@@ -15,6 +15,17 @@ const HERO_MODEL_MODULES: Record<string, number> = {
   '/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb': require('../../public/images/heroes/G6OIGphaAtHqgm78zgypd_model.glb'),
 }
 
+const HERO_LIVE2D_MODULES: Record<string, number> = {
+  '/images/live2d/reisia-live2d.png': require('../../public/images/live2d/reisia-live2d.png'),
+  '/images/live2d/kaiser-live2d.png': require('../../public/images/live2d/kaiser-live2d.png'),
+  '/images/live2d/mira-live2d.png': require('../../public/images/live2d/mira-live2d.png'),
+  '/images/live2d/finn-live2d.png': require('../../public/images/live2d/finn-live2d.png'),
+  '/images/live2d/vald-live2d.png': require('../../public/images/live2d/vald-live2d.png'),
+  '/images/live2d/orca-live2d.png': require('../../public/images/live2d/orca-live2d.png'),
+  '/images/live2d/seraph-live2d.png': require('../../public/images/live2d/seraph-live2d.png'),
+  '/images/live2d/nox-live2d.png': require('../../public/images/live2d/nox-live2d.png'),
+}
+
 async function resolveBundledAssetUri(moduleId: number): Promise<string> {
   const [asset] = await Asset.loadAsync(moduleId)
   const uri = asset.localUri ?? asset.uri
@@ -42,4 +53,12 @@ export async function loadBundledHeroModelUri(modelUrl?: string): Promise<string
   }
 
   return resolveBundledAssetUri(moduleId)
+}
+
+export function resolveBundledHeroLive2DModule(imageUrl?: string): number | null {
+  if (!imageUrl) {
+    return null
+  }
+
+  return HERO_LIVE2D_MODULES[imageUrl] ?? null
 }

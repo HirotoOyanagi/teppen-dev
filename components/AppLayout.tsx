@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import Head from 'next/head'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
 import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
+import HeroLive2D from '@/components/HeroLive2D'
 import styles from '@/styles/AppLayout.module.css'
-
-const HeroModel3D = dynamic(() => import('@/components/HeroModel3D'), { ssr: false })
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -103,16 +101,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
 
       {/* Main Content Area */}
       <div className={styles.mainContent}>
-        {/* Left Side: 3D Character (Shared) */}
+        {/* Left Side: Live2D Character (Shared) */}
         <div className={styles.characterArea}>
           <div className={styles.heroModelContainer}>
-            {currentHero.modelUrl && (
-              <HeroModel3D 
-                modelUrl={currentHero.modelUrl} 
-                variant="home" 
-                className={styles.heroModel}
-              />
-            )}
+            <HeroLive2D
+              hero={currentHero}
+              variant="home"
+              side="left"
+              className={styles.heroModel}
+            />
           </div>
           
           <div className={styles.eventBanner}>

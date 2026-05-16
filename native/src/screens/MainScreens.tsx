@@ -18,7 +18,7 @@ import type { CardAttribute, CardDefinition } from '@/core/types'
 import type { SavedDeck } from '@/shared/decks'
 
 import { useNativeNavigation, type BattleEntryMode } from '../app/navigation'
-import { HeroModel3D } from '../components/HeroModel3D'
+import { HeroLive2D } from '../components/HeroLive2D'
 import { useNativeCards } from '../hooks/useCards'
 import {
   deleteDeck,
@@ -127,18 +127,19 @@ function HeroShowcase({
 
   return (
     <View style={styles.heroShowcase}>
-      <HeroModel3D
-        modelUrl={hero.modelUrl}
+      <HeroLive2D
+        imageUrl={hero.live2dImageUrl}
         variant="home"
         side="right"
         style={styles.heroShowcaseModel}
         fallbackLabel={hero.name}
+        attribute={hero.attribute}
       />
       <View style={styles.heroShowcaseOverlay}>
         {title ? <Text style={styles.heroShowcaseEyebrow}>{title}</Text> : null}
         <Text style={styles.heroShowcaseTitle}>{hero.name}</Text>
         <Text style={styles.heroShowcaseSubtitle}>
-          {subtitle || hero.heroArt?.name || hero.description || '3Dモデル準備中'}
+          {subtitle || hero.heroArt?.name || hero.description || 'Live2D準備中'}
         </Text>
       </View>
     </View>
@@ -620,7 +621,16 @@ export function DeckListScreen() {
               const isSelected = selectedDeckId === deck.id
               return (
                 <Pressable key={deck.id} style={[styles.deckListItem, isSelected ? styles.deckListItemSelected : null]} onPress={() => setSelectedDeckIdState(deck.id)}>
-                  <View style={[styles.deckItemAvatar, { backgroundColor: ATTR_COLORS[hero.attribute] }]}><Text style={styles.deckItemAvatarIcon}>👤</Text></View>
+                  <View style={[styles.deckItemAvatar, { backgroundColor: ATTR_COLORS[hero.attribute] }]}>
+                    <HeroLive2D
+                      imageUrl={hero.live2dImageUrl}
+                      variant="avatar"
+                      side="right"
+                      style={styles.deckItemAvatarLive2D}
+                      fallbackLabel={hero.name}
+                      attribute={hero.attribute}
+                    />
+                  </View>
                   <View style={styles.deckItemInfo}>
                     <Text style={styles.deckItemName}>{deck.name}</Text>
                     <Text style={styles.deckItemMeta}>{hero.name}</Text>
@@ -874,7 +884,16 @@ export function DeckSelectScreen({ battleMode = 'rank' }: { battleMode?: BattleE
               const isSelected = selectedDeckId === deck.id
               return (
                 <Pressable key={deck.id} style={[styles.deckListItem, isSelected ? styles.deckListItemSelected : null]} onPress={() => setSelectedDeckIdState(deck.id)}>
-                  <View style={[styles.deckItemAvatar, { backgroundColor: ATTR_COLORS[h.attribute] }]}><Text style={styles.deckItemAvatarIcon}>👤</Text></View>
+                  <View style={[styles.deckItemAvatar, { backgroundColor: ATTR_COLORS[h.attribute] }]}>
+                    <HeroLive2D
+                      imageUrl={h.live2dImageUrl}
+                      variant="avatar"
+                      side="right"
+                      style={styles.deckItemAvatarLive2D}
+                      fallbackLabel={h.name}
+                      attribute={h.attribute}
+                    />
+                  </View>
                   <View style={styles.deckItemInfo}>
                     <Text style={styles.deckItemName}>{deck.name}</Text>
                     <Text style={styles.deckItemMeta}>{h.name}</Text>
@@ -1661,9 +1680,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  deckItemAvatarIcon: {
-    fontSize: 20,
+  deckItemAvatarLive2D: {
+    width: 40,
+    height: 40,
   },
   deckItemInfo: {
     flex: 1,

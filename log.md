@@ -103,6 +103,66 @@ Chrono Reverse は、時間進行・3レーン・MP回復・自動攻撃・Activ
 
 - Markdown 追加のみ。実行テストは不要。
 
+### 2026-05-16: Imagegen生成アセットを使ったLive2D風ヒーロー表示へ移行
+
+目的:
+
+- 既存の3Dヒーロー表示を、Imagegenで生成した2D立ち絵アセットを使うLive2D風キャラクター表示へ置き換える。
+- `Agent.md` に、キャラクター/Live2D/立ち絵作業では必ず先にImagegenで画像アセットを生成するルールを明記する。
+
+変更ファイル:
+
+- `Agent.md`
+- `core/types.ts`
+- `core/heroes.ts`
+- `components/HeroLive2D.tsx`
+- `components/HeroLive2D.module.css`
+- `components/HeroPortrait.tsx`
+- `components/AppLayout.tsx`
+- `components/screens/DeckListScreen.tsx`
+- `components/screens/DeckSelectScreen.tsx`
+- `native/src/assets.ts`
+- `native/src/components/HeroLive2D.tsx`
+- `native/src/screens/MainScreens.tsx`
+- `native/src/screens/BattleScreen.tsx`
+- `public/images/live2d/*.png`
+
+生成アセット:
+
+- `public/images/live2d/reisia-live2d.png`
+- `public/images/live2d/kaiser-live2d.png`
+- `public/images/live2d/mira-live2d.png`
+- `public/images/live2d/finn-live2d.png`
+- `public/images/live2d/vald-live2d.png`
+- `public/images/live2d/orca-live2d.png`
+- `public/images/live2d/seraph-live2d.png`
+- `public/images/live2d/nox-live2d.png`
+
+実装内容:
+
+- 8ヒーロー分のLive2D向け立ち絵をImagegenで生成し、クロマキー背景を透明化してプロジェクト内に保存。
+- `Hero.live2dImageUrl` と将来のCubism差し替え用 `Hero.live2dModelUrl` を追加。
+- Webのホーム、デッキ一覧、デッキ選択、バトル画面のヒーロー表示を `HeroLive2D` へ差し替え。
+- 生成PNGをベースに、呼吸、上半身揺れ、髪/マント揺れ、視線追従、瞬き風グロー、属性パーティクルを重ねた疑似Live2Dモーションを実装。
+- React Native側にも `HeroLive2D` を追加し、ホーム、デッキ一覧、デッキ選択、バトル画面で同じImagegenアセットを使うようにした。
+
+プロンプト要約:
+
+- 各ヒーロー名、属性、性格、衣装、武器、立ち姿を指定し、カードバトルゲーム向けの高品質アニメ調フルボディ立ち絵として生成。
+- UI組み込み前提のため、文字なし、ロゴなし、UI枠なし、全身、十分な余白、クロマキー背景、影なしを指定。
+
+検証:
+
+- `npm run type-check`: 通過。
+- `cd native && npm run type-check`: 通過。
+- `git diff --check`: 通過。
+- `npm run build`: Turbopackがサンドボックス内でプロセス/ポート作成できず失敗。TypeScript段階は通過していたが、最適化フェーズで `TurbopackInternalError: creating new process`。
+- `npm run dev`: 既存ポート競合のため3001で起動表示。ただしこの実行環境から `curl` で `127.0.0.1:3001` へ接続できず、HTTP確認は未完了。
+
+残課題:
+
+- 本物のLive2D Cubismとして動かすには、`.model3.json`、`.moc3`、テクスチャ、物理演算設定、モーション定義をLive2D Cubism Editor等で作成して `live2dModelUrl` に接続する必要がある。現状はImagegen立ち絵を使った疑似Live2Dモーション。
+
 ## 主要タイムライン
 
 ### 2025-12
