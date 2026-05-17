@@ -47,6 +47,81 @@ body {
   animation: scanline 4s linear infinite;
 }
 
+@keyframes effect-mark-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.25) translateX(0.35rem);
+    filter: brightness(2);
+  }
+  52% {
+    opacity: 1;
+    transform: scale(1.34) translateX(0);
+    filter: brightness(1.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+    filter: brightness(1);
+  }
+}
+
+.effect-mark-pop {
+  animation: effect-mark-pop 720ms cubic-bezier(0.18, 0.9, 0.26, 1.12);
+}
+
+.effect-card-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  user-select: none;
+}
+
+.effect-card-overlay-shield {
+  width: 132%;
+  height: 130%;
+  opacity: 0.62;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.72));
+}
+
+.effect-card-overlay-harden {
+  width: 128%;
+  height: 126%;
+  opacity: 0.78;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 9px rgba(165, 243, 252, 0.65));
+}
+
+.effect-card-overlay-seal {
+  width: 144%;
+  height: 144%;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
+}
+
+@keyframes effect-overlay-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.68);
+    filter: brightness(2.15) drop-shadow(0 0 18px rgba(255, 255, 255, 0.75));
+  }
+  54% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+    filter: brightness(1.55) drop-shadow(0 0 16px rgba(255, 255, 255, 0.52));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.effect-overlay-pop {
+  animation: effect-overlay-pop 760ms cubic-bezier(0.18, 0.9, 0.26, 1.12);
+}
+
 .battle-atmosphere {
   background:
     radial-gradient(ellipse at 50% 17%, rgba(255, 255, 255, 0.76) 0%, rgba(147, 209, 255, 0.34) 22%, transparent 39%),

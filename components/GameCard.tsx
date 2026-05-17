@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import type { CardDefinition, Unit } from '@/core/types'
 import { parseCardId } from '@/core/cardId'
+import { getUnitEffectMarks, type EffectMarkKey, type UnitEffectMark } from './effectMarks'
 
 interface GameCardProps {
   cardDef: CardDefinition
@@ -128,8 +129,11 @@ const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const [shake, setShake] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [failedEffectAssets, setFailedEffectAssets] = useState<Set<string>>(new Set())
+  const [newEffectMarkKeys, setNewEffectMarkKeys] = useState<Set<string>>(new Set())
   /** この操作で onDragStart を呼んだか（左クリックの誤爆を防ぐ） */
   const dragStartedThisGestureRef = useRef(false)
+  const previousEffectMarkKeysRef = useRef<string[]>([])
   
   // キーワード効果を抽出
   const keywords = useMemo(() => {
@@ -140,6 +144,26 @@ const GameCard: React.FC<GameCardProps> = ({
       description: cardDef.description,
     })
   }, [cardDef.effectFunctions, cardDef.description, unit?.statusEffects])
+
+  const effectMarks = useMemo(() => {
+    if (!isField || !unit) return []
+    return getUnitEffectMarks(unit)
+  }, [isField, unit])
+
+  const effectMarkKeySignature = useMemo(
+    () => effectMarks.map((mark) => `${mark.key}:${mark.value || ''}`).join('|'),
+    [effectMarks]
+  )
+
+  const overlayEffectMarks = useMemo(
+    () => effectMarks.filter((mark) => isOverlayEffectKey(mark.key)),
+    [effectMarks]
+  )
+
+  const railEffectMarks = useMemo(
+    () => effectMarks.filter((mark) => !isOverlayEffectKey(mark.key)),
+    [effectMarks]
+  )
 
   // ベース定義を取得して色分け判定
   const baseDef = useMemo(() => {
@@ -227,6 +251,25 @@ const GameCard: React.FC<GameCardProps> = ({
     }
   }, [unit?.hp, unit?.maxHp])
 
+  useEffect(() => {
+    if (!isField || !unit) {
+      previousEffectMarkKeysRef.current = []
+      setNewEffectMarkKeys(new Set())
+      return
+    }
+
+    const currentKeys = effectMarks.map((mark) => mark.key)
+    const previousKeys = previousEffectMarkKeysRef.current
+    const addedKeys = currentKeys.filter((key) => !previousKeys.includes(key))
+    previousEffectMarkKeysRef.current = currentKeys
+
+    if (addedKeys.length === 0) return
+
+    setNewEffectMarkKeys(new Set(addedKeys))
+    const timer = setTimeout(() => setNewEffectMarkKeys(new Set()), 780)
+    return () => clearTimeout(timer)
+  }, [effectMarkKeySignature, effectMarks, isField, unit])
+
   const getBorderColor = () => {
     if (!canPlay) {
       return 'border-gray-600 opacity-50'
@@ -313,7 +356,7 @@ const GameCard: React.FC<GameCardProps> = ({
       )}
 
       {/* Keywords */}
-      {cardDef.type === 'unit' && keywords.length > 0 && (
+      {cardDef.type === 'unit' && !isField && keywords.length > 0 && (
         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1 z-10">
           {keywords.map((keyword, idx) => (
             <span
@@ -328,7 +371,7 @@ const GameCard: React.FC<GameCardProps> = ({
       )}
 
       {/* Shield Count */}
-      {cardDef.type === 'unit' && unit && (unit.shieldCount || 0) > 0 && (
+      {cardDef.type === 'unit' && !isField && unit && (unit.shieldCount || 0) > 0 && (
         <div className="absolute top-8 right-1 flex gap-0.5 z-10">
           {Array.from({ length: unit.shieldCount || 0 }).map((_, idx) => (
             <span
@@ -378,7 +421,39 @@ const GameCard: React.FC<GameCardProps> = ({
 
       {/* Damage Flash Overlay */}
       {shake && <div className="absolute inset-0 bg-red-500/30 pointer-events-none animate-pulse" />}
+
+      {isField && overlayEffectMarks.length > 0 && (
+        <CardEffectOverlays
+          marks={overlayEffectMarks}
+          failedAssets={failedEffectAssets}
+          newMarkKeys={newEffectMarkKeys}
+          onAssetError={(asset) => {
+            setFailedEffectAssets((prev) => {
+              if (prev.has(asset)) return prev
+              const next = new Set(prev)
+              next.add(asset)
+              return next
+            })
+          }}
+        />
+      )}
     </div>
+
+      {isField && railEffectMarks.length > 0 && (
+        <EffectMarkRail
+          marks={railEffectMarks}
+          failedAssets={failedEffectAssets}
+          newMarkKeys={newEffectMarkKeys}
+          onAssetError={(asset) => {
+            setFailedEffectAssets((prev) => {
+              if (prev.has(asset)) return prev
+              const next = new Set(prev)
+              next.add(asset)
+              return next
+            })
+          }}
+        />
+      )}
 
       {/* コスト - 緑の丸（左上、カード外レイヤー） */}
       {!isField && (
@@ -438,6 +513,121 @@ const GameCard: React.FC<GameCardProps> = ({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+type OverlayEffectKey = Extract<EffectMarkKey, 'shield' | 'harden' | 'seal'>
+
+const OVERLAY_EFFECT_KEYS = new Set<EffectMarkKey>(['shield', 'harden', 'seal'])
+
+const OVERLAY_ASSETS: Record<OverlayEffectKey, string> = {
+  shield: '/images/effects/overlays/effect-overlay-shield.png',
+  harden: '/images/effects/overlays/effect-overlay-harden.png',
+  seal: '/images/effects/overlays/effect-overlay-seal.png',
+}
+
+function isOverlayEffectKey(key: EffectMarkKey): key is OverlayEffectKey {
+  return OVERLAY_EFFECT_KEYS.has(key)
+}
+
+function CardEffectOverlays({
+  marks,
+  failedAssets,
+  newMarkKeys,
+  onAssetError,
+}: {
+  marks: UnitEffectMark[]
+  failedAssets: Set<string>
+  newMarkKeys: Set<string>
+  onAssetError: (asset: string) => void
+}) {
+  return (
+    <div className="absolute inset-0 z-20 pointer-events-none">
+      {marks.map((mark) => {
+        if (!isOverlayEffectKey(mark.key)) return null
+        const asset = OVERLAY_ASSETS[mark.key]
+        if (failedAssets.has(asset)) return null
+        return (
+          <img
+            key={mark.key}
+            src={asset}
+            alt=""
+            className={`effect-card-overlay effect-card-overlay-${mark.key} ${
+              newMarkKeys.has(mark.key) ? 'effect-overlay-pop' : ''
+            }`}
+            loading="lazy"
+            onError={() => onAssetError(asset)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function EffectMarkRail({
+  marks,
+  failedAssets,
+  newMarkKeys,
+  onAssetError,
+}: {
+  marks: UnitEffectMark[]
+  failedAssets: Set<string>
+  newMarkKeys: Set<string>
+  onAssetError: (asset: string) => void
+}) {
+  const compact = marks.length > 5
+  return (
+    <div
+      className={`absolute top-1/2 z-30 flex -translate-y-1/2 flex-col items-center ${
+        compact ? 'right-[-1.25rem] gap-[1px]' : 'right-[-1.45rem] gap-0.5'
+      } pointer-events-none`}
+    >
+      {marks.map((mark) => {
+        const failed = failedAssets.has(mark.asset)
+        const isNew = newMarkKeys.has(mark.key)
+        const title = `${mark.label}${mark.value ? ` ${mark.value}` : ''}${mark.temporary ? ' (temporary)' : ''}`
+        return (
+          <div
+            key={mark.key}
+            className={`relative grid place-items-center rounded-full border bg-black/80 ${
+              compact ? 'h-5 w-5 ls:h-4 ls:w-4' : 'h-6 w-6 ls:h-5 ls:w-5'
+            } ${isNew ? 'effect-mark-pop' : ''}`}
+            style={{
+              borderColor: mark.accent,
+              boxShadow: `0 0 8px ${mark.accent}88, inset 0 0 7px rgba(255,255,255,0.14)`,
+            }}
+            title={title}
+          >
+            {!failed ? (
+              <img
+                src={mark.asset}
+                alt=""
+                className="h-full w-full rounded-full object-cover"
+                loading="lazy"
+                onError={() => onAssetError(mark.asset)}
+              />
+            ) : (
+              <span
+                className={`font-orbitron font-black leading-none text-white ${
+                  compact ? 'text-[7px] ls:text-[6px]' : 'text-[8px] ls:text-[7px]'
+                }`}
+              >
+                {mark.fallback}
+              </span>
+            )}
+            {mark.value && (
+              <span
+                className={`absolute -bottom-1 -right-1 grid place-items-center rounded-full border border-black bg-white font-orbitron font-black text-black ${
+                  compact ? 'h-3 min-w-3 px-[2px] text-[7px]' : 'h-3.5 min-w-3.5 px-[2px] text-[8px]'
+                }`}
+              >
+                {mark.value}
+              </span>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
