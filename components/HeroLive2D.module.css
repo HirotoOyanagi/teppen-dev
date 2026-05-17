@@ -11,6 +11,8 @@
   --live2d-look-x: 0px;
   --live2d-look-y: 0px;
   --live2d-tilt: 0deg;
+  --live2d-battle-scale: 1;
+  --live2d-battle-y: 0%;
 }
 
 .stage::before {
@@ -69,6 +71,22 @@
   width: min(22rem, 132%);
   height: 110%;
   bottom: -12%;
+  transform:
+    translateX(-50%)
+    translate(var(--live2d-look-x), var(--live2d-look-y))
+    translateY(var(--live2d-battle-y))
+    rotate(var(--live2d-tilt))
+    scale(var(--live2d-battle-scale));
+}
+
+.stage[data-variant='battle'][data-side='right'] .rig {
+  transform:
+    translateX(-50%)
+    translate(var(--live2d-look-x), var(--live2d-look-y))
+    translateY(var(--live2d-battle-y))
+    rotate(var(--live2d-tilt))
+    scaleX(-1)
+    scale(var(--live2d-battle-scale));
 }
 
 .stage[data-variant='avatar'] .rig {

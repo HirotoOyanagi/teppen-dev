@@ -22,6 +22,18 @@ const ATTRIBUTE_ACCENTS: Record<string, { primary: string; secondary: string; gl
 
 const FALLBACK_IMAGE = '/images/live2d/reisia-live2d.png'
 
+// Battle scale factors are tuned against Reisia's visible alpha bounds.
+const BATTLE_MODEL_FIT: Record<string, { scale: number; y: string }> = {
+  hero_red_reisia: { scale: 1, y: '0%' },
+  hero_red_kaiser: { scale: 1.15, y: '1.5%' },
+  hero_green_mira: { scale: 1.15, y: '1%' },
+  hero_green_finn: { scale: 1.13, y: '1%' },
+  hero_purple_vald: { scale: 0.97, y: '0%' },
+  hero_purple_orca: { scale: 1.25, y: '2%' },
+  hero_black_seraph: { scale: 0.96, y: '0%' },
+  hero_black_nox: { scale: 0.99, y: '0%' },
+}
+
 function resolveAccent(hero: Hero) {
   return ATTRIBUTE_ACCENTS[hero.attribute] || ATTRIBUTE_ACCENTS.black
 }
@@ -34,6 +46,7 @@ export default function HeroLive2D({
 }: HeroLive2DProps) {
   const imageUrl = hero.live2dImageUrl || FALLBACK_IMAGE
   const accent = useMemo(() => resolveAccent(hero), [hero])
+  const battleFit = BATTLE_MODEL_FIT[hero.id] || BATTLE_MODEL_FIT.hero_red_reisia
   const [look, setLook] = useState({ x: 0, y: 0 })
 
   const style: HeroLive2DStyle = {
@@ -43,6 +56,8 @@ export default function HeroLive2D({
     '--live2d-look-x': `${look.x}px`,
     '--live2d-look-y': `${look.y}px`,
     '--live2d-tilt': `${look.x * 0.35}deg`,
+    '--live2d-battle-scale': `${battleFit.scale}`,
+    '--live2d-battle-y': battleFit.y,
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
