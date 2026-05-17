@@ -15,6 +15,7 @@ import {
 import { shouldEnterCardTargetMode } from '@/core/cardPlayFlow'
 import { applyTestModeSetup } from '@/core/testMode'
 import GameCard from './GameCard'
+import GameIcon from './GameIcon'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
 import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
@@ -126,8 +127,14 @@ function CardTooltip({
       {/* スタッツ */}
       {card.unitStats && (
         <div className="flex gap-2 mb-1 text-[9px]">
-          <span className="text-red-400">⚔{card.unitStats.attack}</span>
-          <span className="text-blue-400">♥{card.unitStats.hp}</span>
+          <span className="flex items-center gap-0.5 text-red-400">
+            <GameIcon name="attack" className="h-3 w-3" />
+            {card.unitStats.attack}
+          </span>
+          <span className="flex items-center gap-0.5 text-blue-400">
+            <GameIcon name="hp" className="h-3 w-3" />
+            {card.unitStats.hp}
+          </span>
         </div>
       )}
 

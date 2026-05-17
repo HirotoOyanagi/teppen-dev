@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { CardDefinition, PlayerState } from '@/core/types'
 import { resolveCardDefinition } from '@/core/cardId'
+import GameIcon from '@/components/GameIcon'
 import HeroLive2D from '@/components/HeroLive2D'
 
 /** デッキ用：積みカードのシルエット（淡色）— viewBox 内に収め stroke 分の余白あり */
@@ -234,8 +235,8 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
         {player.shieldCount && player.shieldCount > 0 && (
           <div className="flex gap-1 rounded-full border border-white/8 bg-black/28 px-2 py-1 backdrop-blur-sm">
             {Array.from({ length: player.shieldCount }).map((_, idx) => (
-              <span key={idx} className="text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
-                🛡️
+              <span key={idx} className="grid h-4 w-4 place-items-center drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
+                <GameIcon name="shield" className="h-full w-full" />
               </span>
             ))}
           </div>

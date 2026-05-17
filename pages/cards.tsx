@@ -1,6 +1,7 @@
 import React from 'react'
 import { useRouter } from 'next/router'
 import AppLayout from '@/components/AppLayout'
+import GameIcon from '@/components/GameIcon'
 import styles from '@/styles/AppLayout.module.css'
 
 export default function CardsPage() {
@@ -19,7 +20,7 @@ export default function CardsPage() {
 
       {/* Card List / Soul Shop Banner */}
       <div className={styles.cardListBanner} onClick={() => navigate('/cards')}>
-        <div style={{ fontSize: '40px' }}>📦</div>
+        <GameIcon name="archive" className={styles.bannerIcon} />
         <div className={styles.bannerLabel}>カード一覧/分解＆生成</div>
       </div>
     </AppLayout>

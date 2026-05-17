@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
 import CardModal from '@/components/CardModal'
+import GameIcon, { type GameIconName } from '@/components/GameIcon'
 import { getDeck } from '@/utils/deckStorage'
 import { useCards } from '@/utils/useCards'
 import { HEROES } from '@/core/heroes'
@@ -83,11 +84,11 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
 
   const hero = HEROES.find(h => h.id === deck.heroId) || HEROES[0]
 
-  const attributeIcons: Record<string, string> = {
-    red: '🔥',
-    green: '🌿',
-    purple: '🔮',
-    black: '💀',
+  const attributeIcons: Record<string, GameIconName> = {
+    red: 'attr-red',
+    green: 'attr-green',
+    purple: 'attr-purple',
+    black: 'attr-black',
   }
 
   let heroArtText = ''
@@ -103,7 +104,7 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
         {/* Top Bar */}
         <div className={styles.topBar}>
           <div className={styles.heroIcon}>
-            {attributeIcons[hero.attribute]}
+            <GameIcon name={attributeIcons[hero.attribute]} className={styles.heroIconAsset} />
           </div>
           <div className={styles.deckName}>{deck.name}</div>
           <div className={styles.spacer}></div>
@@ -112,9 +113,10 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
             {heroArtText}
           </div>
           <div className={styles.cardCount}>
-            📄 {cards.length}/30
+            <GameIcon name="deck" className={styles.cardCountIcon} />
+            {cards.length}/30
           </div>
-          <div style={{ color: '#ffd700', fontSize: '20px', marginLeft: '10px' }}>⚔️</div>
+          <GameIcon name="battle" className={styles.topBattleIcon} />
         </div>
 
         {/* Main Grid */}

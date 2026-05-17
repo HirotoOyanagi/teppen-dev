@@ -187,6 +187,14 @@
   font-size: 16px;
 }
 
+.attributeIcon,
+.statusIcon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.28));
+}
+
 .bottomRightButtons {
   position: absolute;
   bottom: 120px;
@@ -220,6 +228,13 @@
 .iconButton span {
   font-size: 20px;
   margin-bottom: 4px;
+}
+
+.actionIcon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.45));
 }
 
 .editButton {
@@ -292,9 +307,11 @@
 }
 
 .bottomNavIcon {
-  font-size: 30px;
+  width: 34px;
+  height: 34px;
   margin-bottom: 6px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, filter 0.2s;
+  filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.75));
 }
 
 .bottomNavItem:hover .bottomNavIcon {
@@ -302,8 +319,7 @@
 }
 
 .bottomNavItem.active .bottomNavIcon {
-  color: #00fbff;
-  text-shadow: 0 0 20px rgba(0, 251, 255, 0.8);
+  filter: drop-shadow(0 0 20px rgba(0, 251, 255, 0.8));
 }
 
 .tournamentButton {

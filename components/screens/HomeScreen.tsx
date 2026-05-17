@@ -1,5 +1,6 @@
 import React from 'react'
 import Image from 'next/image'
+import GameIcon from '@/components/GameIcon'
 import { useNavigation } from '@/components/NavigationContext'
 import styles from './HomeScreen.module.css'
 
@@ -13,23 +14,23 @@ const HomeScreen: React.FC = () => {
         <div className={styles.topNavGroup}>
           <div className={styles.topNavItem}>
             <div className={styles.badge}>5</div>
-            <span className={styles.icon}>🔥</span>
+            <GameIcon name="mission" className={styles.icon} />
             <span>ミッション</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🔔</span>
+            <GameIcon name="notice" className={styles.icon} />
             <span>お知らせ</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🎁</span>
+            <GameIcon name="gift" className={styles.icon} />
             <span>プレゼント</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🏆</span>
+            <GameIcon name="rank" className={styles.icon} />
             <span>ランキング</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>⚙️</span>
+            <GameIcon name="settings" className={styles.icon} />
             <span>その他</span>
           </div>
         </div>
@@ -45,8 +46,8 @@ const HomeScreen: React.FC = () => {
           </div>
           <div className={styles.plusIcon}>+</div>
           <div className={styles.statusGroup}>
-            <span>📶</span>
-            <span>🔋</span>
+            <GameIcon name="signal" className={styles.statusIcon} />
+            <GameIcon name="battery" className={styles.statusIcon} />
           </div>
         </div>
       </div>
@@ -102,20 +103,20 @@ const HomeScreen: React.FC = () => {
       {/* Bottom Bar */}
       <div className={styles.bottomBar}>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>🏟️</span>
+          <GameIcon name="colosseum" className={styles.bottomNavIcon} />
           <span>コロシアム</span>
         </div>
         <div className={`${styles.bottomNavItem} ${styles.active}`} onClick={() => navigate({ name: 'home' })}>
-          <span className={styles.bottomNavIcon}>⚔️</span>
+          <GameIcon name="battle" className={styles.bottomNavIcon} />
           <span>バトル</span>
         </div>
 
         <div className={styles.bottomNavItem} onClick={() => navigate({ name: 'cards' })}>
-          <span className={styles.bottomNavIcon}>🃏</span>
+          <GameIcon name="cards" className={styles.bottomNavIcon} />
           <span>カード</span>
         </div>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>📺</span>
+          <GameIcon name="channel" className={styles.bottomNavIcon} />
           <span>TEPPEN Ch.</span>
         </div>
       </div>

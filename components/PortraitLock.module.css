@@ -19,9 +19,11 @@
 }
 
 .icon {
-  font-size: 64px;
+  width: 96px;
+  height: 96px;
   margin-bottom: 20px;
   animation: rotate 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.28));
 }
 
 .message {

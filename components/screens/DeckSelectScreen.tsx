@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { useNavigation } from '@/components/NavigationContext'
 import { getDecks, type SavedDeck } from '@/utils/deckStorage'
 import { HEROES } from '@/core/heroes'
+import GameIcon, { type GameIconName } from '@/components/GameIcon'
 import HeroLive2D from '@/components/HeroLive2D'
 import styles from './DeckSelectScreen.module.css'
 type BattleEntryMode = 'rank' | 'practice' | 'free' | 'room'
@@ -107,11 +108,11 @@ export default function DeckSelectScreen() {
     router.push(targetPath)
   }
 
-  const attributeIcons: Record<string, string> = {
-    red: '🔥',
-    green: '🌿',
-    purple: '🔮',
-    black: '💀',
+  const attributeIcons: Record<string, GameIconName> = {
+    red: 'attr-red',
+    green: 'attr-green',
+    purple: 'attr-purple',
+    black: 'attr-black',
   }
 
   const attributeColors: Record<string, string> = {
@@ -172,7 +173,8 @@ export default function DeckSelectScreen() {
                     <div className={styles.deckItemInfo}>
                       <div className={styles.deckItemName}>{deck.name}</div>
                       <div className={styles.deckItemAttr}>
-                        {attributeIcons[hero.attribute]} {hero.name}
+                        <GameIcon name={attributeIcons[hero.attribute]} className={styles.attributeIcon} />
+                        {hero.name}
                       </div>
                       {deck.cardIds.length !== 30 && (
                         <div className={styles.warning}>※30枚必要です</div>
@@ -216,15 +218,13 @@ export default function DeckSelectScreen() {
                 </div>
                 <div className={styles.deckStatus}>
                   <div className={styles.statusItem}>
-                    <span style={{ color: '#d4af37' }}>📄</span>
+                    <GameIcon name="deck" className={styles.statusIcon} />
                     <span style={{ color: deckCardCount === 30 ? '#fff' : '#e74c3c' }}>
                       {deckCardCount} / 30
                     </span>
                   </div>
                   <div className={styles.statusItem}>
-                    <span style={{ color: attributeColors[selectedHero.attribute] }}>
-                      {attributeIcons[selectedHero.attribute]}
-                    </span>
+                    <GameIcon name={attributeIcons[selectedHero.attribute]} className={styles.statusIcon} />
                     <span>{selectedHero.attribute.toUpperCase()}</span>
                   </div>
                 </div>
@@ -233,7 +233,7 @@ export default function DeckSelectScreen() {
               <div className={styles.bottomRightButtons}>
                 <div className={styles.auxButtons}>
                   <div className={styles.iconButton} onClick={handleViewDeck}>
-                    <span>👁️</span>
+                    <GameIcon name="inspect" className={styles.actionIcon} />
                     DECK
                   </div>
                 </div>
@@ -263,20 +263,20 @@ export default function DeckSelectScreen() {
       {/* Bottom Bar (Shared) */}
       <div className={styles.bottomBar}>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>🏟️</span>
+          <GameIcon name="colosseum" className={styles.bottomNavIcon} />
           <span>コロシアム</span>
         </div>
         <div className={`${styles.bottomNavItem} active`} onClick={() => handleBottomNav('/home')}>
-          <span className={styles.bottomNavIcon}>⚔️</span>
+          <GameIcon name="battle" className={styles.bottomNavIcon} />
           <span>バトル</span>
         </div>
 
         <div className={styles.bottomNavItem} onClick={() => handleBottomNav('/cards')}>
-          <span className={styles.bottomNavIcon}>🃏</span>
+          <GameIcon name="cards" className={styles.bottomNavIcon} />
           <span>カード</span>
         </div>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>📺</span>
+          <GameIcon name="channel" className={styles.bottomNavIcon} />
           <span>TEPPEN Ch.</span>
         </div>
       </div>

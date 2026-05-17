@@ -1,5 +1,6 @@
 import { useNavigation } from '@/components/NavigationContext'
 import BottomNavigation from '@/components/BottomNavigation'
+import GameIcon from '@/components/GameIcon'
 import styles from './CardsScreen.module.css'
 
 export default function CardsScreen() {
@@ -16,7 +17,7 @@ export default function CardsScreen() {
           className={styles.menuButton}
           onClick={() => navigate({ name: 'deck-list' })}
         >
-          <div className={styles.buttonIcon}>📚</div>
+          <GameIcon name="deck" className={styles.buttonIcon} />
           <div className={styles.buttonContent}>
             <h2>デッキ編成</h2>
             <p>デッキを編成・管理する</p>
@@ -28,7 +29,7 @@ export default function CardsScreen() {
           className={styles.menuButton}
           onClick={() => navigate({ name: 'card-list' })}
         >
-          <div className={styles.buttonIcon}>🃏</div>
+          <GameIcon name="cards" className={styles.buttonIcon} />
           <div className={styles.buttonContent}>
             <h2>カード一覧</h2>
             <p>全カードを確認する</p>

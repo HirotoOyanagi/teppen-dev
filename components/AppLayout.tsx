@@ -3,6 +3,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { HEROES } from '@/core/heroes'
 import { getDeck } from '@/utils/deckStorage'
+import GameIcon from '@/components/GameIcon'
 import HeroLive2D from '@/components/HeroLive2D'
 import styles from '@/styles/AppLayout.module.css'
 
@@ -59,23 +60,23 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
         <div className={styles.topNavGroup}>
           <div className={styles.topNavItem}>
             <div className={styles.badge}>5</div>
-            <span className={styles.icon}>🔥</span>
+            <GameIcon name="mission" className={styles.icon} />
             <span>ミッション</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🔔</span>
+            <GameIcon name="notice" className={styles.icon} />
             <span>お知らせ</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🎁</span>
+            <GameIcon name="gift" className={styles.icon} />
             <span>プレゼント</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>🏆</span>
+            <GameIcon name="rank" className={styles.icon} />
             <span>ランキング</span>
           </div>
           <div className={styles.topNavItem}>
-            <span className={styles.icon}>⚙️</span>
+            <GameIcon name="settings" className={styles.icon} />
             <span>その他</span>
           </div>
         </div>
@@ -93,8 +94,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
             <div className={styles.plusIcon}>+</div>
           </div>
           <div className={styles.statusGroup}>
-            <span>📶</span>
-            <span>🔋</span>
+            <GameIcon name="signal" className={styles.statusIcon} />
+            <GameIcon name="battery" className={styles.statusIcon} />
           </div>
         </div>
       </div>
@@ -127,7 +128,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
       {/* Bottom Bar (Shared) */}
       <div className={styles.bottomBar}>
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>🏟️</span>
+          <GameIcon name="colosseum" className={styles.bottomNavIcon} />
           <span>コロシアム</span>
         </div>
         {(() => {
@@ -142,7 +143,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
           className={`${styles.bottomNavItem} ${activeClass}`}
           onClick={() => navigate('/home')}
         >
-          <span className={styles.bottomNavIcon}>⚔️</span>
+          <GameIcon name="battle" className={styles.bottomNavIcon} />
           <span>バトル</span>
         </div>
           )
@@ -157,13 +158,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
 
           return (
         <div className={`${styles.bottomNavItem} ${activeClass}`} onClick={() => navigate('/cards')}>
-          <span className={styles.bottomNavIcon}>🃏</span>
+          <GameIcon name="cards" className={styles.bottomNavIcon} />
           <span>カード</span>
         </div>
           )
         })()}
         <div className={styles.bottomNavItem}>
-          <span className={styles.bottomNavIcon}>📺</span>
+          <GameIcon name="channel" className={styles.bottomNavIcon} />
           <span>TEPPEN Ch.</span>
         </div>
       </div>

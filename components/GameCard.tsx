@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import type { CardDefinition, Unit } from '@/core/types'
 import { parseCardId } from '@/core/cardId'
 import { getUnitEffectMarks, type EffectMarkKey, type UnitEffectMark } from './effectMarks'
+import GameIcon, { type GameIconName } from './GameIcon'
 
 interface GameCardProps {
   cardDef: CardDefinition
@@ -21,22 +22,22 @@ interface GameCardProps {
 // キーワード効果の定義
 interface KeywordEffect {
   name: string
-  icon: string
+  icon: GameIconName
   color: string
 }
 
 // 内部キーワードID -> 表示用設定
 const KEYWORD_EFFECTS: Record<string, KeywordEffect> = {
-  rush: { name: 'Rush', icon: '⚡', color: 'text-yellow-400' },
-  flight: { name: 'Flight', icon: '🪽', color: 'text-sky-400' },
-  shield: { name: 'Shield', icon: '🛡️', color: 'text-green-400' },
-  agility: { name: 'Agility', icon: '💨', color: 'text-cyan-400' },
-  mp_boost: { name: 'MP Boost', icon: '🔋', color: 'text-lime-400' },
-  veil: { name: 'Veil', icon: '👁️', color: 'text-purple-400' },
-  combo: { name: 'Combo', icon: '🔥', color: 'text-orange-400' },
-  heavy_pierce: { name: 'H.Pierce', icon: '🗡️', color: 'text-red-400' },
-  anti_air: { name: 'Anti-Air', icon: '🎯', color: 'text-blue-400' },
-  revenge: { name: 'Revenge', icon: '♻️', color: 'text-pink-400' },
+  rush: { name: 'Rush', icon: 'rush', color: 'text-yellow-400' },
+  flight: { name: 'Flight', icon: 'flight', color: 'text-sky-400' },
+  shield: { name: 'Shield', icon: 'shield', color: 'text-green-400' },
+  agility: { name: 'Agility', icon: 'agility', color: 'text-cyan-400' },
+  mp_boost: { name: 'MP Boost', icon: 'mp-boost', color: 'text-lime-400' },
+  veil: { name: 'Veil', icon: 'veil', color: 'text-purple-400' },
+  combo: { name: 'Combo', icon: 'combo', color: 'text-orange-400' },
+  heavy_pierce: { name: 'H.Pierce', icon: 'heavy-pierce', color: 'text-red-400' },
+  anti_air: { name: 'Anti-Air', icon: 'anti-air', color: 'text-blue-400' },
+  revenge: { name: 'Revenge', icon: 'revenge', color: 'text-pink-400' },
 }
 
 // effectFunctions / statusEffects / description からキーワード効果を抽出
@@ -361,10 +362,10 @@ const GameCard: React.FC<GameCardProps> = ({
           {keywords.map((keyword, idx) => (
             <span
               key={idx}
-              className={`text-xs ${keyword.color} drop-shadow-[0_1px_2px_rgba(0,0,0,1)]`}
+              className={`grid h-4 w-4 place-items-center ${keyword.color} drop-shadow-[0_1px_2px_rgba(0,0,0,1)]`}
               title={keyword.name}
             >
-              {keyword.icon}
+              <GameIcon name={keyword.icon} className="h-full w-full" />
             </span>
           ))}
         </div>
@@ -376,10 +377,10 @@ const GameCard: React.FC<GameCardProps> = ({
           {Array.from({ length: unit.shieldCount || 0 }).map((_, idx) => (
             <span
               key={idx}
-              className="text-xs text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
+              className="grid h-4 w-4 place-items-center drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
               title={`シールド ${unit.shieldCount}枚`}
             >
-              🛡️
+              <GameIcon name="shield" className="h-full w-full" />
             </span>
           ))}
         </div>
@@ -391,7 +392,7 @@ const GameCard: React.FC<GameCardProps> = ({
           className="absolute top-8 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60"
           title={`受けるダメージ+${unit.damageTakenBoost || 0}（残り ${Math.ceil((unit.damageTakenBoostTimer || 0) / 1000)}秒）`}
         >
-          <span className="text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">⏳</span>
+          <GameIcon name="timer" className="h-3.5 w-3.5 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]" />
           <span className="text-[10px] font-orbitron font-black text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">
             {Math.ceil((unit.damageTakenBoostTimer || 0) / 1000)}
           </span>

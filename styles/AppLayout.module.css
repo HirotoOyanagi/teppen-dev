@@ -62,10 +62,10 @@
 }
 
 .icon {
-  font-size: 22px;
+  width: 28px;
+  height: 28px;
   margin-bottom: 4px;
-  color: #d4af37; /* Gold */
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.4));
 }
 
 .currencyGroup {
@@ -124,7 +124,12 @@
   gap: 15px;
   margin-left: 10px;
   opacity: 0.8;
-  font-size: 18px;
+}
+
+.statusIcon {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 8px rgba(0, 251, 255, 0.35));
 }
 
 .mainContent {
@@ -384,9 +389,11 @@
 }
 
 .bottomNavIcon {
-  font-size: 30px;
+  width: 34px;
+  height: 34px;
   margin-bottom: 6px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, filter 0.2s;
+  filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.75));
 }
 
 .bottomNavItem:hover .bottomNavIcon {
@@ -394,8 +401,13 @@
 }
 
 .bottomNavItem.active .bottomNavIcon {
-  color: #00fbff;
-  text-shadow: 0 0 20px rgba(0, 251, 255, 0.8);
+  filter: drop-shadow(0 0 20px rgba(0, 251, 255, 0.8));
+}
+
+.bannerIcon {
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 0 16px rgba(212, 175, 55, 0.35));
 }
 
 .tournamentButton {
