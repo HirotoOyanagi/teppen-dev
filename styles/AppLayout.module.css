@@ -94,15 +94,10 @@
 }
 
 .currencyIcon {
-  width: 18px;
-  height: 18px;
-  background: radial-gradient(circle, #ffd700, #d4af37);
-  border-radius: 50%;
-  border: 1px solid #fff;
-}
-
-.soulsIcon {
-  background: radial-gradient(circle, #00fbff, #008cff);
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(255, 229, 141, 0.35));
 }
 
 .plusIcon {

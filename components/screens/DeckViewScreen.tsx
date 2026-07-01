@@ -137,11 +137,20 @@ export default function DeckViewScreen({ deckId }: DeckViewScreenProps) {
                 <div className={styles.cardLabel}>{card.name}</div>
                 <div className={styles.cardImage} style={{ backgroundImage }} />
                 <div className={styles.cardOverlay}>
-                  <div className={styles.cardMP}>{card.cost}</div>
+                  <div className={styles.cardMP}>
+                    <GameIcon name="mp" className={styles.cardMiniIcon} />
+                    <span>{card.cost}</span>
+                  </div>
                   {card.unitStats && (
                     <div className={styles.cardStats}>
-                      <span className={styles.atk}>{card.unitStats.attack}</span>
-                      <span className={styles.hp}>{card.unitStats.hp}</span>
+                      <span className={styles.statBadge}>
+                        <GameIcon name="attack" className={styles.cardMiniIcon} />
+                        <span className={styles.atk}>{card.unitStats.attack}</span>
+                      </span>
+                      <span className={styles.statBadge}>
+                        <GameIcon name="hp" className={styles.cardMiniIcon} />
+                        <span className={styles.hp}>{card.unitStats.hp}</span>
+                      </span>
                     </div>
                   )}
                 </div>

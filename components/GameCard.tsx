@@ -40,6 +40,13 @@ const KEYWORD_EFFECTS: Record<string, KeywordEffect> = {
   revenge: { name: 'Revenge', icon: 'revenge', color: 'text-pink-400' },
 }
 
+const CARD_FRAME_ASSETS: Record<string, string> = {
+  red: '/images/card-frames/card-frame-red.png',
+  green: '/images/card-frames/card-frame-green.png',
+  purple: '/images/card-frames/card-frame-purple.png',
+  black: '/images/card-frames/card-frame-black.png',
+}
+
 // effectFunctions / statusEffects / description からキーワード効果を抽出
 function extractKeywords(params: {
   effectFunctions?: string
@@ -271,15 +278,15 @@ const GameCard: React.FC<GameCardProps> = ({
     return () => clearTimeout(timer)
   }, [effectMarkKeySignature, effectMarks, isField, unit])
 
-  const getBorderColor = () => {
+  const getCardFrameStateClass = () => {
     if (!canPlay) {
-      return 'border-gray-600 opacity-50'
+      return 'opacity-50 grayscale'
     }
     const colorMap = {
-      red: 'border-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]',
-      green: 'border-green-600 shadow-[0_0_10px_rgba(22,163,74,0.5)]',
-      purple: 'border-purple-600 shadow-[0_0_10px_rgba(147,51,234,0.5)]',
-      black: 'border-gray-600 shadow-[0_0_10px_rgba(75,85,99,0.5)]',
+      red: 'drop-shadow-[0_0_10px_rgba(220,38,38,0.5)]',
+      green: 'drop-shadow-[0_0_10px_rgba(22,163,74,0.5)]',
+      purple: 'drop-shadow-[0_0_10px_rgba(147,51,234,0.5)]',
+      black: 'drop-shadow-[0_0_10px_rgba(148,163,184,0.35)]',
     }
     return colorMap[cardDef.attribute] || colorMap.black
   }
@@ -306,6 +313,8 @@ const GameCard: React.FC<GameCardProps> = ({
     cursorKey = 'pointer'
   }
 
+  const frameAsset = CARD_FRAME_ASSETS[cardDef.attribute] || CARD_FRAME_ASSETS.black
+
   return (
     <div
       onPointerDown={handlePointerDown}
@@ -319,12 +328,13 @@ const GameCard: React.FC<GameCardProps> = ({
         cursorClassMap[cursorKey]
       }`}
     >
-    {/* カード本体（overflow-hidden適用） */}
+    {/* カード本体 */}
     <div
-      className={`absolute inset-0 card-hex-clip bg-black overflow-hidden border-2 ${getBorderColor()} transition-all duration-200 ${
+      className={`absolute inset-0 overflow-visible transition-all duration-200 ${getCardFrameStateClass()} ${
         shake ? 'animate-bounce' : ''
       }`}
     >
+      <div className="absolute inset-0 z-0 game-card-art-clip bg-black overflow-hidden">
       {/* カード背景レイヤー */}
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90" />
       
@@ -438,6 +448,15 @@ const GameCard: React.FC<GameCardProps> = ({
           }}
         />
       )}
+      </div>
+      <img
+        src={frameAsset}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 z-20 h-full w-full object-fill pointer-events-none select-none"
+        draggable={false}
+        loading="lazy"
+      />
     </div>
 
       {isField && railEffectMarks.length > 0 && (
@@ -456,13 +475,10 @@ const GameCard: React.FC<GameCardProps> = ({
         />
       )}
 
-      {/* コスト - 緑の丸（左上、カード外レイヤー） */}
+      {/* コスト - MPアイコン（左上、カード外レイヤー） */}
       {!isField && (
-        <div className="absolute -top-2 -left-2 z-20 w-9 h-9 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-          <svg viewBox="0 0 36 36" className="absolute inset-0 w-full h-full">
-            <circle cx="18" cy="18" r="16" fill="rgba(30,130,50,0.9)" stroke="rgba(60,200,80,0.95)" strokeWidth="2" />
-            <circle cx="18" cy="18" r="12.5" fill="rgba(25,110,40,0.5)" stroke="rgba(80,200,100,0.3)" strokeWidth="0.7" />
-          </svg>
+        <div className="absolute -top-2 -left-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+          <GameIcon name="mp" className="absolute inset-0 h-full w-full" />
           <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${costColor || 'text-white'}`}>
             {cardDef.cost}
           </span>
@@ -473,41 +489,15 @@ const GameCard: React.FC<GameCardProps> = ({
       {cardDef.type === 'unit' && (
         <>
           {/* 攻撃力 - 赤いダイヤ型（左下） */}
-          <div className="absolute -bottom-2 -left-2 z-20 w-10 h-10 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-            <svg viewBox="0 0 40 40" className="absolute inset-0 w-full h-full">
-              <path
-                d="M20 2L38 20L20 38L2 20Z"
-                fill="rgba(160,30,30,0.9)"
-                stroke="rgba(220,60,60,0.95)"
-                strokeWidth="2"
-              />
-              <path
-                d="M20 6L34 20L20 34L6 20Z"
-                fill="rgba(130,20,20,0.5)"
-                stroke="rgba(180,50,50,0.3)"
-                strokeWidth="0.7"
-              />
-            </svg>
+          <div className="absolute -bottom-2 -left-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+            <GameIcon name="attack" className="absolute inset-0 h-full w-full" />
             <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${attackColor || 'text-white'}`}>
               {attack}
             </span>
           </div>
-          {/* HP - 青い盾型（右下） */}
-          <div className="absolute -bottom-2 -right-2 z-20 w-10 h-11 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-            <svg viewBox="0 0 36 42" className="absolute inset-0 w-full h-full">
-              <path
-                d="M18 2L3 10V22C3 31 18 39 18 39C18 39 33 31 33 22V10L18 2Z"
-                fill="rgba(25,70,170,0.9)"
-                stroke="rgba(80,160,255,0.95)"
-                strokeWidth="2"
-              />
-              <path
-                d="M18 6L7 12.5V22C7 29 18 35 18 35C18 35 29 29 29 22V12.5L18 6Z"
-                fill="rgba(35,90,200,0.5)"
-                stroke="rgba(100,180,255,0.3)"
-                strokeWidth="0.7"
-              />
-            </svg>
+          {/* HP - HPアイコン（右下） */}
+          <div className="absolute -bottom-2 -right-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
+            <GameIcon name="hp" className="absolute inset-0 h-full w-full" />
             <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] -mt-0.5 ${hpColor || 'text-white'}`}>
               {currentHp}
             </span>

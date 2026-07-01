@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigation } from '@/components/NavigationContext'
 import BottomNavigation from '@/components/BottomNavigation'
 import CardModal from '@/components/CardModal'
+import GameIcon from '@/components/GameIcon'
 import { useCards } from '@/utils/useCards'
 import type { CardDefinition, CardAttribute } from '@/core/types'
 import styles from './CardListScreen.module.css'
@@ -69,14 +70,22 @@ export default function CardListScreen() {
               />
             )}
             <div className={styles.cardOverlay} />
-            <div className={styles.cardCost}>{card.cost}</div>
+            <div className={styles.cardCost}>
+              <GameIcon name="mp" className={styles.cardCostIcon} />
+              <span>{card.cost}</span>
+            </div>
             <div className={styles.cardInfo}>
               <div className={styles.cardName}>{card.name}</div>
               {card.type === 'unit' && card.unitStats && (
                 <div className={styles.cardStats}>
-                  <span>{card.unitStats.attack}</span>
-                  <span>/</span>
-                  <span>{card.unitStats.hp}</span>
+                  <span className={styles.cardStatItem}>
+                    <GameIcon name="attack" className={styles.cardStatIcon} />
+                    {card.unitStats.attack}
+                  </span>
+                  <span className={styles.cardStatItem}>
+                    <GameIcon name="hp" className={styles.cardStatIcon} />
+                    {card.unitStats.hp}
+                  </span>
                 </div>
               )}
             </div>

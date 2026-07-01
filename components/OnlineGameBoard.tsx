@@ -142,8 +142,9 @@ function CardTooltip({
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-white font-bold text-[10px] truncate flex-1">{card.name}</span>
-        <span className="ml-1 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[8px] font-bold text-white">
-          {card.cost}
+        <span className="relative ml-1 flex h-5 w-5 items-center justify-center text-[8px] font-bold text-white">
+          <GameIcon name="mp" className="absolute inset-0 h-full w-full" />
+          <span className="relative">{card.cost}</span>
         </span>
       </div>
       {card.unitStats && (
@@ -180,14 +181,21 @@ function DraggingCard({ card, position }: { card: CardDefinition; position: { x:
   return (
     <div className="fixed z-[200] pointer-events-none opacity-90" style={{ left: position.x - 48, top: position.y - 70 }}>
       <div className="w-24 h-36 bg-black rounded border-2 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)]">
-        <div className="absolute top-1 left-1 w-5 h-5 bg-red-800 rounded-full flex items-center justify-center text-[10px] font-bold">
-          {card.cost}
+        <div className="absolute top-1 left-1 flex h-7 w-7 items-center justify-center text-[10px] font-bold">
+          <GameIcon name="mp" className="absolute inset-0 h-full w-full" />
+          <span className="relative">{card.cost}</span>
         </div>
         <div className="absolute top-7 left-1 right-1 text-[8px] font-bold text-white truncate">{card.name}</div>
         {card.unitStats && (
           <div className="absolute bottom-1 w-full px-1 flex justify-between text-sm font-bold">
-            <span className="text-red-500">{card.unitStats.attack}</span>
-            <span className="text-blue-400">{card.unitStats.hp}</span>
+            <span className="flex items-center gap-0.5 text-red-500">
+              <GameIcon name="attack" className="h-4 w-4" />
+              {card.unitStats.attack}
+            </span>
+            <span className="flex items-center gap-0.5 text-blue-400">
+              <GameIcon name="hp" className="h-4 w-4" />
+              {card.unitStats.hp}
+            </span>
           </div>
         )}
       </div>

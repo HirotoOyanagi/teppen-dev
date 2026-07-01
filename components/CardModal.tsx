@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { CardDefinition } from '@/core/types'
+import GameIcon from './GameIcon'
 import styles from './CardModal.module.css'
 
 interface CardModalProps {
@@ -37,6 +38,13 @@ const typeLabels: Record<string, string> = {
   unit: 'ユニット',
   action: 'アクション',
   hero_art: 'ヒーローアーツ',
+}
+
+const CARD_FRAME_ASSETS: Record<string, string> = {
+  red: '/images/card-frames/card-frame-red.png',
+  green: '/images/card-frames/card-frame-green.png',
+  purple: '/images/card-frames/card-frame-purple.png',
+  black: '/images/card-frames/card-frame-black.png',
 }
 
 // キーワード効果のハイライト用
@@ -126,6 +134,7 @@ export default function CardModal({ card, onClose, onPrevCard, onNextCard }: Car
   const attributeLabel = attributeLabels[card.attribute] || card.attribute
   const tribeLabel = tribeLabels[card.tribe] || '-'
   const typeLabel = typeLabels[card.type] || card.type
+  const frameAsset = CARD_FRAME_ASSETS[card.attribute] || CARD_FRAME_ASSETS.black
 
   const descriptionSegments = card.description
     ? highlightKeywords(card.description).segments
@@ -158,9 +167,7 @@ export default function CardModal({ card, onClose, onPrevCard, onNextCard }: Car
             <div className={styles.cardFrame} style={{ borderColor: attributeColor }}>
               {/* コストバッジ */}
               <div className={styles.costBadge}>
-                <svg viewBox="0 0 36 36" className={styles.costSvg}>
-                  <circle cx="18" cy="18" r="16" fill="rgba(30,130,50,0.9)" stroke="rgba(60,200,80,0.95)" strokeWidth="2" />
-                </svg>
+                <GameIcon name="mp" className={styles.badgeIcon} />
                 <span className={styles.costText}>{card.cost}</span>
               </div>
 
@@ -186,16 +193,12 @@ export default function CardModal({ card, onClose, onPrevCard, onNextCard }: Car
                 <>
                   {/* 攻撃力 - 左下 */}
                   <div className={styles.attackBadge}>
-                    <svg viewBox="0 0 40 40" className={styles.statSvg}>
-                      <path d="M20 2L38 20L20 38L2 20Z" fill="rgba(160,30,30,0.9)" stroke="rgba(220,60,60,0.95)" strokeWidth="2" />
-                    </svg>
+                    <GameIcon name="attack" className={styles.badgeIcon} />
                     <span className={styles.statText}>{card.unitStats.attack}</span>
                   </div>
                   {/* HP - 右下 */}
                   <div className={styles.hpBadge}>
-                    <svg viewBox="0 0 36 42" className={styles.hpSvg}>
-                      <path d="M18 2L3 10V22C3 31 18 39 18 39C18 39 33 31 33 22V10L18 2Z" fill="rgba(25,70,170,0.9)" stroke="rgba(80,160,255,0.95)" strokeWidth="2" />
-                    </svg>
+                    <GameIcon name="hp" className={styles.badgeIcon} />
                     <span className={styles.statText}>{card.unitStats.hp}</span>
                   </div>
                 </>
@@ -205,6 +208,8 @@ export default function CardModal({ card, onClose, onPrevCard, onNextCard }: Car
               {card.type === 'action' && (
                 <div className={styles.actionLabel}>ACTION</div>
               )}
+
+              <img src={frameAsset} alt="" className={styles.frameAsset} aria-hidden="true" draggable={false} />
             </div>
           </div>
 
@@ -238,12 +243,12 @@ export default function CardModal({ card, onClose, onPrevCard, onNextCard }: Car
             {card.type === 'unit' && card.unitStats && (
               <div className={styles.statsSection}>
                 <div className={styles.statsRow}>
-                  <span className={styles.statsIcon} style={{ color: '#e74c3c' }}>&#9876;</span>
+                  <GameIcon name="attack" className={styles.statsAssetIcon} />
                   <span className={styles.statsLabel}>攻撃力</span>
                   <span className={styles.statsValue}>{card.unitStats.attack}</span>
                 </div>
                 <div className={styles.statsRow}>
-                  <span className={styles.statsIcon} style={{ color: '#3498db' }}>&#9829;</span>
+                  <GameIcon name="hp" className={styles.statsAssetIcon} />
                   <span className={styles.statsLabel}>HP</span>
                   <span className={styles.statsValue}>{card.unitStats.hp}</span>
                 </div>

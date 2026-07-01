@@ -1,4 +1,5 @@
 import React from 'react'
+import GameIcon from './GameIcon'
 
 interface ManaBarProps {
   mp: number
@@ -15,8 +16,9 @@ const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0, showAmpSlot = 
   return (
     <div className="w-full flex flex-col items-center gap-1.5">
       <div className="flex w-full max-w-[44rem] items-center gap-2 rounded-full border border-amber-300/20 bg-black/55 px-3 py-2 shadow-[0_14px_36px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-amber-300/30 bg-gradient-to-b from-amber-200/18 via-amber-500/10 to-amber-950/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ls:h-8 ls:w-8">
-          <span className="font-orbitron font-bold text-lg text-amber-50 ls:text-xs">{currentMpInt}</span>
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center ls:h-8 ls:w-8">
+          <GameIcon name="mp" className="absolute inset-0 h-full w-full" />
+          <span className="relative font-orbitron font-bold text-lg text-cyan-50 drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ls:text-xs">{currentMpInt}</span>
         </div>
         {(showAmpSlot || blueMp > 0) && (
           <div className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-[1rem] border leading-none ls:h-8 ls:w-8 ${
@@ -57,7 +59,6 @@ const ManaBar: React.FC<ManaBarProps> = ({ mp, maxMp, blueMp = 0, showAmpSlot = 
 }
 
 export default ManaBar
-
 
 
 

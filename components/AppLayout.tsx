@@ -84,11 +84,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, title }) => 
         <div className={styles.currencyGroup}>
           <div className={styles.currencyBox}>
             <div className={styles.currencyItem}>
-              <div className={styles.currencyIcon} />
+              <GameIcon name="coin" className={styles.currencyIcon} />
               <span>1,347</span>
             </div>
             <div className={styles.currencyItem}>
-              <div className={`${styles.currencyIcon} ${styles.soulsIcon}`} />
+              <GameIcon name="jewel" className={styles.currencyIcon} />
               <span>90</span>
             </div>
             <div className={styles.plusIcon}>+</div>

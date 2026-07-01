@@ -23,6 +23,9 @@ export type GameIconName =
   | 'attr-black'
   | 'attack'
   | 'hp'
+  | 'mp'
+  | 'coin'
+  | 'jewel'
   | 'shield'
   | 'timer'
   | 'rotate-phone'
@@ -59,6 +62,9 @@ const GAME_ICON_SRC: Record<GameIconName, string> = {
   'attr-black': '/images/ui/ui-attr-black.png',
   attack: '/images/ui/ui-attack.png',
   hp: '/images/ui/ui-hp.png',
+  mp: '/images/ui/ui-mp.png',
+  coin: '/images/ui/ui-coin.png',
+  jewel: '/images/ui/ui-jewel.png',
   shield: '/images/ui/ui-shield.png',
   timer: '/images/ui/ui-timer.png',
   'rotate-phone': '/images/ui/ui-rotate-phone.png',
