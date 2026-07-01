@@ -149,6 +149,8 @@ interface UseGameSocketReturn {
   /** game_state を受信した直後のクライアント時刻（同期タイマー用。setState より先に同期で更新される） */
   lastGameStateReceivedAtRef: MutableRefObject<number>
   gameEvents: GameEvent[]
+  /** gameEvents を消費し終えたら呼び出してキューを空にする */
+  clearGameEvents: () => void
   opponentDisconnected: boolean
   errorMessage: string | null
   connect: () => void
@@ -292,7 +294,9 @@ export function useGameSocket(): UseGameSocketReturn {
                 break
               }
               case 'game_event':
-                setGameEvents(message.events)
+                // 置き換えではなく蓄積する（短時間で複数メッセージが届いた場合に
+                // 消費側が処理する前に上書きされてイベントが消えるのを防ぐ）
+                setGameEvents((prev) => [...prev, ...message.events])
                 break
               case 'opponent_disconnected':
                 setOpponentDisconnected(true)
@@ -378,12 +382,17 @@ export function useGameSocket(): UseGameSocketReturn {
     }
   }, [])
 
+  const clearGameEvents = useCallback(() => {
+    setGameEvents([])
+  }, [])
+
   return {
     connectionStatus,
     matchStatus,
     gameState,
     lastGameStateReceivedAtRef,
     gameEvents,
+    clearGameEvents,
     opponentDisconnected,
     errorMessage,
     connect,

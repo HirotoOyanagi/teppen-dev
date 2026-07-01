@@ -1,0 +1,135 @@
+{
+  "gameId": "battle_harness",
+  "phase": "playing",
+  "currentTick": 2,
+  "lastUpdateTime": 1781741169587,
+  "gameStartTime": 1781741169472,
+  "randomSeed": 12345,
+  "mulliganDone": [
+    true,
+    true
+  ],
+  "players": [
+    {
+      "playerId": "player1",
+      "hp": 30,
+      "maxHp": 30,
+      "mp": 17,
+      "maxMp": 20,
+      "blueMp": 0,
+      "ap": 3,
+      "hero": {
+        "id": "hero_red_reisia",
+        "name": "レイシア",
+        "attribute": "red",
+        "description": "不撓の正義を掲げる戦士",
+        "modelUrl": "/images/heroes/7_golden-knight.glb",
+        "live2dImageUrl": "/images/live2d/reisia-live2d.png",
+        "heroArt": {
+          "name": "不撓の正義",
+          "cost": 18,
+          "description": "敵ユニット1体に10ダメージ + 味方全員攻撃+2",
+          "requiresTarget": true
+        },
+        "companion": {
+          "name": "守護の光",
+          "cost": 6,
+          "description": "味方1体にシールド1枚+HP+2",
+          "requiresTarget": true
+        }
+      },
+      "hand": [],
+      "deck": [],
+      "graveyard": [],
+      "units": [
+        {
+          "id": "unit_1781741169583_0.18429853121010187",
+          "cardId": "cor_001",
+          "hp": 5,
+          "maxHp": 5,
+          "attack": 2,
+          "attackGauge": 0,
+          "attackInterval": 10000,
+          "lane": 0,
+          "aliveTimeMs": 0,
+          "resonateEffects": [
+            "buff_self_attack:1"
+          ],
+          "exResonateEffects": [
+            "buff_self_attack:1"
+          ],
+          "originalAttack": 2,
+          "originalHp": 5
+        }
+      ],
+      "exPocket": [
+        "cor_027"
+      ]
+    },
+    {
+      "playerId": "player2",
+      "hp": 30,
+      "maxHp": 30,
+      "mp": 17,
+      "maxMp": 20,
+      "blueMp": 0,
+      "ap": 3,
+      "hero": {
+        "id": "hero_red_kaiser",
+        "name": "カイゼル",
+        "attribute": "red",
+        "description": "終焉の業火を操る者",
+        "modelUrl": "/images/heroes/8_red-berserker.glb",
+        "live2dImageUrl": "/images/live2d/kaiser-live2d.png",
+        "heroArt": {
+          "name": "終焉の業火",
+          "cost": 25,
+          "description": "敵ヒーロー3ダメ + 全敵ユニット6ダメ + 味方ヒーロー3ダメ"
+        },
+        "companion": {
+          "name": "力の化身",
+          "cost": 9,
+          "description": "味方全員の攻撃力+1"
+        }
+      },
+      "hand": [],
+      "deck": [],
+      "graveyard": [],
+      "units": [
+        {
+          "id": "unit_1781741169587_0.32447476110481",
+          "cardId": "cor_001",
+          "hp": 5,
+          "maxHp": 5,
+          "attack": 2,
+          "attackGauge": 0,
+          "attackInterval": 10000,
+          "lane": 0,
+          "aliveTimeMs": 0,
+          "resonateEffects": [
+            "buff_self_attack:1"
+          ],
+          "exResonateEffects": [
+            "buff_self_attack:1"
+          ],
+          "originalAttack": 2,
+          "originalHp": 5
+        }
+      ],
+      "exPocket": [
+        "cor_027"
+      ]
+    }
+  ],
+  "activeResponse": {
+    "isActive": false,
+    "status": "building",
+    "currentPlayerId": "player1",
+    "stack": [],
+    "resolvingStack": [],
+    "currentResolvingItem": null,
+    "timer": 0,
+    "passedPlayers": []
+  },
+  "timeRemainingMs": 300000
+}

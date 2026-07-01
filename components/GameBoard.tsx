@@ -26,6 +26,7 @@ import {
   AI_NORMAL_ACTION_INTERVAL_MS,
   AI_AR_ACTION_INTERVAL_MS,
 } from '@/ai/opponentAi'
+import { useBattleFx } from './battleEffects/useBattleFx'
 
 // カード詳細ツールチップ（HPの上に表示）
 function CardTooltip({
@@ -312,6 +313,16 @@ interface GameBoardProps {
   onExitBattle?: () => void
 }
 
+/** 破壊された直後、消滅演出のためだけに一瞬だけ描画し続けるユニットのスナップショット */
+interface DyingGhost {
+  id: string
+  unit: Unit
+  cardDef: CardDefinition
+  lane: number
+  isLocal: boolean
+  expiresAt: number
+}
+
 export default function GameBoard(props: GameBoardProps) {
   const { onMulliganComplete, testMode = false, onExitBattle } = props
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -349,14 +360,10 @@ export default function GameBoard(props: GameBoardProps) {
     targetSide: 'friendly' | 'enemy' | 'none'
     name: string
   } | null>(null)
-  // ダメージ数字エフェクト
-  const [damageEffects, setDamageEffects] = useState<
-    { id: string; unitId: string; playerId?: string; lane?: number; damage: number; timestamp: number }[]
-  >([])
-  // 破壊エフェクト
-  const [destroyEffects, setDestroyEffects] = useState<
-    { id: string; unitId: string; playerId?: string; lane?: number; timestamp: number }[]
-  >([])
+  // 破壊演出（消滅ゴースト）
+  const [dyingGhosts, setDyingGhosts] = useState<DyingGhost[]>([])
+  /** 盤面全体を揺らすための対象ルート要素（transformを他用途で使っていない） */
+  const boardWrapperRef = useRef<HTMLDivElement | null>(null)
   /** 相手がアクションカードを使用したときに表示するカード効果（相手側の説明UI） */
   const [opponentPlayedActionCard, setOpponentPlayedActionCard] = useState<{
     card: CardDefinition
@@ -372,31 +379,52 @@ export default function GameBoard(props: GameBoardProps) {
   /** アビリティドラッグ中のホバー対象（mouseup 時の React 状態のズレを避ける） */
   const abilityHoveredUnitIdRef = useRef<string | null>(null)
 
-  // イベント処理: ダメージ数字 / 破壊エフェクト / 相手アクションカード説明を追加
+  /**
+   * 破壊イベント処理時には gameState から既にユニットが消えているため、
+   * 消滅演出（ゴースト）用にユニット情報を毎ティック先読みで保持しておく。
+   */
+  const lastKnownUnitsRef = useRef<
+    Map<string, { unit: Unit; cardDef: CardDefinition; lane: number; isLocal: boolean }>
+  >(new Map())
+  const snapshotUnitsForGhosts = useCallback((state: GameState) => {
+    const map = lastKnownUnitsRef.current
+    for (const p of state.players) {
+      const isLocal = p.playerId === 'player1'
+      for (const unit of p.units) {
+        const cardDef = resolveCardDefinition(cardMapRef.current, unit.cardId)
+        if (cardDef) map.set(unit.id, { unit, cardDef, lane: unit.lane, isLocal })
+      }
+    }
+  }, [])
+
+  const { processEvents: fxProcessEvents, FxCanvas } = useBattleFx({
+    containerRef: boardWrapperRef,
+    getUnitRect: (unitId) => unitRefs.current.get(unitId)?.getBoundingClientRect() ?? null,
+    getLaneRect: (isLocal, lane) =>
+      (isLocal ? laneRefs : opponentLaneRefs).current[lane]?.getBoundingClientRect() ?? null,
+    getHeroRect: (playerId) => heroRefs.current.get(playerId)?.getBoundingClientRect() ?? null,
+    localPlayerId: 'player1',
+  })
+
+  // イベント処理: 破壊/被ダメージVFX、消滅ゴースト、相手アクションカード説明を追加
   const processEvents = useCallback((events: import('@/core/types').GameEvent[]) => {
     const now = Date.now()
-    const newDamage: typeof damageEffects = []
-    const newDestroy: typeof destroyEffects = []
+    fxProcessEvents(events)
 
+    const newGhosts: DyingGhost[] = []
     for (const ev of events) {
-      if (ev.type === 'unit_damage' && ev.damage > 0) {
-        newDamage.push({
-          id: `dmg_${ev.unitId}_${now}_${Math.random()}`,
-          unitId: ev.unitId,
-          playerId: ev.playerId,
-          lane: ev.lane,
-          damage: ev.damage,
-          timestamp: now,
-        })
-      }
       if (ev.type === 'unit_destroyed') {
-        newDestroy.push({
-          id: `dest_${ev.unitId}_${now}`,
-          unitId: ev.unitId,
-          playerId: ev.playerId,
-          lane: ev.lane,
-          timestamp: now,
-        })
+        const known = lastKnownUnitsRef.current.get(ev.unitId)
+        if (known) {
+          newGhosts.push({
+            id: `ghost_${ev.unitId}_${now}`,
+            unit: known.unit,
+            cardDef: known.cardDef,
+            lane: known.lane,
+            isLocal: known.isLocal,
+            expiresAt: now + 380,
+          })
+        }
       }
       if (ev.type === 'card_played' && ev.playerId === 'player2') {
         const cardDef = resolveCardDefinition(cardMap, ev.cardId)
@@ -407,24 +435,20 @@ export default function GameBoard(props: GameBoardProps) {
       }
     }
 
-    if (newDamage.length > 0) {
-      setDamageEffects((prev) => [...prev, ...newDamage])
+    if (newGhosts.length > 0) {
+      setDyingGhosts((prev) => [...prev, ...newGhosts])
     }
-    if (newDestroy.length > 0) {
-      setDestroyEffects((prev) => [...prev, ...newDestroy])
-    }
-  }, [cardMap])
+  }, [cardMap, fxProcessEvents])
 
-  // エフェクトの自動クリーンアップ（800ms後に消す）
+  // ゴーストの自動クリーンアップ
   useEffect(() => {
-    if (damageEffects.length === 0 && destroyEffects.length === 0) return
+    if (dyingGhosts.length === 0) return
     const timer = setInterval(() => {
       const now = Date.now()
-      setDamageEffects((prev) => prev.filter((e) => now - e.timestamp < 900))
-      setDestroyEffects((prev) => prev.filter((e) => now - e.timestamp < 800))
+      setDyingGhosts((prev) => prev.filter((g) => g.expiresAt > now))
     }, 100)
     return () => clearInterval(timer)
-  }, [damageEffects.length, destroyEffects.length])
+  }, [dyingGhosts.length])
 
   // 相手アクションカード説明の自動非表示（3秒後）
   const OPPONENT_ACTION_DISPLAY_MS = 3000
@@ -541,6 +565,7 @@ export default function GameBoard(props: GameBoardProps) {
       )
 
       if (result.events.length > 0) {
+        snapshotUnitsForGhosts(prevState)
         pendingEventsRef.current.push(...result.events)
       }
 
@@ -669,6 +694,7 @@ export default function GameBoard(props: GameBoardProps) {
         if (!prevState) return prevState
         const result = updateGameState(prevState, input, 0, cardMap)
         if (result.events.length > 0) {
+          snapshotUnitsForGhosts(prevState)
           pendingEventsRef.current.push(...result.events)
         }
         const s = result.state
@@ -688,7 +714,7 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }, 0)
     },
-    [gameState, cardMap, getTargetType, processEvents, requiresTarget, testMode]
+    [gameState, cardMap, getTargetType, processEvents, requiresTarget, snapshotUnitsForGhosts, testMode]
   )
 
   // 必殺技/おとも発動（ドラッグ終了時 or 直接呼び出し）
@@ -704,6 +730,7 @@ export default function GameBoard(props: GameBoardProps) {
         if (!prevState) return prevState
         const result = updateGameState(prevState, input, 0, cardMap)
         if (result.events.length > 0) {
+          snapshotUnitsForGhosts(prevState)
           pendingEventsRef.current.push(...result.events)
         }
         return result.state
@@ -717,7 +744,7 @@ export default function GameBoard(props: GameBoardProps) {
       setAbilityTargetMode(null)
       setAbilityDragging(null)
     },
-    [cardMap, processEvents]
+    [cardMap, processEvents, snapshotUnitsForGhosts]
   )
 
   // 必殺技発動（クリック/タップ用フォールバック）
@@ -879,6 +906,7 @@ export default function GameBoard(props: GameBoardProps) {
         arEndInputRef.current = null
         const result = updateGameState(prevState, inputToUse, 0, cardMap)
         if (result.events.length > 0) {
+          snapshotUnitsForGhosts(prevState)
           pendingEventsRef.current.push(...result.events)
         }
         arEndResultRef.current = result.state
@@ -891,7 +919,7 @@ export default function GameBoard(props: GameBoardProps) {
         }
       }, 0)
     },
-    [gameState, cardMap, processEvents]
+    [gameState, cardMap, processEvents, snapshotUnitsForGhosts]
   )
 
   // マリガン処理
@@ -1167,7 +1195,11 @@ export default function GameBoard(props: GameBoardProps) {
   }
 
   return (
-    <div className={`relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}>
+    <div
+      ref={boardWrapperRef}
+      className={`relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none ${testMode ? 'flex-row' : 'flex-col'}`}
+    >
+      <FxCanvas />
       <div className="absolute inset-0 z-0 battle-atmosphere" />
       <div className="absolute inset-0 z-0 battle-grid-overlay opacity-80" />
       <div className="absolute inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-white/30 via-sky-100/8 to-transparent" />
@@ -1515,6 +1547,12 @@ export default function GameBoard(props: GameBoardProps) {
             if (rightUnit) {
               rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
             }
+            const leftGhost = !leftUnit
+              ? dyingGhosts.find((g) => g.lane === lane && g.isLocal)
+              : undefined
+            const rightGhost = !rightUnit
+              ? dyingGhosts.find((g) => g.lane === lane && !g.isLocal)
+              : undefined
 
             return (
               <div key={lane} className="battle-lane-row relative mx-auto h-44 ls:h-24 w-full max-w-[68rem] flex items-center justify-between px-16 ls:px-8">
@@ -1617,6 +1655,10 @@ export default function GameBoard(props: GameBoardProps) {
                         onCardDetail={() => onCardTap(leftCardDef, 'left', leftUnit)}
                       />
                     </div>
+                  ) : leftGhost ? (
+                    <div key={leftGhost.id} className="battle-ghost-shatter pointer-events-none">
+                      <GameCard cardDef={leftGhost.cardDef} unit={leftGhost.unit} isField cardMap={cardMap} />
+                    </div>
                   ) : (
                     <div key={`empty_left_${lane}`} className="battle-empty-slot is-player" />
                   )}
@@ -1670,6 +1712,10 @@ export default function GameBoard(props: GameBoardProps) {
                       }}
                       onCardDetail={() => onCardTap(rightCardDef, 'right', rightUnit)}
                     />
+                    </div>
+                  ) : rightGhost ? (
+                    <div key={rightGhost.id} className="battle-ghost-shatter pointer-events-none">
+                      <GameCard cardDef={rightGhost.cardDef} unit={rightGhost.unit} isField cardMap={cardMap} />
                     </div>
                   ) : (
                     <div key={`empty_right_${lane}`} className="battle-empty-slot is-enemy" />
@@ -1876,138 +1922,6 @@ export default function GameBoard(props: GameBoardProps) {
         <DraggingAbility name={abilityDragging.name} type={abilityDragging.type} position={dragPos} />
       )}
 
-      {/* ダメージ数字エフェクト */}
-      {damageEffects.map((effect) => {
-        const ref = unitRefs.current.get(effect.unitId)
-        const rectMap: Record<string, DOMRect | null> = { ref: null, lane: null }
-        if (ref) {
-          rectMap.ref = ref.getBoundingClientRect()
-        }
-
-        if (!rectMap.ref) {
-          const gs = gameState
-          const localPlayerId = gs?.players?.[0]?.playerId
-          const isLocal = effect.playerId && localPlayerId && effect.playerId === localPlayerId
-          const laneIndex = effect.lane
-          if (laneIndex === undefined || laneIndex === null) {
-            return null
-          }
-          const laneArray = isLocal ? laneRefs.current : opponentLaneRefs.current
-          const laneRef = laneArray[laneIndex]
-          if (!laneRef) {
-            return null
-          }
-          rectMap.lane = laneRef.getBoundingClientRect()
-        }
-
-        const rect = rectMap.ref || rectMap.lane
-        if (!rect) {
-          return null
-        }
-        const elapsed = Date.now() - effect.timestamp
-        const progress = Math.min(1, elapsed / 900)
-        const scaleIn = progress < 0.2 ? 0.5 + (progress / 0.2) * 2 : Math.min(1.2, 2.5 - progress * 1.5)
-        const bounceY = progress < 0.15 ? -20 * Math.sin((progress / 0.15) * Math.PI) : 0
-        return (
-          <div
-            key={effect.id}
-            className="fixed z-[300] pointer-events-none font-orbitron font-black"
-            style={{
-              left: rect.left + rect.width / 2,
-              top: rect.top + rect.height * 0.25 - progress * 50 + bounceY,
-              transform: `translateX(-50%) scale(${scaleIn})`,
-              opacity: 1 - progress * 1.2,
-              fontSize: '36px',
-              color: '#ff2222',
-              textShadow: '0 0 12px rgba(255,0,0,1), 0 0 24px rgba(255,0,0,0.8), 0 2px 4px rgba(0,0,0,1)',
-              filter: 'drop-shadow(0 0 8px rgba(255,100,100,0.9))',
-            }}
-          >
-            -{effect.damage}
-          </div>
-        )
-      })}
-
-      {/* 破壊エフェクト */}
-      {destroyEffects.map((effect) => {
-        const ref = unitRefs.current.get(effect.unitId)
-        const rectMap: Record<string, DOMRect | null> = { ref: null, lane: null }
-        if (ref) {
-          rectMap.ref = ref.getBoundingClientRect()
-        }
-
-        if (!rectMap.ref) {
-          const gs = gameState
-          const localPlayerId = gs?.players?.[0]?.playerId
-          const isLocal = effect.playerId && localPlayerId && effect.playerId === localPlayerId
-          const laneIndex = effect.lane
-          if (laneIndex === undefined || laneIndex === null) {
-            return null
-          }
-          const laneArray = isLocal ? laneRefs.current : opponentLaneRefs.current
-          const laneRef = laneArray[laneIndex]
-          if (!laneRef) {
-            return null
-          }
-          rectMap.lane = laneRef.getBoundingClientRect()
-        }
-
-        const rect = rectMap.ref || rectMap.lane
-        if (!rect) {
-          return null
-        }
-        const elapsed = Date.now() - effect.timestamp
-        const progress = Math.min(1, elapsed / 800)
-        const explosionScale = 0.3 + progress * 2.2
-        const ringScale = 0.5 + progress * 2
-        return (
-          <div
-            key={effect.id}
-            className="fixed z-[300] pointer-events-none w-32 h-32"
-            style={{
-              left: rect.left + rect.width / 2 - 64,
-              top: rect.top + rect.height / 2 - 64,
-            }}
-          >
-            <div
-              className="absolute rounded-full"
-              style={{
-                width: 80,
-                height: 80,
-                left: 64,
-                top: 64,
-                transform: `translate(-50%, -50%) scale(${explosionScale})`,
-                background: `radial-gradient(circle, rgba(255,150,0,${0.9 - progress * 0.9}) 0%, rgba(255,50,0,${0.6 - progress * 0.6}) 40%, rgba(255,0,0,${0.3 - progress * 0.3}) 70%, transparent 100%)`,
-                boxShadow: `0 0 ${40 + progress * 40}px rgba(255,80,0,${0.8 - progress * 0.8}), 0 0 ${80 + progress * 60}px rgba(255,50,0,${0.5 - progress * 0.5})`,
-              }}
-            />
-            <div
-              className="absolute rounded-full border-2 border-orange-400/80"
-              style={{
-                width: 60,
-                height: 60,
-                left: 64,
-                top: 64,
-                transform: `translate(-50%, -50%) scale(${ringScale})`,
-                opacity: 0.8 - progress,
-                boxShadow: '0 0 20px rgba(255,150,0,0.6)',
-              }}
-            />
-            <div
-              className="absolute inset-0 flex items-center justify-center font-orbitron font-black text-yellow-300"
-              style={{
-                fontSize: '14px',
-                letterSpacing: '0.15em',
-                textShadow: '0 0 12px rgba(255,220,0,1), 0 0 24px rgba(255,150,0,0.8), 0 2px 4px rgba(0,0,0,1)',
-                opacity: 1 - progress * 1.2,
-                transform: `scale(${0.8 + (1 - progress) * 0.6})`,
-              }}
-            >
-              DESTROY
-            </div>
-          </div>
-        )
-      })}
     </div>
       {testMode && cardMap && (() => {
         const attributeColors: Record<string, string> = {

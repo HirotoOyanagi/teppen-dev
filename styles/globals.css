@@ -122,6 +122,51 @@ body {
   animation: effect-overlay-pop 760ms cubic-bezier(0.18, 0.9, 0.26, 1.12);
 }
 
+@keyframes battle-ghost-shatter {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1.6) saturate(1.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.06) rotate(-2deg);
+    filter: brightness(2.2) saturate(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.72) rotate(9deg);
+    filter: brightness(0.6) saturate(0.2);
+  }
+}
+
+.battle-ghost-shatter {
+  animation: battle-ghost-shatter 360ms cubic-bezier(0.32, 0, 0.66, 1) forwards;
+}
+
+@keyframes hero-hit-jitter {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+.hero-hit-jitter {
+  animation: hero-hit-jitter 350ms cubic-bezier(0.18, 0.9, 0.26, 1.12);
+}
+
+@keyframes hero-hit-vignette {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.hero-hit-vignette {
+  animation: hero-hit-vignette 260ms ease-out forwards;
+  background: radial-gradient(ellipse at center, rgba(255, 40, 40, 0.05) 0%, rgba(255, 20, 20, 0.38) 100%);
+}
+
 .battle-atmosphere {
   background:
     radial-gradient(ellipse at 50% 17%, rgba(255, 255, 255, 0.76) 0%, rgba(147, 209, 255, 0.34) 22%, transparent 39%),

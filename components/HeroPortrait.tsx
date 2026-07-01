@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { CardDefinition, PlayerState } from '@/core/types'
 import { resolveCardDefinition } from '@/core/cardId'
 import GameIcon from '@/components/GameIcon'
@@ -98,10 +98,15 @@ interface HeroPortraitProps {
 const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) => {
   const isLeft = side === 'left'
   const [shake, setShake] = useState(false)
+  const prevHpRef = useRef(player.hp)
 
+  // 回復では発火させず、被ダメージ（HP減少）時のみ演出する
   useEffect(() => {
+    const decreased = player.hp < prevHpRef.current
+    prevHpRef.current = player.hp
+    if (!decreased) return
     setShake(true)
-    const timer = setTimeout(() => setShake(false), 500)
+    const timer = setTimeout(() => setShake(false), 350)
     return () => clearTimeout(timer)
   }, [player.hp])
 
@@ -127,7 +132,7 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
   return (
     <div
       className={`relative h-full flex flex-col ${isLeft ? 'items-start' : 'items-end'} ${
-        shake ? 'animate-ping' : ''
+        shake ? 'hero-hit-jitter' : ''
       }`}
     >
       {/* ヒーローエリア */}
@@ -243,7 +248,7 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
         )}
       </div>
 
-      {shake && <div className="absolute inset-0 bg-red-500/20 pointer-events-none z-50" />}
+      {shake && <div className="hero-hit-vignette absolute inset-0 pointer-events-none z-50" />}
     </div>
   )
 }

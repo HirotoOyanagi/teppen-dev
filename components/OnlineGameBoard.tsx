@@ -21,6 +21,7 @@ import ManaBar from './ManaBar'
 import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
 import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
 import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
+import { useBattleFx } from './battleEffects/useBattleFx'
 
 const DEFAULT_MATCH_MS = 5 * 60 * 1000
 
@@ -221,6 +222,16 @@ interface OnlineGameBoardProps {
   onMulliganComplete?: () => void
 }
 
+/** 破壊された直後、消滅演出のためだけに一瞬だけ描画し続けるユニットのスナップショット */
+interface DyingGhost {
+  id: string
+  unit: Unit
+  cardDef: CardDefinition
+  lane: number
+  isLocal: boolean
+  expiresAt: number
+}
+
 export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const { playerId, heroId, deckCardIds, onMulliganComplete } = props
   const { cardMap, isLoading: cardsLoading } = useCards()
@@ -230,6 +241,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     gameState,
     lastGameStateReceivedAtRef,
     gameEvents,
+    clearGameEvents,
     opponentDisconnected,
     errorMessage,
     connect,
@@ -267,6 +279,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     name: string
   } | null>(null)
   const laneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
+  const opponentLaneRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
   const unitRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const heroRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const abilityHoveredUnitIdRef = useRef<string | null>(null)
@@ -275,6 +288,24 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const timeOffsetMsRef = useRef<number>(0)
   const playingStartTimerMsRef = useRef<number | null>(null)
   const playingStartLocalAtMsRef = useRef<number | null>(null)
+  const boardWrapperRef = useRef<HTMLDivElement | null>(null)
+  const [dyingGhosts, setDyingGhosts] = useState<DyingGhost[]>([])
+  /**
+   * 破壊イベント処理時には gameState から既にユニットが消えていることがあるため、
+   * 消滅演出（ゴースト）用にユニット情報を毎回先読みで保持しておく。
+   */
+  const lastKnownUnitsRef = useRef<
+    Map<string, { unit: Unit; cardDef: CardDefinition; lane: number; isLocal: boolean }>
+  >(new Map())
+
+  const { processEvents: fxProcessEvents, FxCanvas } = useBattleFx({
+    containerRef: boardWrapperRef,
+    getUnitRect: (unitId) => unitRefs.current.get(unitId)?.getBoundingClientRect() ?? null,
+    getLaneRect: (isLocal, lane) =>
+      (isLocal ? laneRefs : opponentLaneRefs).current[lane]?.getBoundingClientRect() ?? null,
+    getHeroRect: (pid) => heroRefs.current.get(pid)?.getBoundingClientRect() ?? null,
+    localPlayerId: playerId,
+  })
 
   useEffect(() => {
     if (!gameState) return
@@ -322,28 +353,77 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
     }
   }, [gameState])
 
-  const processEvents = useCallback((events: GameEvent[]) => {
-    const now = Date.now()
+  const snapshotUnitsForGhosts = useCallback(
+    (state: SanitizedGameState) => {
+      const map = lastKnownUnitsRef.current
+      for (const p of state.players) {
+        const isLocal = p.playerId === playerId
+        for (const unit of p.units) {
+          const cardDef = resolveCardDefinition(cardMap, unit.cardId)
+          if (cardDef) map.set(unit.id, { unit, cardDef, lane: unit.lane, isLocal })
+        }
+      }
+    },
+    [cardMap, playerId]
+  )
 
-    for (const ev of events) {
-      if (ev.type !== 'card_played' || ev.playerId === playerId) {
-        continue
+  useEffect(() => {
+    if (gameState) snapshotUnitsForGhosts(gameState)
+  }, [gameState, snapshotUnitsForGhosts])
+
+  const processEvents = useCallback(
+    (events: GameEvent[]) => {
+      const now = Date.now()
+      fxProcessEvents(events)
+
+      const newGhosts: DyingGhost[] = []
+      for (const ev of events) {
+        if (ev.type === 'unit_destroyed') {
+          const known = lastKnownUnitsRef.current.get(ev.unitId)
+          if (known) {
+            newGhosts.push({
+              id: `ghost_${ev.unitId}_${now}`,
+              unit: known.unit,
+              cardDef: known.cardDef,
+              lane: known.lane,
+              isLocal: known.isLocal,
+              expiresAt: now + 380,
+            })
+          }
+          continue
+        }
+
+        if (ev.type === 'card_played' && ev.playerId !== playerId) {
+          const cardDef = resolveCardDefinition(cardMap, ev.cardId)
+          if (cardDef?.type === 'action') {
+            setOpponentPlayedActionCard({ card: cardDef, timestamp: now })
+            setDetailCard((prev) => (prev?.side === 'right' ? null : prev))
+          }
+        }
       }
 
-      const cardDef = resolveCardDefinition(cardMap, ev.cardId)
-      if (cardDef?.type !== 'action') {
-        continue
+      if (newGhosts.length > 0) {
+        setDyingGhosts((prev) => [...prev, ...newGhosts])
       }
-
-      setOpponentPlayedActionCard({ card: cardDef, timestamp: now })
-      setDetailCard((prev) => (prev?.side === 'right' ? null : prev))
-    }
-  }, [cardMap, playerId])
+    },
+    [cardMap, playerId, fxProcessEvents]
+  )
 
   useEffect(() => {
     if (gameEvents.length === 0) return
     processEvents(gameEvents)
-  }, [gameEvents, processEvents])
+    clearGameEvents()
+  }, [gameEvents, processEvents, clearGameEvents])
+
+  // ゴーストの自動クリーンアップ
+  useEffect(() => {
+    if (dyingGhosts.length === 0) return
+    const timer = setInterval(() => {
+      const now = Date.now()
+      setDyingGhosts((prev) => prev.filter((g) => g.expiresAt > now))
+    }, 100)
+    return () => clearInterval(timer)
+  }, [dyingGhosts.length])
 
   const OPPONENT_ACTION_DISPLAY_MS = 3000
   useEffect(() => {
@@ -847,7 +927,11 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
   const mainBattleStarted = gameState.phase === 'playing' && syncedServerNowMs >= gameStartForUi
 
   return (
-    <div className="relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none">
+    <div
+      ref={boardWrapperRef}
+      className="relative isolate flex h-screen w-screen overflow-hidden bg-[#06110f] font-orbitron select-none"
+    >
+      <FxCanvas />
       <div className="absolute inset-0 z-0 battle-atmosphere" />
       <div className="absolute inset-0 z-0 battle-grid-overlay opacity-80" />
       <div className="absolute inset-x-0 top-0 z-0 h-44 bg-gradient-to-b from-white/30 via-sky-100/8 to-transparent" />
@@ -1169,6 +1253,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             let rightCardDef: CardDefinition | null = null
             if (leftUnit) leftCardDef = resolveCardDefinition(cardMap, leftUnit.cardId)
             if (rightUnit) rightCardDef = resolveCardDefinition(cardMap, rightUnit.cardId)
+            const leftGhost = !leftUnit
+              ? dyingGhosts.find((g) => g.lane === lane && g.isLocal)
+              : undefined
+            const rightGhost = !rightUnit
+              ? dyingGhosts.find((g) => g.lane === lane && !g.isLocal)
+              : undefined
 
             return (
               <div key={lane} className="battle-lane-row relative mx-auto h-44 ls:h-24 w-full max-w-[68rem] flex items-center justify-between px-16 ls:px-8">
@@ -1247,13 +1337,19 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                         onCardDetail={() => setDetailCard({ card: leftCardDef!, side: 'left', unit: leftUnit })}
                       />
                     </div>
+                  ) : leftGhost ? (
+                    <div key={leftGhost.id} className="battle-ghost-shatter pointer-events-none">
+                      <GameCard cardDef={leftGhost.cardDef} unit={leftGhost.unit} isField />
+                    </div>
                   ) : (
                     <div key={`empty_left_${lane}`} className="battle-empty-slot is-player" />
                   )}
                 </div>
 
                 {/* Right Slot (相手) */}
-                <div className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
+                <div
+                  ref={(el) => { opponentLaneRefs.current[lane] = el }}
+                  className={`relative z-20 w-28 h-40 ls:w-20 ls:h-22 flex items-center justify-center ${
                   ((abilityTargetMode && abilityTargetMode.targetSide === 'enemy') ||
                     (cardTargetMode && cardTargetMode.targetSide === 'enemy')) && rightUnit
                     ? 'ring-2 ring-red-400 shadow-[0_0_12px_red] cursor-pointer'
@@ -1291,6 +1387,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                       }}
                       onCardDetail={() => setDetailCard({ card: rightCardDef!, side: 'right', unit: rightUnit })}
                     />
+                    </div>
+                  ) : rightGhost ? (
+                    <div key={rightGhost.id} className="battle-ghost-shatter pointer-events-none">
+                      <GameCard cardDef={rightGhost.cardDef} unit={rightGhost.unit} isField />
                     </div>
                   ) : (
                     <div key={`empty_right_${lane}`} className="battle-empty-slot is-enemy" />
