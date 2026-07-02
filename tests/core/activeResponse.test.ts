@@ -332,6 +332,128 @@ describe('active response system', () => {
     expect(resolved.players[1].shieldCount ?? 0).toBe(0)
   })
 
+  it('優先権者がスルー（パス）すると即座にLIFO解決が始まる', () => {
+    const started = updateGameState(
+      createState(
+        createPlayer('p1', ['action_card'], 5),
+        createPlayer('p2', [], 5)
+      ),
+      { type: 'play_card', playerId: 'p1', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    expect(started.activeResponse.currentPlayerId).toBe('p2')
+
+    const passed = updateGameState(
+      started,
+      { type: 'active_response_pass', playerId: 'p2', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    expect(passed.activeResponse.isActive).toBe(true)
+    expect(passed.activeResponse.status).toBe('resolving')
+    expect(passed.activeResponse.currentResolvingItem?.cardId).toBe('action_card')
+  })
+
+  it('優先権のないプレイヤーのパスは無視される', () => {
+    const started = updateGameState(
+      createState(
+        createPlayer('p1', ['action_card'], 5),
+        createPlayer('p2', [], 5)
+      ),
+      { type: 'play_card', playerId: 'p1', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    const invalidPass = updateGameState(
+      started,
+      { type: 'active_response_pass', playerId: 'p1', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    expect(invalidPass.activeResponse.status).toBe('building')
+    expect(invalidPass.activeResponse.currentPlayerId).toBe('p2')
+  })
+
+  it('アクションカードが1枚積まれるごとに考察時間が10秒にリセットされる', () => {
+    const started = updateGameState(
+      createState(
+        createPlayer('p1', ['action_card'], 5),
+        createPlayer('p2', ['action_card'], 5)
+      ),
+      { type: 'play_card', playerId: 'p1', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    expect(started.activeResponse.timer).toBe(10000)
+
+    const ticked = updateGameState(started, null, 4000, cardMap).state
+    expect(ticked.activeResponse.timer).toBe(6000)
+
+    const responded = updateGameState(
+      ticked,
+      { type: 'active_response_action', playerId: 'p2', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    expect(responded.activeResponse.timer).toBe(10000)
+    expect(responded.activeResponse.currentPlayerId).toBe('p1')
+  })
+
+  it('考察時間が切れるとスタックがLIFO解決される', () => {
+    const started = updateGameState(
+      createState(
+        createPlayer('p1', ['action_card'], 5),
+        createPlayer('p2', [], 5)
+      ),
+      { type: 'play_card', playerId: 'p1', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    const expired = updateGameState(started, null, 10000, cardMap).state
+    expect(expired.activeResponse.status).toBe('resolving')
+  })
+
+  it('AR中は必殺技・おともを使用できない', () => {
+    const heroWithAbilities: Hero = {
+      ...hero,
+      heroArt: { name: 'Test Art', cost: 1, description: 'test' },
+      companion: { name: 'Test Companion', cost: 1, description: 'test' },
+    }
+    const p1 = createPlayer('p1', ['action_card'], 5)
+    const p2 = { ...createPlayer('p2', [], 5), ap: 5, hero: heroWithAbilities }
+
+    const started = updateGameState(
+      createState(p1, p2),
+      { type: 'play_card', playerId: 'p1', cardId: 'action_card', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+
+    const afterHeroArt = updateGameState(
+      started,
+      { type: 'hero_art', playerId: 'p2', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+    expect(afterHeroArt.players[1].ap).toBe(5)
+
+    const afterCompanion = updateGameState(
+      started,
+      { type: 'companion', playerId: 'p2', timestamp: Date.now() },
+      0,
+      cardMap
+    ).state
+    expect(afterCompanion.players[1].ap).toBe(5)
+  })
+
   it('AR終了は現在の優先権を持つプレイヤーだけが実行できる', () => {
     const started = updateGameState(
       createState(

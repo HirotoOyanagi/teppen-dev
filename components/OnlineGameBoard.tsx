@@ -18,6 +18,7 @@ import GameCard from './GameCard'
 import GameIcon from './GameIcon'
 import HeroPortrait from './HeroPortrait'
 import { AbilityCardArt } from './AbilityCard'
+import ActiveResponseTimer from './ActiveResponseTimer'
 import ManaBar from './ManaBar'
 import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
 import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
@@ -44,9 +45,7 @@ function getSyncedServerNowMs(gs: SanitizedGameState, lastSyncAtMs: number): num
  * ヘッダー用の残りミリ秒（サーバーが送った値のみ。クライアント補間は WS 更新と競って 4:59/5:00 が交互に出るため行わない）
  */
 function getHeaderTimerMsFromServer(gs: SanitizedGameState): number {
-  if (gs.activeResponse.isActive) {
-    return finiteOr(gs.activeResponse.timer, 0)
-  }
+  // AR中も試合残り時間（時間停止中の値）を表示する。ARの応答時間はARバー側に表示
   return finiteOr(gs.timeRemainingMs, DEFAULT_MATCH_MS)
 }
 
@@ -1002,7 +1001,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
       </div>
 
       {gameState.activeResponse.isActive && (
-        <div className="absolute inset-x-0 top-14 z-20 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/95 via-slate-950/98 to-black/95 border-b border-cyan-500/45 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-lg">
+        <div className="absolute inset-x-0 top-14 z-40 w-full px-3 py-2 ls:py-1.5 bg-gradient-to-r from-black/95 via-slate-950/98 to-black/95 border-b border-cyan-500/45 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-lg">
           <ActiveResponseOpponentStrip
             stack={gameState.activeResponse.stack}
             opponentPlayerId={opponent.playerId}
@@ -1014,6 +1013,28 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
             <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
               {gameState.activeResponse.status === 'building' ? 'アクティブレスポンス' : '効果解決中'}
             </div>
+            {gameState.activeResponse.status === 'building' && (
+              <div className="text-[9px] ls:text-[8px] text-cyan-200/70 leading-none">
+                後から出したカードから解決・ユニット使用不可
+              </div>
+            )}
+            {gameState.activeResponse.status === 'building' && (
+              <div className="flex items-center gap-3 ls:gap-2 pt-0.5">
+                <ActiveResponseTimer
+                  timerMs={gameState.activeResponse.timer}
+                  isMyPriority={gameState.activeResponse.currentPlayerId === playerId}
+                />
+                {gameState.activeResponse.currentPlayerId === playerId && (
+                  <button
+                    type="button"
+                    onClick={handleEndActiveResponse}
+                    className="rounded-full border-2 border-amber-300/75 bg-amber-400 px-4 py-1.5 ls:px-2.5 ls:py-1 text-sm ls:text-[10px] font-bold text-black shadow-[0_10px_20px_rgba(0,0,0,0.3)] transition-colors hover:bg-amber-300 whitespace-nowrap"
+                  >
+                    スルーして解決
+                  </button>
+                )}
+              </div>
+            )}
             {gameState.activeResponse.currentResolvingItem && (
               <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
                 発動中:{' '}
@@ -1026,22 +1047,10 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
         </div>
       )}
 
-      {/* アクティブレスポンス: 左下の解決ボタン */}
-      {gameState.activeResponse.isActive &&
-        gameState.activeResponse.status === 'building' &&
-        gameState.activeResponse.currentPlayerId === playerId && (
-          <button
-            type="button"
-            onClick={handleEndActiveResponse}
-            className="absolute bottom-28 ls:bottom-20 left-4 z-30 px-4 py-2 bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors rounded shadow-lg border-2 border-amber-400/80"
-          >
-            解決
-          </button>
-        )}
-
       {gameState.activeResponse.isActive && gameState.activeResponse.status === 'resolving' && (
         <ActiveResponseResolutionPreview
           stackItem={gameState.activeResponse.currentResolvingItem}
+          remainingCount={gameState.activeResponse.resolvingStack.length}
           cardMap={cardMap}
         />
       )}
@@ -1056,13 +1065,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.heroArt!.cost) {
+                  if (player.ap >= player.hero.heroArt!.cost && !gameState.activeResponse.isActive) {
                     onAbilityDragStart('hero_art', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.heroArt.cost}
+                disabled={player.ap < player.hero.heroArt.cost || gameState.activeResponse.isActive}
                 className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.heroArt.cost
+                  player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive
                     ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1071,7 +1080,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   heroId={player.hero.id}
                   kind="art"
                   cost={player.hero.heroArt.cost}
-                  usable={player.ap >= player.hero.heroArt.cost}
+                  usable={player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive}
                 />
               </button>
               <div
@@ -1106,13 +1115,13 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.companion!.cost) {
+                  if (player.ap >= player.hero.companion!.cost && !gameState.activeResponse.isActive) {
                     onAbilityDragStart('companion', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.companion.cost}
+                disabled={player.ap < player.hero.companion.cost || gameState.activeResponse.isActive}
                 className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.companion.cost
+                  player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive
                     ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1121,7 +1130,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   heroId={player.hero.id}
                   kind="companion"
                   cost={player.hero.companion.cost}
-                  usable={player.ap >= player.hero.companion.cost}
+                  usable={player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive}
                 />
               </button>
               <div

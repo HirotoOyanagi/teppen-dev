@@ -26,11 +26,9 @@ import {
   appendActiveResponseAction,
   beginArResolution,
   createActiveResponseStackItem,
-  passActiveResponsePriority,
   payCardCost,
   progressArResolution,
   resolveArStack,
-  shouldResolveActiveResponse,
   startActiveResponse,
 } from './activeResponse'
 
@@ -2232,36 +2230,27 @@ function processInput(
     }
 
     // Active Response終了処理
+    // スルー（パス）＝解決開始。応答権を持つ側がアクションを出さなければ、
+    // スタックは後から出されたカードから順（LIFO）に解決される
     if (newState.activeResponse.isActive) {
       if (newState.activeResponse.currentPlayerId !== input.playerId) {
         return { state: newState, events }
       }
 
-      if (input.type === 'active_response_pass') {
-        newState = passActiveResponsePriority(newState, input.playerId)
-
-        if (shouldResolveActiveResponse(newState)) {
-          const resolveResult = beginArResolution(
-            newState,
-            cardDefinitions,
-            resolveActionEffect
-          )
-          newState = resolveResult.state
-          events.push(...resolveResult.events)
-        }
-      } else {
-        const resolveResult = beginArResolution(
-          newState,
-          cardDefinitions,
-          resolveActionEffect
-        )
-        newState = resolveResult.state
-        events.push(...resolveResult.events)
-      }
+      const resolveResult = beginArResolution(
+        newState,
+        cardDefinitions,
+        resolveActionEffect
+      )
+      newState = resolveResult.state
+      events.push(...resolveResult.events)
     }
   }
 
   if (input.type === 'hero_art') {
+    // アクティブレスポンス中（静止中）は必殺技を使用できない
+    if (newState.activeResponse.isActive) return { state: newState, events }
+
     // 必殺技（AP消費）— ヒーロー個別コストで判定
     const player = newState.players.find((p) => p.playerId === input.playerId)
     if (!player) return { state: newState, events }
@@ -2294,6 +2283,9 @@ function processInput(
   }
 
   if (input.type === 'companion') {
+    // アクティブレスポンス中（静止中）はおともを使用できない
+    if (newState.activeResponse.isActive) return { state: newState, events }
+
     // おとも（AP消費）
     const player = newState.players.find((p) => p.playerId === input.playerId)
     if (!player) return { state: newState, events }

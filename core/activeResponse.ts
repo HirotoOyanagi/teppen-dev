@@ -66,19 +66,6 @@ export function payMpWithAmp(mp: number, blueMp: number, cost: number): AmpPayme
 }
 
 /**
- * AR を終了してよいか判定
- * 両方パスした、または timer が 0 以下なら true
- */
-export function canArEnd(ar: ActiveResponseState, playerIds: string[]): boolean {
-  const bothPassed = playerIds.every((id) => ar.passedPlayers.includes(id))
-  const timerExpired = ar.timer <= 0
-  const onePassedAndStackEmpty =
-    ar.passedPlayers.length === 1 && ar.stack.length === 0
-
-  return bothPassed || timerExpired || onePassedAndStackEmpty
-}
-
-/**
  * 次の AR アクション権限者を取得
  * 2人対戦想定
  */
@@ -376,45 +363,6 @@ export function appendActiveResponseAction(
   }
 }
 
-export function passActiveResponsePriority(state: GameState, playerId: string): GameState {
-  if (!state.activeResponse.isActive) {
-    return state
-  }
-
-  if (state.activeResponse.passedPlayers.includes(playerId)) {
-    return state
-  }
-
-  const currentPlayerIndex = state.players.findIndex(
-    (player) => player.playerId === state.activeResponse.currentPlayerId
-  )
-  if (currentPlayerIndex === -1) {
-    return state
-  }
-  const opponentIndex = 1 - currentPlayerIndex
-
-  return {
-    ...state,
-    activeResponse: {
-      ...state.activeResponse,
-      currentPlayerId: state.players[opponentIndex].playerId,
-      passedPlayers: [...state.activeResponse.passedPlayers, playerId],
-      timer: ACTIVE_RESPONSE_CONFIG.TIMER_MS,
-    },
-  }
-}
-
-export function shouldResolveActiveResponse(state: GameState): boolean {
-  if (!state.activeResponse.isActive) {
-    return false
-  }
-
-  return (
-    state.activeResponse.passedPlayers.length >= 2 ||
-    (state.activeResponse.passedPlayers.length === 1 && state.activeResponse.stack.length === 0)
-  )
-}
-
 export function clearActiveResponse(state: GameState): GameState {
   return {
     ...state,
@@ -466,13 +414,7 @@ function resolveCurrentArStackItem(
     }
   }
 
-  let newState: GameState = {
-    ...state,
-    activeResponse: {
-      ...state.activeResponse,
-      currentResolvingItem: stackItem,
-    },
-  }
+  let newState: GameState = state
 
   const events: GameEvent[] = []
   const cardDef = resolveCardDefinition(cardDefinitions, stackItem.cardId)

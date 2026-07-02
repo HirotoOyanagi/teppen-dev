@@ -3,11 +3,14 @@ import { resolveCardDefinition } from '@/core/cardId'
 
 type ActiveResponseResolutionPreviewProps = {
   stackItem: ActiveResponseStack | null
+  /** このカードの後に解決を待つスタック枚数 */
+  remainingCount?: number
   cardMap: Map<string, CardDefinition>
 }
 
 export default function ActiveResponseResolutionPreview({
   stackItem,
+  remainingCount = 0,
   cardMap,
 }: ActiveResponseResolutionPreviewProps) {
   if (!stackItem) {
@@ -21,8 +24,13 @@ export default function ActiveResponseResolutionPreview({
   return (
     <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/42 backdrop-blur-[2px]">
       <div className="w-[min(92vw,42rem)] rounded-2xl border border-cyan-400/60 bg-slate-950/92 shadow-[0_0_40px_rgba(34,211,238,0.25)] p-4 ls:p-3">
-        <div className="text-center text-cyan-200 text-xs ls:text-[10px] font-bold tracking-[0.2em] mb-3">
-          NEXT ACTION
+        <div className="mb-3 flex items-center justify-center gap-2 text-center text-cyan-200 text-xs ls:text-[10px] font-bold tracking-[0.2em]">
+          <span>効果解決中（後出しから順に発動）</span>
+          {remainingCount > 0 && (
+            <span className="rounded-full border border-cyan-400/50 bg-cyan-500/15 px-2 py-0.5 tracking-normal">
+              残り {remainingCount} 枚
+            </span>
+          )}
         </div>
         <div className="flex gap-4 ls:gap-3 items-start">
           <div className="w-40 h-56 ls:w-28 ls:h-40 shrink-0 rounded-xl overflow-hidden border-2 border-amber-400/80 bg-black">
