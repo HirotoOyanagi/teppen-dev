@@ -297,7 +297,7 @@ const GameCard: React.FC<GameCardProps> = ({
 
   const sizeClasses = {
     sm: 'w-24 h-32 ls:w-16 ls:h-22',
-    md: 'w-28 h-40 ls:w-20 ls:h-28',
+    md: 'w-28 h-40 ls:w-16 ls:h-22',
     lg: 'w-32 h-44 ls:w-20 ls:h-28',
   }
 
@@ -356,15 +356,6 @@ const GameCard: React.FC<GameCardProps> = ({
       )}
 
       {/* Cost（プレースホルダー、実際の表示はカード外レイヤーで行う） */}
-
-      {/* カード名 */}
-      {!isField && (
-        <div className="absolute top-8 left-1 right-1 z-10">
-          <div className="text-[10px] font-orbitron font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,1)] line-clamp-2">
-            {cardDef.name}
-          </div>
-        </div>
-      )}
 
       {/* Keywords */}
       {cardDef.type === 'unit' && !isField && keywords.length > 0 && (
@@ -475,30 +466,30 @@ const GameCard: React.FC<GameCardProps> = ({
         />
       )}
 
-      {/* コスト - MPアイコン（左上、カード外レイヤー） */}
+      {/* コスト - MPアイコン（左上、カード枠の内側） */}
       {!isField && (
-        <div className="absolute -top-2 -left-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-          <GameIcon name="mp" className="absolute inset-0 h-full w-full" />
-          <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${costColor || 'text-white'}`}>
+        <div className="absolute top-0.5 left-0.5 z-30 flex h-7 w-7 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }}>
+          <GameIcon name="mp" className="absolute inset-0 h-full w-full opacity-90" />
+          <span className={`relative text-sm font-orbitron font-black drop-shadow-[0_1px_2px_rgba(0,0,0,1)] ${costColor || 'text-white'}`}>
             {cardDef.cost}
           </span>
         </div>
       )}
 
-      {/* Stats — カード本体の上のレイヤー（overflow-hiddenの外） */}
+      {/* Stats — カード枠の内側（角に収める） */}
       {cardDef.type === 'unit' && (
         <>
-          {/* 攻撃力 - 赤いダイヤ型（左下） */}
-          <div className="absolute -bottom-2 -left-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-            <GameIcon name="attack" className="absolute inset-0 h-full w-full" />
-            <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] ${attackColor || 'text-white'}`}>
+          {/* 攻撃力（左下） */}
+          <div className="absolute bottom-0.5 left-0.5 z-30 flex h-7 w-7 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }}>
+            <GameIcon name="attack" className="absolute inset-0 h-full w-full opacity-90" />
+            <span className={`relative text-sm font-orbitron font-black drop-shadow-[0_1px_2px_rgba(0,0,0,1)] ${attackColor || 'text-white'}`}>
               {attack}
             </span>
           </div>
-          {/* HP - HPアイコン（右下） */}
-          <div className="absolute -bottom-2 -right-2 z-30 flex h-10 w-10 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))' }}>
-            <GameIcon name="hp" className="absolute inset-0 h-full w-full" />
-            <span className={`relative text-base font-orbitron font-black drop-shadow-[0_1px_3px_rgba(0,0,0,1)] -mt-0.5 ${hpColor || 'text-white'}`}>
+          {/* HP（右下） */}
+          <div className="absolute bottom-0.5 right-0.5 z-30 flex h-7 w-7 items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }}>
+            <GameIcon name="hp" className="absolute inset-0 h-full w-full opacity-90" />
+            <span className={`relative text-sm font-orbitron font-black drop-shadow-[0_1px_2px_rgba(0,0,0,1)] -mt-0.5 ${hpColor || 'text-white'}`}>
               {currentHp}
             </span>
           </div>
