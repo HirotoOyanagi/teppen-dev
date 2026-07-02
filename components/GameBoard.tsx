@@ -19,9 +19,8 @@ import { AbilityCardArt } from './AbilityCard'
 import GameIcon from './GameIcon'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
-import ActiveResponseOpponentStrip from './ActiveResponseOpponentStrip'
 import ActiveResponseResolutionPreview from './ActiveResponseResolutionPreview'
-import ActiveResponseTimer from './ActiveResponseTimer'
+import ActiveResponseOverlay from './ActiveResponseOverlay'
 import { mpAvailableForCardPlay } from '@/utils/activeResponseMp'
 import {
   decideOpponentAi,
@@ -1284,52 +1283,15 @@ export default function GameBoard(props: GameBoardProps) {
       )}
 
       {gameState.activeResponse.isActive && (
-        <div className="absolute inset-x-4 top-20 z-40 rounded-[1.6rem] border border-cyan-300/20 bg-gradient-to-r from-black/90 via-slate-950/95 to-black/90 px-4 py-2.5 ls:top-14 ls:px-3 ls:py-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 ls:gap-2 shadow-[0_18px_44px_rgba(0,0,0,0.3)] backdrop-blur-xl">
-          <ActiveResponseOpponentStrip
-            stack={gameState.activeResponse.stack}
-            opponentPlayerId={opponent.playerId}
-            opponentBlueMp={opponent.blueMp}
-            cardMap={cardMap}
-            className="min-w-0"
-          />
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <div className="text-white text-sm ls:text-xs font-bold tabular-nums">
-              {gameState.activeResponse.status === 'building'
-                ? 'アクティブレスポンス'
-                : '効果解決中'}
-            </div>
-            {gameState.activeResponse.status === 'building' && (
-              <div className="text-[9px] ls:text-[8px] text-cyan-200/70 leading-none">
-                後から出したカードから解決・ユニット使用不可
-              </div>
-            )}
-            {gameState.activeResponse.status === 'building' && (
-              <div className="flex items-center gap-3 ls:gap-2 pt-0.5">
-                <ActiveResponseTimer
-                  timerMs={gameState.activeResponse.timer}
-                  isMyPriority={gameState.activeResponse.currentPlayerId === 'player1'}
-                />
-                {gameState.activeResponse.currentPlayerId === 'player1' && (
-                  <button
-                    type="button"
-                    onClick={() => handleEndActiveResponse('player1')}
-                    className="rounded-full border-2 border-amber-300/75 bg-amber-400 px-4 py-1.5 ls:px-2.5 ls:py-1 text-sm ls:text-[10px] font-bold text-black shadow-[0_10px_20px_rgba(0,0,0,0.3)] transition-colors hover:bg-amber-300 whitespace-nowrap"
-                  >
-                    スルーして解決
-                  </button>
-                )}
-              </div>
-            )}
-            {gameState.activeResponse.currentResolvingItem && (
-              <div className="text-cyan-200 text-[11px] ls:text-[9px] font-bold text-center max-w-[14rem] leading-snug">
-                発動中:{' '}
-                {resolveCardDefinition(cardMap, gameState.activeResponse.currentResolvingItem.cardId)?.name ??
-                  gameState.activeResponse.currentResolvingItem.cardId}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0" />
-        </div>
+        <ActiveResponseOverlay
+          status={gameState.activeResponse.status}
+          timerMs={gameState.activeResponse.timer}
+          stack={gameState.activeResponse.stack}
+          currentPlayerId={gameState.activeResponse.currentPlayerId}
+          myPlayerId="player1"
+          cardMap={cardMap}
+          onPass={() => handleEndActiveResponse('player1')}
+        />
       )}
 
       {gameState.activeResponse.isActive && gameState.activeResponse.status === 'resolving' && (

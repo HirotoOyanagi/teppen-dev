@@ -326,6 +326,41 @@ body {
   filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.32));
 }
 
+/* アクティブレスポンス開始フラッシュ（本家PV風の金色斜めバナー） */
+@keyframes ar-flash-banner {
+  0% {
+    opacity: 0;
+    transform: translateX(-45%) skewX(-12deg) scale(0.82);
+  }
+  14% {
+    opacity: 1;
+    transform: translateX(0) skewX(-12deg) scale(1.08);
+  }
+  24% {
+    transform: translateX(0) skewX(-12deg) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translateX(2%) skewX(-12deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(10%) skewX(-12deg) scale(1.04);
+  }
+}
+
+.ar-flash-banner {
+  animation: ar-flash-banner 1.5s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+  background: linear-gradient(180deg, #fff3c2 8%, #ffd75e 38%, #b06f10 62%, #ffe79a 88%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter:
+    drop-shadow(0 3px 0 rgba(64, 34, 2, 0.9))
+    drop-shadow(0 0 26px rgba(255, 196, 64, 0.55))
+    drop-shadow(0 10px 24px rgba(0, 0, 0, 0.8));
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   .battle-player-ribbon {
     min-width: 7.5rem;
