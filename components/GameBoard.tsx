@@ -1312,13 +1312,23 @@ export default function GameBoard(props: GameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.heroArt!.cost && !gameState.activeResponse.isActive) {
+                  if (
+                    player.ap >= player.hero.heroArt!.cost &&
+                    !gameState.activeResponse.isActive &&
+                    (player.heroArtCooldownMs ?? 0) <= 0
+                  ) {
                     onAbilityDragStart('hero_art', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.heroArt.cost || gameState.activeResponse.isActive}
+                disabled={
+                  player.ap < player.hero.heroArt.cost ||
+                  gameState.activeResponse.isActive ||
+                  (player.heroArtCooldownMs ?? 0) > 0
+                }
                 className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive
+                  player.ap >= player.hero.heroArt.cost &&
+                  !gameState.activeResponse.isActive &&
+                  (player.heroArtCooldownMs ?? 0) <= 0
                     ? 'border-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.42)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1328,6 +1338,7 @@ export default function GameBoard(props: GameBoardProps) {
                   kind="art"
                   cost={player.hero.heroArt.cost}
                   usable={player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive}
+                  cooldownMs={player.heroArtCooldownMs ?? 0}
                 />
               </button>
               <div
@@ -1362,13 +1373,23 @@ export default function GameBoard(props: GameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.companion!.cost && !gameState.activeResponse.isActive) {
+                  if (
+                    player.ap >= player.hero.companion!.cost &&
+                    !gameState.activeResponse.isActive &&
+                    (player.companionCooldownMs ?? 0) <= 0
+                  ) {
                     onAbilityDragStart('companion', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.companion.cost || gameState.activeResponse.isActive}
+                disabled={
+                  player.ap < player.hero.companion.cost ||
+                  gameState.activeResponse.isActive ||
+                  (player.companionCooldownMs ?? 0) > 0
+                }
                 className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive
+                  player.ap >= player.hero.companion.cost &&
+                  !gameState.activeResponse.isActive &&
+                  (player.companionCooldownMs ?? 0) <= 0
                     ? 'border-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.38)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1378,6 +1399,7 @@ export default function GameBoard(props: GameBoardProps) {
                   kind="companion"
                   cost={player.hero.companion.cost}
                   usable={player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive}
+                  cooldownMs={player.companionCooldownMs ?? 0}
                 />
               </button>
               <div
@@ -1449,7 +1471,12 @@ export default function GameBoard(props: GameBoardProps) {
           {opponent.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-yellow-500/55 overflow-hidden">
-                <AbilityCardArt heroId={opponent.hero.id} kind="art" cost={opponent.hero.heroArt.cost} />
+                <AbilityCardArt
+                  heroId={opponent.hero.id}
+                  kind="art"
+                  cost={opponent.hero.heroArt.cost}
+                  cooldownMs={opponent.heroArtCooldownMs ?? 0}
+                />
               </div>
               <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
@@ -1470,7 +1497,12 @@ export default function GameBoard(props: GameBoardProps) {
           {opponent.hero.companion && (
             <div className="group relative flex items-center gap-1">
               <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-cyan-500/55 overflow-hidden">
-                <AbilityCardArt heroId={opponent.hero.id} kind="companion" cost={opponent.hero.companion.cost} />
+                <AbilityCardArt
+                  heroId={opponent.hero.id}
+                  kind="companion"
+                  cost={opponent.hero.companion.cost}
+                  cooldownMs={opponent.companionCooldownMs ?? 0}
+                />
               </div>
               <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>

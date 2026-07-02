@@ -199,6 +199,8 @@ export interface PlayerState {
   awakeningCount?: number // 目覚め回数
   chainFireCount?: Record<string, number> // カードID毎の使用回数（連鎖する烈火等）
   laneLocks?: Record<number, number> // レーン毎の封鎖タイマー（ms）
+  heroArtCooldownMs?: number // 必殺技使用後のクールタイム残り（ms）
+  companionCooldownMs?: number // おとも使用後のクールタイム残り（ms）
 }
 
 // Active Responseスタック

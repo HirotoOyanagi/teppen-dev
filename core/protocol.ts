@@ -44,6 +44,8 @@ export interface SanitizedPlayerState {
   levelUpCount?: number
   awakeningCount?: number
   laneLocks?: Record<number, number>
+  heroArtCooldownMs?: number
+  companionCooldownMs?: number
 }
 
 export interface SanitizedGameState {
@@ -112,5 +114,7 @@ function sanitizePlayer(player: PlayerState, isSelf: boolean): SanitizedPlayerSt
     levelUpCount: player.levelUpCount,
     awakeningCount: player.awakeningCount,
     laneLocks: player.laneLocks,
+    heroArtCooldownMs: player.heroArtCooldownMs,
+    companionCooldownMs: player.companionCooldownMs,
   }
 }

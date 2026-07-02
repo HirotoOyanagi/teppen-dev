@@ -159,6 +159,7 @@ function tryHeroArt(
   const heroArt = player.hero?.heroArt
   if (!heroArt || player.ap < heroArt.cost) return null
   if (state.activeResponse.isActive) return null
+  if ((player.heroArtCooldownMs ?? 0) > 0) return null
 
   if (!heroArt.requiresTarget) {
     return {
@@ -188,6 +189,7 @@ function tryCompanion(
   const companion = player.hero?.companion
   if (!companion || player.ap < companion.cost) return null
   if (state.activeResponse.isActive) return null
+  if ((player.companionCooldownMs ?? 0) > 0) return null
 
   if (!companion.requiresTarget) {
     return {

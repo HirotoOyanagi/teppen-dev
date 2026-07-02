@@ -369,6 +369,7 @@ const GAME_CONFIG = {
   INITIAL_HAND_SIZE: 5,
   AP_PER_MP: 1, // MP1消費でAP1獲得
   MAX_AP: Infinity, // AP上限なし（無限蓄積）
+  ABILITY_COOLDOWN_MS: 15000, // 必殺技・おとも使用後のクールタイム
   GAME_START_DELAY_MS: 3000, // マリガン完了後、開始演出の待機時間（ms）
   GAME_DURATION_MS: 5 * 60 * 1000, // ゲーム時間（5分）。カウントダウンで0で時間切れ
 } as const
@@ -504,6 +505,20 @@ export function updateGameState(
           newState.players[pi],
           events
         )
+      }
+    }
+
+    // 必殺技・おともクールタイムのカウントダウン（AR中は静止）
+    for (let pi = 0; pi < 2; pi++) {
+      const player = newState.players[pi]
+      const heroArtCd = player.heroArtCooldownMs ?? 0
+      const companionCd = player.companionCooldownMs ?? 0
+      if (heroArtCd > 0 || companionCd > 0) {
+        newState.players[pi] = {
+          ...player,
+          heroArtCooldownMs: heroArtCd > 0 ? Math.max(0, heroArtCd - deltaTime) : player.heroArtCooldownMs,
+          companionCooldownMs: companionCd > 0 ? Math.max(0, companionCd - deltaTime) : player.companionCooldownMs,
+        }
       }
     }
 
@@ -2260,14 +2275,18 @@ function processInput(
 
     if (player.ap < heroArt.cost) return { state: newState, events }
 
+    // クールタイム中は使用できない
+    if ((player.heroArtCooldownMs ?? 0) > 0) return { state: newState, events }
+
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === input.playerId
     )
 
-    // APを差し引き
+    // APを差し引き、クールタイム開始
     newState.players[playerIndex] = {
       ...player,
       ap: player.ap - heroArt.cost,
+      heroArtCooldownMs: GAME_CONFIG.ABILITY_COOLDOWN_MS,
     }
 
     // 効果発動
@@ -2295,14 +2314,18 @@ function processInput(
 
     if (player.ap < companion.cost) return { state: newState, events }
 
+    // クールタイム中は使用できない
+    if ((player.companionCooldownMs ?? 0) > 0) return { state: newState, events }
+
     const playerIndex = newState.players.findIndex(
       (p) => p.playerId === input.playerId
     )
 
-    // APを差し引き
+    // APを差し引き、クールタイム開始
     newState.players[playerIndex] = {
       ...player,
       ap: player.ap - companion.cost,
+      companionCooldownMs: GAME_CONFIG.ABILITY_COOLDOWN_MS,
     }
 
     // 効果発動

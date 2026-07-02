@@ -1029,13 +1029,23 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.heroArt!.cost && !gameState.activeResponse.isActive) {
+                  if (
+                    player.ap >= player.hero.heroArt!.cost &&
+                    !gameState.activeResponse.isActive &&
+                    (player.heroArtCooldownMs ?? 0) <= 0
+                  ) {
                     onAbilityDragStart('hero_art', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.heroArt.cost || gameState.activeResponse.isActive}
+                disabled={
+                  player.ap < player.hero.heroArt.cost ||
+                  gameState.activeResponse.isActive ||
+                  (player.heroArtCooldownMs ?? 0) > 0
+                }
                 className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive
+                  player.ap >= player.hero.heroArt.cost &&
+                  !gameState.activeResponse.isActive &&
+                  (player.heroArtCooldownMs ?? 0) <= 0
                     ? 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.6)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1045,6 +1055,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   kind="art"
                   cost={player.hero.heroArt.cost}
                   usable={player.ap >= player.hero.heroArt.cost && !gameState.activeResponse.isActive}
+                  cooldownMs={player.heroArtCooldownMs ?? 0}
                 />
               </button>
               <div
@@ -1079,13 +1090,23 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   e.preventDefault()
-                  if (player.ap >= player.hero.companion!.cost && !gameState.activeResponse.isActive) {
+                  if (
+                    player.ap >= player.hero.companion!.cost &&
+                    !gameState.activeResponse.isActive &&
+                    (player.companionCooldownMs ?? 0) <= 0
+                  ) {
                     onAbilityDragStart('companion', e.clientX, e.clientY)
                   }
                 }}
-                disabled={player.ap < player.hero.companion.cost || gameState.activeResponse.isActive}
+                disabled={
+                  player.ap < player.hero.companion.cost ||
+                  gameState.activeResponse.isActive ||
+                  (player.companionCooldownMs ?? 0) > 0
+                }
                 className={`relative touch-none w-28 h-40 ls:w-20 ls:h-28 rounded-xl border-2 overflow-hidden transition-all ${
-                  player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive
+                  player.ap >= player.hero.companion.cost &&
+                  !gameState.activeResponse.isActive &&
+                  (player.companionCooldownMs ?? 0) <= 0
                     ? 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] hover:scale-105 cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
@@ -1095,6 +1116,7 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
                   kind="companion"
                   cost={player.hero.companion.cost}
                   usable={player.ap >= player.hero.companion.cost && !gameState.activeResponse.isActive}
+                  cooldownMs={player.companionCooldownMs ?? 0}
                 />
               </button>
               <div
@@ -1165,7 +1187,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           {opponent.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-yellow-500/60 overflow-hidden">
-                <AbilityCardArt heroId={opponent.hero.id} kind="art" cost={opponent.hero.heroArt.cost} />
+                <AbilityCardArt
+                  heroId={opponent.hero.id}
+                  kind="art"
+                  cost={opponent.hero.heroArt.cost}
+                  cooldownMs={opponent.heroArtCooldownMs ?? 0}
+                />
               </div>
               <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
@@ -1186,7 +1213,12 @@ export default function OnlineGameBoard(props: OnlineGameBoardProps) {
           {opponent.hero.companion && (
             <div className="group relative flex items-center gap-1">
               <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-cyan-500/60 overflow-hidden">
-                <AbilityCardArt heroId={opponent.hero.id} kind="companion" cost={opponent.hero.companion.cost} />
+                <AbilityCardArt
+                  heroId={opponent.hero.id}
+                  kind="companion"
+                  cost={opponent.hero.companion.cost}
+                  cooldownMs={opponent.companionCooldownMs ?? 0}
+                />
               </div>
               <div className="w-10 h-10 ls:w-9 ls:h-9 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/40 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
