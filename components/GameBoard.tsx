@@ -15,6 +15,7 @@ import {
 import { shouldEnterCardTargetMode } from '@/core/cardPlayFlow'
 import { applyTestModeSetup } from '@/core/testMode'
 import GameCard from './GameCard'
+import { AbilityCardArt } from './AbilityCard'
 import GameIcon from './GameIcon'
 import HeroPortrait from './HeroPortrait'
 import ManaBar from './ManaBar'
@@ -1348,16 +1349,18 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.heroArt.cost}
-                className={`battle-ap-card relative touch-none w-24 h-32 ls:w-16 ls:h-24 border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-xl border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.heroArt.cost
                     ? 'border-yellow-300 shadow-[0_0_16px_rgba(234,179,8,0.42)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/40 via-transparent to-black/20" />
-                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-xs font-bold px-1.5 rounded-tl">
-                  {player.hero.heroArt.cost}AP
-                </span>
+                <AbilityCardArt
+                  heroId={player.hero.id}
+                  kind="art"
+                  cost={player.hero.heroArt.cost}
+                  usable={player.ap >= player.hero.heroArt.cost}
+                />
               </button>
               <div
                 className={`w-9 h-9 ls:w-8 ls:h-8 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
@@ -1396,16 +1399,18 @@ export default function GameBoard(props: GameBoardProps) {
                   }
                 }}
                 disabled={player.ap < player.hero.companion.cost}
-                className={`battle-amp-card relative touch-none w-24 h-32 ls:w-16 ls:h-24 border-2 overflow-hidden transition-all ${
+                className={`relative touch-none w-24 h-32 ls:w-16 ls:h-24 rounded-xl border-2 overflow-hidden transition-all ${
                   player.ap >= player.hero.companion.cost
                     ? 'border-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.38)] hover:scale-[1.03] cursor-grab'
                     : 'border-gray-600 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-100/32 via-transparent to-black/18" />
-                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-xs font-bold px-1.5 rounded-tl">
-                  {player.hero.companion.cost}AP
-                </span>
+                <AbilityCardArt
+                  heroId={player.hero.id}
+                  kind="companion"
+                  cost={player.hero.companion.cost}
+                  usable={player.ap >= player.hero.companion.cost}
+                />
               </button>
               <div
                 className={`w-9 h-9 ls:w-8 ls:h-8 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 ${
@@ -1475,11 +1480,8 @@ export default function GameBoard(props: GameBoardProps) {
             <div className="flex gap-1.5 ls:gap-1">
           {opponent.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
-              <div className="relative w-11 h-20 ls:w-10 ls:h-16 rounded-[1rem] border-2 border-yellow-500/55 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/80 to-amber-700/80" />
-                <span className="absolute bottom-0 right-0 bg-black/80 text-yellow-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
-                  {opponent.hero.heroArt.cost}AP
-                </span>
+              <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-yellow-500/55 overflow-hidden">
+                <AbilityCardArt heroId={opponent.hero.id} kind="art" cost={opponent.hero.heroArt.cost} />
               </div>
               <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
@@ -1499,11 +1501,8 @@ export default function GameBoard(props: GameBoardProps) {
           )}
           {opponent.hero.companion && (
             <div className="group relative flex items-center gap-1">
-              <div className="relative w-11 h-20 ls:w-10 ls:h-16 rounded-[1rem] border-2 border-cyan-500/55 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/80 to-blue-700/80" />
-                <span className="absolute bottom-0 right-0 bg-black/80 text-cyan-300 text-[10px] ls:text-[9px] font-bold px-1 rounded-tl">
-                  {opponent.hero.companion.cost}AP
-                </span>
+              <div className="relative w-14 h-[4.7rem] ls:w-10 ls:h-[3.35rem] rounded-lg border-2 border-cyan-500/55 overflow-hidden">
+                <AbilityCardArt heroId={opponent.hero.id} kind="companion" cost={opponent.hero.companion.cost} />
               </div>
               <div className="w-8 h-8 ls:w-7 ls:h-7 hex-clip flex flex-col items-center justify-center gap-0 border shrink-0 border-white/35 bg-black/60">
                 <span className="text-[6px] ls:text-[5px] font-bold text-white/70 uppercase">AP</span>
