@@ -8,9 +8,6 @@
   --live2d-primary: #ef4444;
   --live2d-secondary: #f59e0b;
   --live2d-glow: rgba(248, 113, 113, 0.38);
-  --live2d-look-x: 0px;
-  --live2d-look-y: 0px;
-  --live2d-tilt: 0deg;
   --live2d-battle-scale: 1;
   --live2d-battle-y: 0%;
 }
@@ -49,10 +46,7 @@
   bottom: -4%;
   width: min(46rem, 72%);
   height: 104%;
-  transform:
-    translateX(-50%)
-    translate(var(--live2d-look-x), var(--live2d-look-y))
-    rotate(var(--live2d-tilt));
+  transform: translateX(-50%);
   transform-origin: 50% 86%;
   animation: live2dBreath 4.4s ease-in-out infinite;
   z-index: 2;
@@ -62,8 +56,6 @@
 .stage[data-side='right'] .rig {
   transform:
     translateX(-50%)
-    translate(var(--live2d-look-x), var(--live2d-look-y))
-    rotate(var(--live2d-tilt))
     scaleX(-1);
 }
 
@@ -73,18 +65,14 @@
   bottom: -12%;
   transform:
     translateX(-50%)
-    translate(var(--live2d-look-x), var(--live2d-look-y))
     translateY(var(--live2d-battle-y))
-    rotate(var(--live2d-tilt))
     scale(var(--live2d-battle-scale));
 }
 
 .stage[data-variant='battle'][data-side='right'] .rig {
   transform:
     translateX(-50%)
-    translate(var(--live2d-look-x), var(--live2d-look-y))
     translateY(var(--live2d-battle-y))
-    rotate(var(--live2d-tilt))
     scaleX(-1)
     scale(var(--live2d-battle-scale));
 }
@@ -163,9 +151,6 @@
   clip-path: inset(0 18% 55% 18%);
   opacity: 0.2;
   mix-blend-mode: screen;
-  transform:
-    translate(calc(var(--live2d-look-x) * 0.24), calc(var(--live2d-look-y) * 0.2))
-    rotate(calc(var(--live2d-tilt) * 0.55));
   transform-origin: 50% 22%;
   animation: live2dHead 5.6s ease-in-out infinite;
 }
@@ -180,7 +165,6 @@
   background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.46), transparent);
   filter: blur(5px);
   opacity: 0;
-  transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12));
   animation: live2dBlink 5.8s ease-in-out infinite;
 }
 
@@ -194,47 +178,10 @@
   background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--live2d-secondary) 50%, white), transparent 65%);
   filter: blur(8px);
   opacity: 0.26;
-  transform: translate(calc(var(--live2d-look-x) * 0.18), calc(var(--live2d-look-y) * 0.16));
   animation: live2dBlinkGlow 5.6s ease-in-out infinite;
 }
 
-.particleA,
-.particleB,
-.particleC {
-  position: absolute;
-  width: 0.44rem;
-  aspect-ratio: 1;
-  border-radius: 999px;
-  background: var(--live2d-secondary);
-  box-shadow: 0 0 14px var(--live2d-secondary);
-  opacity: 0.74;
-  z-index: 1;
-  animation: live2dParticle 6s ease-in-out infinite;
-}
-
-.particleA {
-  left: 24%;
-  top: 28%;
-}
-
-.particleB {
-  right: 26%;
-  top: 46%;
-  animation-delay: -2s;
-  transform: scale(0.8);
-}
-
-.particleC {
-  left: 62%;
-  top: 18%;
-  animation-delay: -4s;
-  transform: scale(0.7);
-}
-
 .stage[data-variant='avatar'] .aura,
-.stage[data-variant='avatar'] .particleA,
-.stage[data-variant='avatar'] .particleB,
-.stage[data-variant='avatar'] .particleC,
 .stage[data-variant='avatar'] .torso,
 .stage[data-variant='avatar'] .hair,
 .stage[data-variant='avatar'] .lower,
@@ -334,23 +281,11 @@
   88%,
   100% {
     opacity: 0;
-    transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12)) scaleY(0.2);
+    transform: scaleY(0.2);
   }
   92%,
   95% {
     opacity: 0.34;
-    transform: translate(calc(var(--live2d-look-x) * 0.12), calc(var(--live2d-look-y) * 0.12)) scaleY(1);
-  }
-}
-
-@keyframes live2dParticle {
-  0%,
-  100% {
-    translate: 0 0;
-    opacity: 0.18;
-  }
-  45% {
-    translate: 0 -1.4rem;
-    opacity: 0.86;
+    transform: scaleY(1);
   }
 }

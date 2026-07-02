@@ -166,14 +166,17 @@ const HeroPortrait: React.FC<HeroPortraitProps> = ({ player, side, cardMap }) =>
           overlayPosition
         } ls:top-[57%]`}
       >
-        <div
-          className={`battle-hp-orb relative flex h-[5.7rem] w-[5.7rem] items-center justify-center rounded-full ${
-            player.hp < 10 ? 'saturate-50 hue-rotate-[120deg]' : ''
-          }`}
-        >
-          <div className="absolute inset-[0.35rem] rounded-full border border-white/12" />
+        <div className="relative flex h-[5.7rem] w-[5.7rem] ls:h-[4rem] ls:w-[4rem] items-center justify-center">
+          <img
+            src="/images/ui/ui-hp-orb.png"
+            alt=""
+            className={`absolute inset-0 h-full w-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] select-none pointer-events-none ${
+              player.hp < 10 ? 'saturate-50 hue-rotate-[120deg]' : ''
+            }`}
+            draggable={false}
+          />
           <span
-            className={`font-orbitron font-bold text-4xl ls:text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.92)] ${
+            className={`relative font-orbitron font-bold text-4xl ls:text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.92)] ${
               player.hp < 10 ? 'text-red-200' : 'text-emerald-50'
             }`}
           >

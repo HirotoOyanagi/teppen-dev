@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import type { Hero } from '@/core/types'
 import styles from './HeroLive2D.module.css'
 
@@ -47,26 +47,13 @@ export default function HeroLive2D({
   const imageUrl = hero.live2dImageUrl || FALLBACK_IMAGE
   const accent = useMemo(() => resolveAccent(hero), [hero])
   const battleFit = BATTLE_MODEL_FIT[hero.id] || BATTLE_MODEL_FIT.hero_red_reisia
-  const [look, setLook] = useState({ x: 0, y: 0 })
 
   const style: HeroLive2DStyle = {
     '--live2d-primary': accent.primary,
     '--live2d-secondary': accent.secondary,
     '--live2d-glow': accent.glow,
-    '--live2d-look-x': `${look.x}px`,
-    '--live2d-look-y': `${look.y}px`,
-    '--live2d-tilt': `${look.x * 0.35}deg`,
     '--live2d-battle-scale': `${battleFit.scale}`,
     '--live2d-battle-y': battleFit.y,
-  }
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const centerX = rect.left + rect.width / 2
-    const centerY = rect.top + rect.height / 2
-    const x = Math.max(-10, Math.min(10, ((event.clientX - centerX) / rect.width) * 20))
-    const y = Math.max(-7, Math.min(7, ((event.clientY - centerY) / rect.height) * 14))
-    setLook({ x, y })
   }
 
   return (
@@ -75,14 +62,9 @@ export default function HeroLive2D({
       data-variant={variant}
       data-side={side}
       style={style}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={() => setLook({ x: 0, y: 0 })}
       aria-label={hero.name}
     >
       <div className={styles.aura} />
-      <div className={styles.particleA} />
-      <div className={styles.particleB} />
-      <div className={styles.particleC} />
 
       <div className={styles.rig}>
         <img className={`${styles.layer} ${styles.shadow}`} src={imageUrl} alt="" aria-hidden />

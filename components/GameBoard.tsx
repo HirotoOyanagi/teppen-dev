@@ -224,11 +224,13 @@ function TimerDisplay({ timeRemainingMs }: { timeRemainingMs: number }) {
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   return (
-    <div className="rounded-full border border-amber-300/25 bg-amber-200/10 px-5 py-1.5 shadow-[0_10px_25px_rgba(0,0,0,0.28)] backdrop-blur-md">
-      <span className={`font-orbitron font-bold text-xl ls:text-base tabular-nums ${remaining <= 10 * 1000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'}`}>
-        {m}:{String(s).padStart(2, '0')}
-      </span>
-    </div>
+    <span
+      className={`font-orbitron font-bold text-xl ls:text-sm tabular-nums drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)] ${
+        remaining <= 10 * 1000 ? 'text-red-400 animate-pulse' : 'text-yellow-300'
+      }`}
+    >
+      {m}:{String(s).padStart(2, '0')}
+    </span>
   )
 }
 
@@ -1226,28 +1228,46 @@ export default function GameBoard(props: GameBoardProps) {
       {/* Header */}
       <div className="pointer-events-none relative z-20 flex w-full items-start justify-between px-5 pt-3 ls:px-2 ls:pt-1">
         <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
-          <button type="button" aria-label="降参" className="battle-top-button">
-            <span className="battle-flag-icon" />
+          <button type="button" aria-label="降参" className="relative h-12 w-12 ls:h-8 ls:w-8 transition-transform hover:scale-105 active:scale-95">
+            <img
+              src="/images/ui/ui-btn-flag.png"
+              alt=""
+              className="h-full w-full object-contain drop-shadow-[0_3px_6px_rgba(0,0,0,0.6)] select-none"
+              draggable={false}
+            />
           </button>
-          <button type="button" aria-label="一時停止" className="battle-top-button">
-            <span className="battle-pause-icon" />
+          <button type="button" aria-label="一時停止" className="relative h-12 w-12 ls:h-8 ls:w-8 transition-transform hover:scale-105 active:scale-95">
+            <img
+              src="/images/ui/ui-btn-pause.png"
+              alt=""
+              className="h-full w-full object-contain drop-shadow-[0_3px_6px_rgba(0,0,0,0.6)] select-none"
+              draggable={false}
+            />
           </button>
           <div className="battle-player-ribbon ml-2 ls:ml-1">PLAYER1</div>
         </div>
-        <div className="battle-center-chrome pointer-events-auto">
-          {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime ? (
-            <TimerDisplay
-              timeRemainingMs={
-                gameState.activeResponse.isActive
-                  ? gameState.activeResponse.timer
-                  : gameState.timeRemainingMs ?? 5 * 60 * 1000
-              }
-            />
-          ) : (
-            <div className="rounded-full border border-amber-200/25 bg-black/55 px-5 py-1.5 text-xl font-bold text-yellow-300 ls:px-3 ls:py-1 ls:text-sm">
-              5:00
-            </div>
-          )}
+        <div className="pointer-events-auto relative flex h-14 ls:h-9 items-center justify-center">
+          <img
+            src="/images/ui/ui-timer-frame.png"
+            alt=""
+            className="h-full w-auto object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)] pointer-events-none select-none"
+            draggable={false}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            {gameState.phase === 'playing' && Date.now() >= gameState.gameStartTime ? (
+              <TimerDisplay
+                timeRemainingMs={
+                  gameState.activeResponse.isActive
+                    ? gameState.activeResponse.timer
+                    : gameState.timeRemainingMs ?? 5 * 60 * 1000
+                }
+              />
+            ) : (
+              <span className="font-orbitron text-xl ls:text-sm font-bold tabular-nums text-yellow-300 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]">
+                5:00
+              </span>
+            )}
+          </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-2 ls:gap-1.5">
           <div className="battle-player-ribbon is-enemy mr-2 ls:mr-1">PLAYER2</div>
@@ -1315,7 +1335,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 必殺技・おとも（左下・カードより少し小さいサイズ） */}
       {gameState.phase === 'playing' && (player.hero.heroArt || player.hero.companion) && (
-        <div className="battle-ability-dock absolute bottom-28 left-4 z-30 flex gap-3 rounded-[1.35rem] px-3 py-3 ls:bottom-18 ls:left-2 ls:gap-1.5 ls:px-2 ls:py-2">
+        <div className="absolute bottom-28 left-4 z-30 flex gap-3 ls:bottom-18 ls:left-2 ls:gap-1.5">
           {player.hero.heroArt && (
             <div className="group relative flex items-center gap-1">
               <button
@@ -1417,7 +1437,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* 相手のEXポケット（アーツの左隣）＋必殺技・おとも（右上・表示のみ） */}
       {gameState.phase === 'playing' && (
-        <div className="battle-opponent-dock absolute top-24 right-4 z-30 flex flex-row items-end gap-2 rounded-[1.15rem] px-2.5 py-2 ls:top-14 ls:right-2 ls:gap-1 ls:px-2 ls:py-1.5">
+        <div className="absolute top-24 right-4 z-30 flex flex-row items-end gap-2 ls:top-14 ls:right-2 ls:gap-1">
           <div className="flex shrink-0 gap-1" aria-label="相手のEXポケット">
             {[0, 1].map((slotIdx) => {
               const rawId = opponent.exPocket[slotIdx]
@@ -1745,8 +1765,6 @@ export default function GameBoard(props: GameBoardProps) {
 
       {/* Footer Area */}
       <div className="relative z-20 flex h-72 ls:h-36 flex-col items-center justify-end pb-5 ls:pb-2">
-        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[78%] w-[min(96vw,76rem)] -translate-x-1/2 rounded-t-[2.2rem] battle-hud-shell" />
-        <div className="pointer-events-none absolute bottom-[calc(78%-1px)] left-1/2 h-px w-[min(82vw,62rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-100/70 to-transparent" />
         <div className="relative flex w-full max-w-[72rem] justify-center px-6 ls:px-2">
         <div className="battle-hand-row flex gap-3 ls:gap-1 items-end mb-6 ls:mb-1">
           {/* 手札 */}
