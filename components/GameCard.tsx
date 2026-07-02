@@ -444,7 +444,7 @@ const GameCard: React.FC<GameCardProps> = ({
         src={frameAsset}
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 z-20 h-full w-full object-fill pointer-events-none select-none"
+        className="absolute inset-0 z-20 h-full w-full origin-top scale-y-[1.06] object-fill pointer-events-none select-none"
         draggable={false}
         loading="lazy"
       />
